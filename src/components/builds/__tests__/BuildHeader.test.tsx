@@ -81,7 +81,7 @@ describe('BuildHeader — the total counts, and the accessible value stays true'
 
     // Not "$0", and not a frame of the count. A screen reader user is told what
     // the build costs, immediately.
-    expect(screen.getByTestId('count-up').getAttribute('aria-label')).toBe('$1,540');
+    expect(screen.getByTestId('count-up').getAttribute('aria-label')).toBe('$1,540.00');
     expect(screen.getByTestId('count-up').getAttribute('data-count-value')).toBe('1540');
   });
 
@@ -93,7 +93,7 @@ describe('BuildHeader — the total counts, and the accessible value stays true'
         items={[item('i1', 'p1', 1000), item('i2', 'p2', 9999)]}
       />,
     );
-    expect(screen.getByTestId('count-up').getAttribute('aria-label')).toBe('$1,000');
+    expect(screen.getByTestId('count-up').getAttribute('aria-label')).toBe('$1,000.00');
   });
 
   it('leaves the TBD caveat outside the counter', () => {
@@ -106,7 +106,7 @@ describe('BuildHeader — the total counts, and the accessible value stays true'
         items={[item('i1', 'p1', 500), item('i2', 'p1', null)]}
       />,
     );
-    expect(screen.getByTestId('count-up').getAttribute('aria-label')).toBe('$500');
+    expect(screen.getByTestId('count-up').getAttribute('aria-label')).toBe('$500.00');
     expect(screen.getByText('+ TBD items')).not.toBeNull();
   });
 });

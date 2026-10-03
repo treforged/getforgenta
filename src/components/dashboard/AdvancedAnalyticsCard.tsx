@@ -24,7 +24,7 @@ function BreakdownTooltip({ active, payload }: BreakdownTooltipProps) {
   return (
     <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
       <p className="font-medium">{payload[0].payload.name}</p>
-      <p className="text-primary font-semibold">{formatCurrency(payload[0].value, false)}</p>
+      <p className="text-primary font-semibold">{formatCurrency(payload[0].value)}</p>
     </div>
   );
 }
@@ -61,9 +61,9 @@ export default function AdvancedAnalyticsCard() {
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Advanced Analytics</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard label="Debt-to-Income" value={dti !== null ? `${dti.toFixed(1)}%` : '—'} sub={dti === null ? 'no debt data' : dti < 28 ? 'healthy' : dti < 43 ? 'caution' : 'high risk'} accent={dti === null ? 'silver' : dti < 28 ? 'success' : dti < 43 ? 'gold' : 'crimson'} icon={Percent} />
-          <MetricCard label="Annual Savings" value={formatCurrency(summary.cashFlow * 12, false)} sub="projected" accent={summary.cashFlow >= 0 ? 'success' : 'crimson'} icon={TrendingUp} />
+          <MetricCard label="Annual Savings" value={formatCurrency(summary.cashFlow * 12)} sub="projected" accent={summary.cashFlow >= 0 ? 'success' : 'crimson'} icon={TrendingUp} />
           <MetricCard label="Emergency Runway" value={emergencyRunwayMonths !== null ? `${emergencyRunwayMonths.toFixed(1)} mo` : '—'} sub="above floor / monthly burn" accent={emergencyRunwayMonths === null ? 'silver' : emergencyRunwayMonths >= 3 ? 'success' : emergencyRunwayMonths >= 1 ? 'gold' : 'crimson'} icon={Shield} />
-          <MetricCard label="Avg Monthly Spend" value={avgMonthlySpend > 0 ? formatCurrency(avgMonthlySpend, false) : '—'} sub="5-month avg" accent="silver" icon={Wallet} />
+          <MetricCard label="Avg Monthly Spend" value={avgMonthlySpend > 0 ? formatCurrency(avgMonthlySpend) : '—'} sub="5-month avg" accent="silver" icon={Wallet} />
         </div>
         <div className="grid lg:grid-cols-2 gap-5 pt-2 border-t border-border/40">
           {/* Assets Breakdown */}
@@ -89,7 +89,7 @@ export default function AdvancedAnalyticsCard() {
                       <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
                       <span className="font-medium truncate">{a.name}</span>
                     </div>
-                    <span className="font-bold font-display text-success whitespace-nowrap shrink-0">{formatCurrency(Number(a.value), false)}</span>
+                    <span className="font-bold font-display text-success whitespace-nowrap shrink-0">{formatCurrency(Number(a.value))}</span>
                   </div>
                 ))}
                 {allAssetsForBreakdown.length === 0 && <p className="text-xs text-muted-foreground">No assets yet.</p>}
@@ -119,7 +119,7 @@ export default function AdvancedAnalyticsCard() {
                       <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
                       <span className="font-medium truncate">{l.name}</span>
                     </div>
-                    <span className="font-bold font-display text-destructive-text whitespace-nowrap shrink-0">{formatCurrency(Number(l.balance), false)}</span>
+                    <span className="font-bold font-display text-destructive-text whitespace-nowrap shrink-0">{formatCurrency(Number(l.balance))}</span>
                   </div>
                 ))}
                 {allLiabilitiesForBreakdown.length === 0 && <p className="text-xs text-muted-foreground">No liabilities yet.</p>}

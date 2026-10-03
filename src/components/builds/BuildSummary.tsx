@@ -1,8 +1,9 @@
 import CountUp from '@/components/shared/CountUp';
 import type { CarBuildPhase, CarBuildItem } from '@/lib/types';
+import { formatCurrency } from '@/lib/calculations';
 
 /** `$12,400` — the same formatting the totals had before they animated. */
-const money = (n: number) => `$${n.toLocaleString()}`;
+const money = (n: number) => formatCurrency(n);
 
 interface BuildSummaryProps {
   phases: CarBuildPhase[];

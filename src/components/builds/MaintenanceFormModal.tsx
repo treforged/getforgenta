@@ -7,6 +7,7 @@ import { SERVICE_PRESETS, computeNextDue } from '@/lib/car-maintenance';
 import type { CarMaintenanceLog } from '@/lib/types';
 import type { TransactionRow } from '@/hooks/useSupabaseData';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
+import { formatCurrency } from '@/lib/calculations';
 
 export type MaintenanceFormValues = {
   service: string;
@@ -479,7 +480,7 @@ export default function MaintenanceFormModal({
                   .slice(0, 100)
                   .map(t => (
                     <option key={t.id} value={t.id}>
-                      {t.date} · ${Number(t.amount).toLocaleString()} · {t.note || t.category}
+                      {t.date} · {formatCurrency(Number(t.amount))} · {t.note || t.category}
                     </option>
                   ))}
               </select>

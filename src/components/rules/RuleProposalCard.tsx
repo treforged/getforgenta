@@ -63,7 +63,7 @@ export default function RuleProposalCard({
         data-testid="rule-proposal-amount"
         className={`text-5xl font-display font-bold leading-none ${income ? 'text-success' : 'text-foreground'}`}
       >
-        {income ? '+' : '-'}{formatCurrency(proposal.amount, false)}
+        {income ? '+' : '-'}{formatCurrency(proposal.amount)}
       </p>
 
       <div className="flex flex-wrap items-center gap-2">

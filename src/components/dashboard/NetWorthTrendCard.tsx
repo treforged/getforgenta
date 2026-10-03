@@ -16,7 +16,7 @@ function NWTooltip({ active, payload }: NWTooltipProps) {
   return (
     <div className="bg-card border border-border px-3 py-2 text-xs" style={{ borderRadius: 'var(--radius)' }}>
       <p className="font-medium">{payload[0].payload.month}</p>
-      <p className="text-primary font-semibold">{formatCurrency(payload[0].value, false)}</p>
+      <p className="text-primary font-semibold">{formatCurrency(payload[0].value)}</p>
     </div>
   );
 }
@@ -66,7 +66,7 @@ export default function NetWorthTrendCard({
           <ArrowUpRight size={9} /> Monthly Change
         </p>
         <p className={`text-lg sm:text-2xl font-display font-bold mt-0.5 ${monthlyChange === null ? 'text-muted-foreground' : monthlyChange >= 0 ? 'text-success' : 'text-destructive-text'}`}>
-          {monthlyChange !== null ? (monthlyChange >= 0 ? '+' : '') + formatCurrency(monthlyChange, false) : '—'}
+          {monthlyChange !== null ? (monthlyChange >= 0 ? '+' : '') + formatCurrency(monthlyChange) : '—'}
         </p>
         <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-0.5">
           {monthlyChange === null ? 'no history yet' : 'since roughly a month ago'}

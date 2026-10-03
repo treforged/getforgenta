@@ -190,7 +190,7 @@ function MiniPieChart({ title, data }: { title: string; data: { label: string; v
             <div key={i} className="flex items-center gap-1.5 text-xs min-w-0">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
               <span className="text-muted-foreground truncate">{s.label}</span>
-              <span className="text-foreground font-medium ml-auto pl-2 tabular-nums">${s.value.toLocaleString()}</span>
+              <span className="text-foreground font-medium ml-auto pl-2 tabular-nums">{formatCurrency(s.value)}</span>
             </div>
           ))}
         </div>
@@ -1199,9 +1199,9 @@ export default function AiAdvisor() {
   const renderSnapshotBar = () => (
     <div className="px-4 py-2 lg:px-6 border-b border-border/30 shrink-0 grid grid-cols-3 gap-2">
       {[
-        { label: 'Income',     value: formatCurrency(snapshot.monthlyIncome, false) },
-        { label: 'Expenses',   value: formatCurrency(snapshot.monthlyExpenses, false) },
-        { label: 'Total Debt', value: formatCurrency(snapshot.totalDebt, false) },
+        { label: 'Income',     value: formatCurrency(snapshot.monthlyIncome) },
+        { label: 'Expenses',   value: formatCurrency(snapshot.monthlyExpenses) },
+        { label: 'Total Debt', value: formatCurrency(snapshot.totalDebt) },
       ].map(k => (
         <div key={k.label} className="bg-secondary/50 rounded-md px-2.5 py-1.5">
           <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{k.label}</p>

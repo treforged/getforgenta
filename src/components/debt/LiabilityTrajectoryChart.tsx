@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Landmark, type LucideIcon } from 'lucide-react';
-import { formatYAxisTick } from '@/lib/calculations';
+import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import { buildLiabilityTrajectory, type LiabilityTrajectoryInput } from '@/lib/liability-trajectory';
 // The tap fix now lives in one place because five other charts need it too - see chart-touch.ts
@@ -86,7 +86,7 @@ export default function LiabilityTrajectoryChart({ title, debts, storageKey, ico
           <XAxis dataKey="month" tick={{ fontSize: 10, fill: AXIS_TICK_FILL, textAnchor: 'end' }} angle={-45} height={50} interval={tickInterval} />
           <YAxis tick={{ fontSize: 10, fill: AXIS_TICK_FILL }} tickFormatter={formatYAxisTick} />
           <RechartsTooltip
-            formatter={(v, name) => [`$${Number(v).toLocaleString()}`, name]}
+            formatter={(v, name) => [formatCurrency(Number(v)), name]}
             labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}
             itemStyle={{ fontSize: 13 }}
             contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }}

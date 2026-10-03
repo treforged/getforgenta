@@ -1478,7 +1478,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <CartesianGrid stroke="hsl(0, 0%, 18%)" strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: AXIS_TICK_FILL, textAnchor: 'end' }} angle={-45} height={50} interval={chartTickInterval} />
                 <YAxis tick={{ fontSize: 10, fill: AXIS_TICK_FILL }} tickFormatter={formatYAxisTick} />
-                <RechartsTooltip formatter={(v, name) => [`$${Number(v).toLocaleString()}`, name]} labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} itemStyle={{ fontSize: 13 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }} />
+                <RechartsTooltip formatter={(v, name) => [formatCurrency(Number(v)), name]} labelStyle={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }} itemStyle={{ fontSize: 13 }} contentStyle={{ background: 'hsl(240, 6%, 10%)', border: '1px solid hsl(240, 4%, 20%)', borderRadius: '4px', fontSize: 13, padding: '8px 12px' }} />
                 <Legend formatter={legendLabel} wrapperStyle={{ fontSize: 10 }} />
                 {chartSeries.map(p => (
                   <Line key={p.card.name} type="monotone" dataKey={p.card.name} stroke={p.card.color} strokeWidth={2} dot={false} />

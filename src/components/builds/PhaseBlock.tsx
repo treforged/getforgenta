@@ -9,6 +9,7 @@ import type { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { TransactionRow } from '@/hooks/useSupabaseData';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { formatCurrency } from '@/lib/calculations';
 
 // eslint-disable-next-line react-refresh/only-export-components -- small shared constant, not worth a separate file
 export const PHASE_COLORS = [
@@ -364,7 +365,7 @@ export default function PhaseBlock({
             `min-w-[38px]` keeps the group narrow enough to sit beside the title on a tablet. */}
         <div className="flex items-center gap-3 shrink-0 ml-auto">
           <div className="font-mono text-base font-medium text-right" style={{ color: 'hsl(var(--primary))' }}>
-            {phaseTotal > 0 ? `$${phaseTotal.toLocaleString()}` : <span className="text-[13px] text-muted-foreground">TBD</span>}
+            {phaseTotal > 0 ? formatCurrency(phaseTotal) : <span className="text-[13px] text-muted-foreground">TBD</span>}
           </div>
 
           <button onClick={e => { e.stopPropagation(); onUpdatePhase(phase.id, { hidden: !phase.hidden }); }} title={phase.hidden ? 'Phase hidden (planned), tap to show' : 'Hide phase (mark as planned)'} className="icon-btn min-w-[38px] -my-2.5 shrink-0 text-muted-foreground hover:text-foreground transition-colors">
@@ -471,7 +472,7 @@ export default function PhaseBlock({
                         )}
                         {linkedTx && (
                           <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-success/40 text-success/80">
-                            ✓ ${Number(linkedTx.amount).toLocaleString()} · {linkedTx.date}
+                            ✓ {formatCurrency(Number(linkedTx.amount))} · {linkedTx.date}
                           </span>
                         )}
                       </div>
@@ -485,7 +486,7 @@ export default function PhaseBlock({
 
                   <div className="text-right shrink-0 flex flex-col items-end gap-1">
                     {item.price !== null
-                      ? <span className="font-mono text-sm text-foreground">${item.price.toLocaleString()}</span>
+                      ? <span className="font-mono text-sm text-foreground">{formatCurrency(item.price)}</span>
                       : <span className="font-mono text-[12px] text-muted-foreground">TBD</span>
                     }
                     <button onClick={e => openItemEditPanel(item, e)} className="text-xs font-mono px-2.5 py-1.5 min-h-[32px] border border-border rounded text-muted-foreground hover:border-primary hover:text-primary transition-colors">

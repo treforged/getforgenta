@@ -1,8 +1,9 @@
 import CountUp from '@/components/shared/CountUp';
 import type { CarBuild, CarBuildPhase, CarBuildItem } from '@/lib/types';
+import { formatCurrency } from '@/lib/calculations';
 
-/** `$12,400` — the same formatting the total had before it animated. */
-const money = (n: number) => `$${n.toLocaleString()}`;
+/** `$12,400.00` - cents, like every other money figure (ask 4066ff23). */
+const money = (n: number) => formatCurrency(n);
 
 const PHASE_COLORS = [
   '#c8a84b', '#ba4a4a', '#4a8cba', '#8a5ba3', '#3a8a5a',
