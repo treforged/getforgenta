@@ -42,7 +42,14 @@ R-NOW56 (10-03 evening, Ada getforgenta-ce; hit the 175-call HANDOFF GATE). STAR
        (b) Dashboard banner listing flagged connections; (c) pressed proof - no @forgenta.test user has a Plaid item,
        so set the flag on a throwaway SQL row or check Tre's 10 items after the nightly sync
        (`select institution_name, liabilities_consent_required from financial_connections where provider='plaid'`).
-    2a. [~] 4066ff23: display leftovers SHIPPED ace4c410 (AiAdvisor, NetWorthTrend, AdvancedAnalytics, RuleProposal,
+    NOW (10-03 ~18:45): [x] 4066ff23 CLOSED (engine rows cents committed). [x] layout 10/11 items 4edb5476 (Forecast,
+       Budget, Goals, Settings, Account, Dashboard). [~] Debt agent (CreditCardEngine/DebtPayoff/UtilizationPanel) still
+       running: Tre's desktop screenshot alignment + item #4; its edit currently FAILS segment-selected-state.gate - told it.
+       Review its frames at 390/975/1440, run test:tz + check:debt-layout etc, commit, then close 5d53be95.
+       [~] ec48da25: helper src/lib/card-pay-behavior.ts (06295e9d) NOT WIRED. FINDING: Discover autopays the MINIMUM on the 1st
+       ($198.17 10-01) but payment_preference='full'. Next: show the inferred behaviour on the Debt card row (after the
+       Debt agent lands) and ask Tre ONCE whether Discover is really paid in full. 10-04 13:00Z read-back still due.
+    2a. [~] 4066ff23 (old): display leftovers SHIPPED ace4c410 (AiAdvisor, NetWorthTrend, AdvancedAnalytics, RuleProposal,
        Debt + liability tooltips, vehicle Builds). Engine rows (netWorth..monthMinSafe, ccDisplayBalance, totalCCPurchases,
        ccDebtBalance, recommendedDebtPayment) -> cents IN WORKING TREE, src/lib+hooks+contexts 4774 green incl. real
        fixtures; popup-decimals test now rounds to cents; breach-levers Aug 2027 re-pinned 1571->1572. Commit after full
@@ -12801,33 +12808,52 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 17:03 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 18:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (24 file(s)):**
 
 ```
 M deno.lock
+ M src/components/dashboard/DashboardOverviewStrip.tsx
+ M src/components/dashboard/DebtRecommendationsWidget.tsx
+ M src/components/dashboard/MonthlyBudgetSnapshot.tsx
+ M src/components/debt/CreditCardEngine.tsx
+ M src/components/debt/UtilizationPanel.tsx
+ M src/components/savings/SurplusRankingSection.tsx
+ M src/components/settings/LeaderboardShareToggles.tsx
+ M src/lib/__tests__/breach-levers.realData.test.ts
+ M src/lib/__tests__/forecast-popup-decimals.test.ts
+ M src/lib/forecast-engine.ts
+ M src/pages/BudgetControl.tsx
+ M src/pages/Dashboard.tsx
+ M src/pages/Forecast.tsx
+ M src/pages/SavingsGoals.tsx
+ M src/pages/Settings.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
+?? scripts/_tmp-dash-shot.mjs
+?? scripts/_tmp-dash-tops.mjs
+?? scripts/_tmp-debt-measure.mjs
+?? scripts/_tmp-measure.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+c1169ca0 [handoff]: R-NOW56 - cents leftovers, 4 layout agents, 9ecca94d modelled
+ace4c410 [ui]: chart tooltips, AiAdvisor, analytics cards and Builds print cents
+2be23161 [handoff]: R-NOW56 - 3248738e closed (de36a7f7); next 4066ff23
+de36a7f7 [accounts]: a plain Re-link on every healthy Plaid connection
+642f13f1 [handoff]: R-NOW56 - 3248738e done; next 4066ff23 leftovers
+511563df [debt]: "Allow statement data" on flagged cards, and a Dashboard banner
 3af9f7af [handoff]: R-NOW56 - 3248738e backend+Accounts shipped; queue for successor
 7aea937c [accounts]: "Allow statement data" on a bank Plaid says needs consent
-e617fd9d [plaid]: record when an item needs statement-data consent
-b4a23b88 [dashboard]: the strip's credit-limit total stays whole dollars
-e4642b92 [handoff]: R-NOW55 - 4066ff23 display batches 3-4 shipped
-72d8d57f [ui]: Budget, Debt Payoff, Transactions, Goals and the Dashboard hero print cents
-f4f29016 [ui]: vehicles, savings ranking and Accounts print cents
-5d059db0 [handoff]: R-NOW55 - 4066ff23 display sweep progress
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
