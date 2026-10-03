@@ -98,6 +98,7 @@
     "check:surplus-rows": "node scripts/check-surplus-rows.mjs",
     "check:goal-card-row": "node scripts/check-goal-card-row.mjs",
     "inventory:spacing": "node scripts/inventory-spacing.mjs",
+    "inventory:fill": "node scripts/inventory-fill.mjs",
     "check:word-breaks": "node scripts/check-word-breaks.mjs"
   },
   "dependencies": {
