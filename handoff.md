@@ -1,6 +1,7 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
     REFUSED `gh secret set` (Secret-Store Writes). Do NOT route around it; Tre runs the two `gh secret set` commands
     himself (sent to Sam). Then add sign-in to the sim job for items 3-4. (b) [x] RED PROVEN: run 36511767233
@@ -25,6 +26,26 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW59 (10-03 ~20:00 ET, Ada getforgenta-b4 at the call gate). START HERE, IN ORDER:
+    1. [ ] TRE ANSWERED ec48da25 / decision 2d104bc7 (via Sam): "discovers goal is full balance but there are
+       priorities. thats what the goal order is for. that also needs to be clear to users. for now it should be paying
+       min based on my goal priorities". DO: (a) keep Discover at Full Balance; make the plan pay only the MINIMUM on a
+       card whose goal sits LOWER in the goal order until the goals above it are met (find where payment_preference
+       'full' is honoured: CreditCardEngine.tsx ~1086 floor loop, useCardProjection, forecast-engine) - verify on
+       localhost:8080 as Tre, read-only: Discover pays min. (b) Copy/UI on goals + Debt screens: "Goals are paid in
+       order. A lower goal pays only its minimum until the ones above it are met." (c) Then the card-pay hint must NOT
+       call Discover a mismatch (cardPayHint gets the effective plan, not the raw preference). Close ec48da25 + c013318d
+       with evidence. ALSO the Plaid probe (R-NOW58 item 3b) is still to run.
+    2. [ ] 1be673ad box-fill, UNCOMMITTED in the tree, builders gave NO reports - review each from its diff + its
+       frames test-results/fill-<area>-*.png, gate, commit per area, push:
+       - Budget: src/pages/BudgetControl.tsx
+       - Dashboard: DashboardHero.tsx, DebtRecommendationsWidget.tsx, savings/SurplusRankingSection.tsx
+       - Settings/Account/Vehicles: pages/Settings.tsx, Vehicles.tsx, settings/AccountVisibilityToggle.tsx,
+         settings/FollowersPanel.tsx
+       - Debt/Net Worth: debt/CreditCardEngine.tsx, DebtHero.tsx (+?) - its builder may have been KILLED mid-edit when
+         the b4 tab closed: if tsc or check:debt-layout fails, `git diff` it and finish or restore those files to HEAD.
+       Delete scripts/_tmp-*.mjs leftovers. Then `npm run inventory:fill` and compare with a184fa4a's ranking.
+       [x] Forecast shipped 7bec152a.
 R-NOW58 (10-03 ~19:30 ET, Ada getforgenta-b4). START HERE, IN ORDER:
     1. [x] R-NOW57 item 1 SHIPPED 956c0f5c (Debt stat grid / aligned controls / themed Pay From); ask 5d53be95 CLOSED.
     2. [~] 1be673ad box-fill: [x] a184fa4a inventory:fill (215 boxes, 2 runs agree except /dashboard tiles);
@@ -33,6 +54,13 @@ R-NOW58 (10-03 ~19:30 ET, Ada getforgenta-b4). START HERE, IN ORDER:
        Debt+Net Worth. Shared brief: scratchpad fill-common.md (copy in this entry's spirit: own only your files,
        report shared-component fixes, before->after per box at 390+1440, frames, gates). Review each, run test:tz,
        commit per area, push, then rerun `npm run inventory:fill` and compare to the a184fa4a ranking.
+       [~] Settings/Account/Vehicles executor DONE, UNCOMMITTED: Settings.tsx (Profile 2-col, Connections 1 row),
+       FollowersPanel.tsx (Followers|Following grid), AccountVisibilityToggle.tsx (pt-2), Vehicles.tsx (3-col roster, tile
+       empty state). tsc 0, 163+305 vitest, check:account + check:nav PASS. Support card left as-is (Tre list, 10-03).
+       [~] /budget executor DONE, UNCOMMITTED: BudgetControl.tsx only (Per Paycheck + Budget Allocation one lg row
+       :1377-1458, legend column :1485, RulesFoundCard moved :1528, rule rows one line lg/xl :865-939, six tab headers
+       no mid-phrase wrap :1589-1665). Backup backups/2026-10-03_193445/. Frames test-results/fill-budget-*. tsc 0,
+       60 vitest, check:page-rhythm + check:plan-bar PASS. The 0%-fill 44px boxes are inputs (the probe skips the box itself).
     3. [x] ec48da25 card-pay wiring SHIPPED 72304049 (useCardPayHistory + cardPayHint on the Debt card row; verified
        on Tre's account: Discover amber mismatch, Prime muted). Question to Tre filed ONCE: ask c013318d (Discover
        Full vs bank-minimum). Rest of ec48da25 (per-card Plaid liabilities match table) still open.
