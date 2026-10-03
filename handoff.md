@@ -33,8 +33,12 @@ R-NOW55 (10-03 ~16:15 ET, Ada getforgenta-bc; weekly 92% of 98%, PARK AT 96%). S
         Display layer only: row.payment (ledger) unchanged. Tre's /debt read: Prime 854.80 (+486.14), Discover $0
         (+350.28), RH 334.26, Safe to Pay 2,025. Sent Sam. Free tier (qwen3:14b) draft failed review (index-matched
         cards, mutation, inverted rule B) - score it in the playbook.
-    [ ] RESIDUE: Dashboard widget rows (month0-debt-breakdown buildMonth0DebtBreakdown, via useMonth0DebtBreakdown)
-        do not apply capPrePaydayRows. Dashboard already has `safeToSpend` (Dashboard.tsx:421); pass it through.
+    [x] RESIDUE DONE (Ada getforgenta, 10-03 late): DebtRecommendationsWidget runs capPrePaydayRows over its rows
+        (cards = cardProjection.simCards, safeToSpend = Dashboard widgetSafeToSpend); "+$X optional after payday" line.
+        Commit after b0 on origin/main (grep widgetSafeToSpend). Widget test 7/7, red with the cap call removed.
+        NOTE: .claude/hooks/context-gate.mjs infers a 200k window until tokens pass 190k, so on a [1m] session it
+        fires at BOOT (hook payload alone ~170k). False positive on 1M; fix = read the model id or pin
+        CLAUDE_CONTEXT_WINDOW_TOKENS=1000000. Not changed yet.
     [ ] 4066ff23 cents for months 1+: ~20 Math.round sites in useCardProjection (1449-1514 chart rows, 1717/1863
         pass3RevTotals that feed the forecast, 1961-2012 perCardPayments, 2623-2639 month0 fields). Must prove
         forecast and sim agree to the cent (forecast-convergence). Do it as ONE slice with test:tz + golden locally.
