@@ -1,18 +1,24 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { AlertTriangle, CalendarDays, CheckCircle2, ArrowRight, Car, Landmark } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN } from '@/lib/next-card-payment';
 import { unconditionalShortfallLabel } from '@/lib/unconditional-payment';
 import type { MonthlyDebtBreakdown } from '@/lib/credit-card-engine';
+import type { CardRecRow } from '@/lib/month0-debt-breakdown';
+import { capPrePaydayRows, type PrePaydayCard, type PrePaydayRow } from '@/lib/pre-payday-cap';
 
 type Props = {
   debtBreakdown: MonthlyDebtBreakdown;
+  /** The sim's cards (minimums, balances, settled flags) - what the pre-payday cap reads. */
+  cards?: readonly PrePaydayCard[];
+  /** Safe to Spend until payday. Without it nothing is capped (pre-payday-cap.ts). */
+  safeToSpend?: { amount: number; payday: string } | null;
 };
 
-export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
+export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], safeToSpend = null }: Props) {
   const navigate = useNavigate();
   const {
-    recommendations,
     totalMinimumsDue,
     totalRecommended,
     totalAvailableCash,
@@ -20,6 +26,12 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
     cashWarning,
     cashWarningText,
   } = debtBreakdown;
+  // The same pre-payday cap /debt applies (CreditCardEngine month0Recs), so the two surfaces show
+  // the same payment for the same card. Display only: debtBreakdown.recommendations is untouched,
+  // because it feeds the injected payment transactions.
+  const recommendations: PrePaydayRow[] = useMemo(() => capPrePaydayRows(
+    debtBreakdown.recommendations as unknown as CardRecRow[], cards, safeToSpend, new Date(),
+  ), [debtBreakdown.recommendations, cards, safeToSpend]);
   // Optional on the type only because the deprecated one-shot path never builds it; this widget
   // is fed by useMonth0DebtBreakdown, which always does.
   const loanRecommendations = debtBreakdown.loanRecommendations ?? [];
@@ -160,10 +172,16 @@ export default function DebtRecommendationsWidget({ debtBreakdown }: Props) {
                     // Demoted, not deleted. A this-month amount that is still owed is the
                     // actionable number and stays legible; a $0 stays quiet, because there is
                     // nothing to act on and the row above already carries the claim.
-                    <span className={r.payment > 0
+                    <span className={(r.dueThisMonth ?? r.payment) > 0
                       ? 'text-[10px] text-foreground'
                       : 'text-[9px] text-muted-foreground/70'}>
-                      {formatCurrency(r.payment, false)} due this month
+                      {formatCurrency(r.dueThisMonth ?? r.payment, false)} due this month
+                    </span>
+                  )}
+                  {r.afterPayday !== undefined && r.afterPayday > 0 && (
+                    // Same line as /debt: the part of the plan that needs the next paycheck.
+                    <span className="text-[9px] text-muted-foreground">
+                      +{formatCurrency(r.afterPayday)} optional after payday
                     </span>
                   )}
                 </div>

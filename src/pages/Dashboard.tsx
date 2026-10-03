@@ -421,6 +421,11 @@ export default function Dashboard() {
   const { result: safeToSpend, input: safeToSpendInput } = useSafeToSpend({ profile, confirmed: confirmedOccurrences, floor: cashFloor });
   // Leo's money glance reads this figure (ask 1dc2c388). Never sample data, never a partner's money.
   const { isPartnerView } = useViewedProfile();
+  // Stable identity for the debt widget's pre-payday cap (same input /debt's month0Recs reads).
+  const widgetSafeToSpend = useMemo(
+    () => (safeToSpend?.kind === 'figure' ? { amount: safeToSpend.amount, payday: safeToSpend.payday } : null),
+    [safeToSpend],
+  );
   usePublishSafeToSpend({ result: safeToSpend, userId: user?.id, disabled: isDemo || isPartnerView });
 
 
@@ -1277,6 +1282,8 @@ export default function Dashboard() {
           <DebtRecommendationsWidget
             key="debt_recommendations"
             debtBreakdown={debtBreakdown}
+            cards={cardProjection?.simCards ?? []}
+            safeToSpend={widgetSafeToSpend}
           />
         );
 

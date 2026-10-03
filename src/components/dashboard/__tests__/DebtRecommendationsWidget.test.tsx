@@ -103,3 +103,38 @@ describe('DebtRecommendationsWidget — non-CC debt rows', () => {
     expect(screen.getByText('Final payment')).toBeTruthy();
   });
 });
+
+// The pre-payday cap /debt applies (pre-payday-cap.ts) must reach this widget too, or the
+// Dashboard shows a payment due before payday that only the paycheck can fund. Would-fail check:
+// drop the capPrePaydayRows call and the row reads $500.00 with no "after payday" line.
+describe('DebtRecommendationsWidget — pre-payday cap', () => {
+  const day = (n: number) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d; };
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const due = day(2);
+  const row = { ...CARD, payment: 500, maxPayment: 500, nextPayment: 500, nextDueDate: due };
+  const cards = [{ id: 'c1', minPayment: 100, balance: 2000 }];
+
+  it('caps a payment due before payday at the minimum plus Safe to Spend', () => {
+    render(
+      <MemoryRouter>
+        <DebtRecommendationsWidget
+          debtBreakdown={{ ...EMPTY, recommendations: [row] }}
+          cards={cards}
+          safeToSpend={{ amount: 50, payday: iso(day(5)) }}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('$150.00')).toBeTruthy();
+    expect(screen.getByText('+$350.00 optional after payday')).toBeTruthy();
+  });
+
+  it('leaves the row alone without a Safe to Spend figure', () => {
+    render(
+      <MemoryRouter>
+        <DebtRecommendationsWidget debtBreakdown={{ ...EMPTY, recommendations: [row] }} cards={cards} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText('$500.00')).toBeTruthy();
+    expect(screen.queryByText(/optional after payday/)).toBeNull();
+  });
+});
