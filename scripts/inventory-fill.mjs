@@ -35,6 +35,11 @@ const DEMO_ROUTES = ['/dashboard?tab=goals', '/goals', '/debt?tab=auto', '/debt?
 const WIDTHS = [{ width: 390, height: 844 }, { width: 1440, height: 900 }];
 const FILL_MAX = 0.35;
 const EMPTY_MIN = 24;
+// WIDTH (2026-10-03): height alone cannot see a 1296px card holding one short line, which is the
+// complaint Tre actually made. A box is also reported when the content's horizontal span leaves at
+// least EMPTY_W_MIN px AND EMPTY_W_RATIO of its content width unused.
+const EMPTY_W_MIN = 200;
+const EMPTY_W_RATIO = 0.4;
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 const env = readFileSync('.env.local', 'utf8');
 let creds;
@@ -146,6 +151,7 @@ const measure = () => {
     out.push({
       id: el.id || '', label: label[0] ?? '(no content)', w: Math.round(b.width), h: Math.round(b.height),
       fill: area / (pw * ph), empty: Math.round(ph - extent), top: Math.round(b.top + scrollY), hint,
+      emptyW: Math.round(pw - (rects.length ? Math.max(...rects.map(r => r[2])) - Math.min(...rects.map(r => r[0])) : 0)), pw: Math.round(pw),
     });
   }
   return out;
@@ -159,7 +165,14 @@ const plantControl = () => {
   one.id = '__fill_one'; one.style.cssText = base + 'top:0'; one.textContent = 'word';
   const full = document.createElement('div');
   full.id = '__fill_full'; full.style.cssText = base + 'top:300px'; full.textContent = 'lorem ipsum dolor sit amet '.repeat(80);
-  root.append(one, full);
+  // WIDTH control: one word in a 360x20 strip. No empty height to speak of, so only the width
+  // measure can report it. Its pair, the same strip full of one line of text, must not report.
+  const strip = 'position:absolute;left:0;width:360px;height:20px;box-sizing:border-box;padding:0;margin:0;overflow:hidden;white-space:nowrap;border:1px solid rgb(250,10,10);border-radius:8px;background:rgb(30,30,90);color:#fff;font:14px/1 sans-serif;';
+  const wide = document.createElement('div');
+  wide.id = '__fill_wide'; wide.style.cssText = strip + 'top:600px'; wide.textContent = 'word';
+  const row = document.createElement('div');
+  row.id = '__fill_row'; row.style.cssText = strip + 'top:700px'; row.textContent = 'lorem ipsum dolor sit amet '.repeat(6);
+  root.append(one, full, wide, row);
   document.body.appendChild(root);
 };
 const sigOf = boxes => JSON.stringify(boxes.map(b => [b.label, b.w, b.h]).sort());
@@ -203,9 +216,15 @@ const scanRoutes = async (page, routes, arm, vp) => {
     await page.evaluate(() => document.getElementById('__fill_probe_root')?.remove());
     const one = planted.find(b => b.id === '__fill_one');
     const full = planted.find(b => b.id === '__fill_full');
-    const reportable = b => b.fill < FILL_MAX && b.empty >= EMPTY_MIN;
+    const wide = b => b.emptyW >= EMPTY_W_MIN && b.emptyW >= EMPTY_W_RATIO * b.pw;
+    const reportable = b => b.fill < FILL_MAX && (b.empty >= EMPTY_MIN || wide(b));
     if (!one || !(one.fill < 0.1) || !reportable(one)) {
       await done(2, `CONTROL FAILED on ${key}: the planted one-word 300x200 box must read fill < 0.1 and be reportable; read ${JSON.stringify(one)}.`);
+    }
+    const wideB = planted.find(b => b.id === '__fill_wide');
+    const rowB = planted.find(b => b.id === '__fill_row');
+    if (!wideB || wideB.empty >= EMPTY_MIN || !reportable(wideB) || !rowB || reportable(rowB)) {
+      await done(2, `CONTROL FAILED on ${key}: the one-word 360x20 strip must be reportable by WIDTH only and the full strip must not; read ${JSON.stringify([wideB, rowB])}.`);
     }
     if (!full || !(full.fill >= 0.5) || reportable(full)) {
       await done(2, `CONTROL FAILED on ${key}: the planted full-of-text 300x200 box must read fill >= 0.5 and NOT be reportable; read ${JSON.stringify(full)}.`);
@@ -240,12 +259,12 @@ for (const vp of WIDTHS) {
 }
 
 findings.sort((a, b) => b.empty - a.empty);
-console.log(`BOXES with fill < ${FILL_MAX * 100}% and empty height >= ${EMPTY_MIN}px: ${findings.length}`);
+console.log(`BOXES with fill < ${FILL_MAX * 100}% and empty height >= ${EMPTY_MIN}px OR empty width >= ${EMPTY_W_MIN}px and ${EMPTY_W_RATIO * 100}%: ${findings.length}`);
 for (const f of findings) {
-  console.log(`  ${f.route}  "${f.label}"  ${f.w}x${f.h}  fill ${(f.fill * 100).toFixed(1)}%  empty ${f.empty}px  [${f.hint}]`);
+  console.log(`  ${f.route}  "${f.label}"  ${f.w}x${f.h}  fill ${(f.fill * 100).toFixed(1)}%  empty ${f.empty}px  emptyW ${f.emptyW}px  [${f.hint}]`);
 }
 console.log('PER-ROUTE TOTALS (boxes examined / reported):');
 for (const [k, t] of Object.entries(totals)) console.log(`  ${k}: ${t.boxes} / ${t.findings}`);
 const jsonAt = process.argv.indexOf('--json');
 if (jsonAt > 0) writeFileSync(process.argv[jsonAt + 1], JSON.stringify({ findings, totals }, null, 1));
-await done(0, `MEASURED: ${ROUTES.length} signed-in + ${DEMO_ROUTES.length} demo routes at ${WIDTHS.map(w => w.width).join(' and ')}; both planted controls behaved on every route.`);
+await done(0, `MEASURED: ${ROUTES.length} signed-in + ${DEMO_ROUTES.length} demo routes at ${WIDTHS.map(w => w.width).join(' and ')}; all four planted controls (height and width) behaved on every route.`);
