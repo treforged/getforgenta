@@ -52,6 +52,12 @@ R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
        probe would NOT store its statement; stored min 150.40 is MANUAL and stale. Amex/Alliant/Empower
        ADDITIONAL_CONSENT_REQUIRED (no cards). NEXT for ec48da25: show "bank says $X" beside a manual minimum
        (sync-handler.ts:221 never overwrites a manual min). Then close ec48da25.
+       [x] BUILT + DEPLOYED 10-03 ~23:05 ET: migration 20261004 (accounts.bank_min_payment, bank_min_seen_at) APPLIED;
+       sync-handler writes them every sync; Debt card row "Bank's minimum: $X" when min is manual and differs (bank 0
+       never shown). plaid-sync v74, plaid-sync-all v59, plaid-webhook v5, financial-sync v22 redeployed, verify_jwt
+       unchanged. [ ] READ-BACK after the next scheduled sync: select name, min_payment, bank_min_payment,
+       bank_min_seen_at from accounts where user a72f416e and account_type='credit_card' - expect bank_min_seen_at set
+       on Robinhood/Chase/Discover. Then close ec48da25. Today Discover's bank min is 0 (paid), so no line shows yet.
     4. [ ] Monday 10-05: e501632b; d1f4970f waits on Tre (Prime minimum on 10-07, this month only?).
 R-NOW59 (10-03 ~20:00 ET, Ada getforgenta-b4 at the call gate). START HERE, IN ORDER:
     1. [ ] TRE ANSWERED ec48da25 / decision 2d104bc7 (via Sam): "discovers goal is full balance but there are
