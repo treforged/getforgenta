@@ -352,6 +352,7 @@ export default function SurplusRankingSection({
   // NOTE: `buildSurplusRankRows` now covers cards, goals, car funds, vehicle loans and ranked
   // non-CC liabilities, so most users pass two rows on their own and this state is short-lived.
   const canReorder = draft.length >= 2;
+  const hasCardAndOther = canReorder && draft.some(r => r.kind === 'cards' || r.kind === 'card');
 
   return (
     <div className="card-forged p-4 sm:p-5">
@@ -362,8 +363,10 @@ export default function SurplusRankingSection({
               the method moves behind one tap. The goal-order sentence STAYS VISIBLE - Tre asked for
               that rule to be clear to users (decision 2d104bc7). */}
           <p className="text-xs text-muted-foreground mt-0.5">
-            Left-over cash after the bills goes to these one at a time, in order. A card ranked lower
-            gets only its minimum until the goals above it have this month's share.
+            Left-over cash after the bills goes to these one at a time, in order.
+            {/* Only when a card shares the list with something else - with no card there is no card
+                to rank, and the sentence was noise to a new user (empty-account scan, 2026-10-04). */}
+            {hasCardAndOther && " A card ranked lower gets only its minimum until the goals above it have this month's share."}
           </p>
         </div>
         {saving && <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0 mt-0.5">Saving…</span>}

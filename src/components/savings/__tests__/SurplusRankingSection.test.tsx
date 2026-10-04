@@ -427,3 +427,18 @@ describe('the split badge is honest about what a share means', () => {
     expect(screen.queryAllByText(/^\s*50%\s*$/).length).toBe(0);
   });
 });
+
+// Empty-account scan, 2026-10-04 (ask 52898f88): the goal-order sentence is about CARDS, so a list with
+// no card to rank must not carry it. Where a card shares the list it stays visible (decision 2d104bc7).
+describe('the goal-order sentence', () => {
+  const SENTENCE = /A card ranked lower gets only its minimum/;
+  it('shows when a card shares the list with a goal', () => {
+    setup(THREE);
+    expect(screen.getByText(SENTENCE)).toBeTruthy();
+  });
+  it('is absent when the list has no card', () => {
+    setup([row('g1', 'Savings', 1), row('g2', 'Roth IRA', 2)]);
+    expect(screen.queryByText(SENTENCE)).toBeNull();
+    expect(screen.getByText(/goes to these one at a time, in order/)).toBeTruthy();
+  });
+});
