@@ -43,6 +43,8 @@ R-NOW63 (10-04 ~00:40 ET, Ada successor of f1). START HERE, IN ORDER:
        these: long `main p` textContent (>110 chars) per route. innerText reads EMPTY in the hidden MCP tab - use
        textContent.
     4. Monday 10-05: e501632b.
+    5. [x] Tre 10-04 paycheck prompt FIXED b297f418 (matcher naming the same rule no longer vetoes link memory).
+       Overload slice also shipped 0c303e81 (Bank Activity choices behind a tap). walk:routes 27/27 after both.
 R-NOW62 (10-04 ~00:45 ET, Ada getforgenta-f1, handoff gate). START HERE, IN ORDER:
     1. [ ] VERIFY last commit on localhost:8080 /debt as Tre (read-only): "Always pay this, no matter what" label shows on
        each card, the off-state sentence "never shrinks to fit" appears 0 times, "Treated as a fixed obligation" appears
