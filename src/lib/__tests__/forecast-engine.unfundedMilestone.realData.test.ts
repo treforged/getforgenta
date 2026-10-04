@@ -60,7 +60,13 @@ describe('unfunded account-paid expense raises a warning milestone', () => {
   maybeIt('the split capture pays its unfunded fee from checking, so the payoff is not falsely early', () => {
     const split = run(SPLIT);
     const payoff = split.milestones.find(m => m.event.startsWith('CC Debt Free'))?.month;
-    expect(payoff, 'Jul 2028 and Sep 2028 were both early, from dollars the plan did not have').toBe('Nov 2028');
+    // RE-PINNED 2026-10-04 (e2850463): Nov 2028 -> Sep 2028, and NOT for the old reason. The unfunded
+    // dollars are still paid from checking and still reserved for; what changed is PASS 2's walk,
+    // which charged static card minimums the sim no longer paid and goal contributions PASS 3 had
+    // cut, and so ran up to $3,315.31 below real cash. Measured on this capture: the months below
+    // floor are the same three to the cent (Oct-Dec 2026: 467.94 / 886.80 / 730.83), and card
+    // interest falls 3,911.13 -> 3,618.39. Earlier here is dollars the plan HAS.
+    expect(payoff, 'Jul 2028 was early, from dollars the plan did not have').toBe('Sep 2028');
   }, 900000);
 
   maybeIt('control: the golden (fee paid from checking) raises none', () => {

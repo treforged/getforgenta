@@ -17,10 +17,15 @@
 //
 // Would-fail check, and why there are two scenarios rather than one:
 //   • Delete `+ installmentCostByMonth[i]` from PASS 2's `expenseByMonth` and BOTH scenarios fail.
-//   • Delete `- installmentCostByMonth[m]` from `ccMinByMonth` and scenario B fails while
-//     scenario A still passes — A's cap comes from the `availableForDebt` branch, which the
-//     expense term alone moves. Only a month where the backward chain binds the cap down to ccMin
-//     itself can see the other half of the conversion.
+//   • Charge a card's whole `minPayment` (installment included) as its month-1+ minimum instead of
+//     `revolvingMinDue` and scenario B fails while scenario A still passes — A's cap comes from
+//     the `availableForDebt` branch, which the expense term alone moves. Only a month where the
+//     backward chain binds the cap down to ccMin itself can see the other half of the conversion.
+//     (Until e2850463, 2026-10-04, months 1+ took ccMin as `ccMinTotal - installmentCostByMonth[m]`;
+//     they now take the sim's own per-card minimum, `revolvingMinDue`, which is revolving-only by
+//     construction because it subtracts the card's `installmentMonthlyPayment`. Month 0 keeps the
+//     old form. So scenario B now gives the CARD its installment, the way real CardData carries
+//     it, rather than expressing the plan only through the per-month array.)
 //   • Delete `+ installmentCostByMonth[i]` from `debtPayments` and the third test fails: the
 //     DISPLAYED payment is `allPaymentTotals` (Convention A, installment included) and would be
 //     cut by contractual money that was never reducible.
@@ -80,10 +85,15 @@ const ASSUMPTIONS: AssumptionsType = {
  * the add-back it is meant to protect was deleted. Leaving the ledger out is what makes that
  * assertion able to fail.
  */
-function cardProjection(installmentCostByMonth: number[]): CardProjectionResult {
+function cardProjection(installmentCostByMonth: number[], cardInstallment = 0): CardProjectionResult {
   return {
     data: [],
-    simCards: [{ id: 'cc-1', name: 'Card', minPayment: CC_MIN_TOTAL, m0MinSettled: false }],
+    // `minPaymentIsManual` + `apr: 0` make the month-1+ minimum (`revolvingMinDue`) exactly
+    // `minPayment - installmentMonthlyPayment`, with no 2%-of-balance formula in the way.
+    simCards: [{
+      id: 'cc-1', name: 'Card', minPayment: CC_MIN_TOTAL, m0MinSettled: false,
+      apr: 0, minPaymentIsManual: true, installmentMonthlyPayment: cardInstallment,
+    }],
     allPaymentTotals: Array.from({ length: MONTHS }, () => ALL_PAYMENT_TOTAL),
     debtPaymentTotals: Array.from({ length: MONTHS }, () => ALL_PAYMENT_TOTAL),
     installmentCostByMonth,
@@ -109,7 +119,7 @@ const monthKey = (i: number): string => {
  * lands an exact dollar amount in an exact month without going through pay-frequency and tax
  * derivation. The two runs share it byte for byte; the installment array is the sole difference.
  */
-function makeInputs(installmentCostByMonth: number[]): ForecastInputs {
+function makeInputs(installmentCostByMonth: number[], cardInstallment = 0): ForecastInputs {
   const oneTimeByMonth: Record<string, { income: number; expense: number }> = {};
   for (let i = 0; i < MONTHS; i++) {
     oneTimeByMonth[monthKey(i)] = {
@@ -127,7 +137,7 @@ function makeInputs(installmentCostByMonth: number[]): ForecastInputs {
     monthlyAggregates: {} as ForecastInputs['monthlyAggregates'],
     debtPaymentsByMonth: {} as ForecastInputs['debtPaymentsByMonth'],
     debtBalancesByMonth: [] as unknown as ForecastInputs['debtBalancesByMonth'],
-    cardProjectionData: cardProjection(installmentCostByMonth),
+    cardProjectionData: cardProjection(installmentCostByMonth, cardInstallment),
     payConfig: { weeklyGross: 0, taxRate: 0, paycheckDay: 1, frequency: 'monthly' },
     oneTimeByMonth, ccOneTimeByMonth: {}, ccScheduledByMonth: [],
     transactions: [],
@@ -145,6 +155,7 @@ function makeInputs(installmentCostByMonth: number[]): ForecastInputs {
 const NONE = Array.from({ length: MONTHS }, () => 0);
 const withInstallmentIn = (month: number): number[] =>
   Array.from({ length: MONTHS }, (_, m) => (m === month ? INSTALLMENT : 0));
+const EVERY_MONTH = Array.from({ length: MONTHS }, () => INSTALLMENT);
 
 const anchor = () => {
   vi.useFakeTimers();
@@ -181,23 +192,26 @@ describe('PASS 2 save-up cap: the mandatory installment is an expense, never par
     // By month 2 the backward chain has drained months 0 and 1 to their required ending balance,
     // so `availableForDebt` lands exactly on ccMin and the cap IS the minimum. Convention B's
     // minimum excludes the installment; Convention A's includes it.
+    // The plan runs EVERY month and the card carries it, as real CardData does: the sim's
+    // `revolvingMinDue` subtracts the card's flat `installmentMonthlyPayment` in every month.
     const control = calculateForecast(makeInputs(NONE));
-    const withInst = calculateForecast(makeInputs(withInstallmentIn(2)));
+    const withInst = calculateForecast(makeInputs(EVERY_MONTH, INSTALLMENT));
 
     const capControl = control.maxDebtPaymentByMonth[2];
     const capWithInst = withInst.maxDebtPaymentByMonth[2];
 
     expect(Number.isFinite(capControl)).toBe(true);
     expect(Number.isFinite(capWithInst)).toBe(true);
-    expect(capControl).toBeLessThan(ALL_PAYMENT_TOTAL);
+    // Positive control: month 2's cap really is the minimum branch, which is what B is about.
+    expect(capControl).toBeCloseTo(CC_MIN_TOTAL, 2);
 
     expect(capWithInst).toBeCloseTo(capControl - INSTALLMENT, 2);
 
-    // The months without an installment are untouched: the conversion is invariant on the
-    // backward pass (adding I to expense and removing I from ccMin leaves netAtMin, and therefore
-    // requiredEndByMonth, unchanged), so only the installment month's cap may move.
-    expect(withInst.maxDebtPaymentByMonth[0]).toBeCloseTo(control.maxDebtPaymentByMonth[0], 2);
-    expect(withInst.maxDebtPaymentByMonth[1]).toBeCloseTo(control.maxDebtPaymentByMonth[1], 2);
+    // The conversion is invariant on the backward pass (adding I to expense and removing I from
+    // ccMin leaves netAtMin, and therefore requiredEndByMonth, unchanged), so every capped month
+    // moves by exactly the installment: month 0 (the static-sum form) and month 1 as well.
+    expect(withInst.maxDebtPaymentByMonth[0]).toBeCloseTo(control.maxDebtPaymentByMonth[0] - INSTALLMENT, 2);
+    expect(withInst.maxDebtPaymentByMonth[1]).toBeCloseTo(control.maxDebtPaymentByMonth[1] - INSTALLMENT, 2);
   });
 
   it('the DISPLAYED debt payment is unchanged — the cap side adds the installment back', () => {

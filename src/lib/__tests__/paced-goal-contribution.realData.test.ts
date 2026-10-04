@@ -88,7 +88,12 @@ describe('585ec24a paced goal contribution — flat vs paced on the real fixture
     // its $773.05 contract minimum and now pays $823.05 (Sep 2027 +$48 more). Those dollars reached
     // the cards instead of sitting above the floor (May's ending margin falls by the same $213), so
     // card interest falls $4,764.74 -> $4,602.50 and the cards clear four months earlier.
-    expect(ms(flat.out, 'CC Debt Free')).toEqual(['Oct 2028']); // 09-29 capture (was Sep 2028 on 09-23, Feb 2029 on 09-30)
+    // RE-PINNED 2026-10-04 (e2850463): Oct 2028 -> Nov 2028. PASS 2's floor look-ahead walk now
+    // charges the minimum the sim actually pays per card and lets a goal contribution give way
+    // where PASS 3 does. On this flat arm the same six months sit under the floor and Mar 2027's
+    // shortfall falls 456.70 -> 243.22; card interest falls 4,602.50 -> 4,539.58 while the last
+    // dollar clears one month later. Why the payoff moves later on less interest is not diagnosed.
+    expect(ms(flat.out, 'CC Debt Free')).toEqual(['Nov 2028']); // 09-29 capture (was Oct 2028 on 10-04, Sep 2028 on 09-23, Feb 2029 on 09-30)
 
     // ── Both arms converge.
     expect(flat.out.converged && paced.out.converged).toBe(true);

@@ -60,9 +60,16 @@ describe('rankBreachLevers on the 2026-09-29 capture', () => {
 // 343/1,571/1,044. Proven red by removing the cash subtraction (the old figures return).
 // RE-PINNED 2026-10-03 (4066ff23): monthMinSafe keeps cents instead of a whole-dollar round, so
 // Aug 2027 reads 1,572 (was 1,571). One dollar from rounding; every other month is unchanged.
+// RE-PINNED 2026-10-04 (e2850463): PASS 2's floor look-ahead walk now charges the minimum the sim
+// actually pays per card (not today's static minimums summed over every card) and lets a goal
+// contribution give way in a month that cannot afford it, as PASS 3 does. Its walk had run up to
+// $5,687.96 below real cash on this capture, so the caps held the cards back for money that was
+// still in checking. Oct 2026-Mar 2027 are unchanged to the dollar; Jul 2027 (343) is no longer
+// short, and Aug/Sep 2027 fall from 1,572/1,044 to 1,145/617. Was:
+// ['Jul 2027', 343], ['Aug 2027', 1572], ['Sep 2027', 1044].
 const PINNED_MONTHS: [string, number][] = [
   ['Oct 2026', 1174], ['Nov 2026', 1698], ['Dec 2026', 1567], ['Jan 2027', 1018], ['Mar 2027', 962],
-  ['Jul 2027', 343], ['Aug 2027', 1572], ['Sep 2027', 1044],
+  ['Aug 2027', 1145], ['Sep 2027', 617],
 ];
 // Owners reconciles with the R000 per-scenario re-render for Oct-Mar. The move fund is NO LONGER a
 // lever, and that is the fix working: the fund pays the move expenses itself, so pausing its
@@ -100,6 +107,8 @@ const PINNED_MONTHS: [string, number][] = [
 // 2029 against the Aug 2029 base), and now covers 879. Both arms keep their months short; the
 // reserve cannot be banked because every month before Jul 2027 already pays only its minimums.
 // Was: [] with Owners and Fidelity excluded as delays_debt_payoff.
+// RE-PINNED 2026-10-04 (e2850463, same change as PINNED_MONTHS above): Fidelity 879 -> 928,
+// Owners Contribution 315 -> 618. Both still clear no month. Was: Fidelity 879, Owners 315.
 const PINNED_LEVERS: [string, number, string[]][] = [
-  ['Fidelity', 879, []], ['Owners Contribution', 315, []],
+  ['Fidelity', 928, []], ['Owners Contribution', 618, []],
 ];

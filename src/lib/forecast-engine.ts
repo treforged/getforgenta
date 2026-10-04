@@ -12,7 +12,7 @@
 import { formatCurrency } from '@/lib/calculations';
 import { floorBreachSaveUp, formatSaveUpSuffix } from '@/lib/floor-breach-save-up';
 import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { buildCardData, getMonthlyDebtBreakdown, mandatoryPinStep5, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
+import { buildCardData, getMonthlyDebtBreakdown, mandatoryPinStep5, revolvingMinDue, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses, type PaymentPlan } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { getMonthNetIncome, getPaychecksInMonth, getAugmentedMinSafeCash, getRuleOccurrenceDatesInMonth, type PayScheduleConfig } from '@/lib/pay-schedule';
@@ -267,6 +267,10 @@ export interface ForecastResult {
    * runDebtCashConvergence → resimulateWithDebtCash so cycling-only save-up months agree with
    * Forecast instead of the sim recomputing its own, narrower version. */
   maxDebtPaymentByMonth: number[];
+  /** PASS 2's own modelled ending cash per month (computeFloorProtection's `walkEndByMonth`): the
+   * balance the caps above were sized from. Read only to measure how far the look-ahead's walk
+   * sits from PASS 3's real `rawEndingCash` (ask e2850463); nothing downstream consumes it. */
+  lookAheadWalkEndByMonth?: number[];
   /** Per-liability monthly OPENING balances, keyed by the same id `nonCCLiabBreakdown` rows carry
    * (the accounts row's id, or `debt:<id>` for an unpaired debts row). SHARED REFERENCES into
    * `nonCCLiabilities.rows` - the arrays step 4c-ii-c reduces in place - so they are extra-aware
@@ -1762,15 +1766,45 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const pin = cardProjectionData ? mandatoryPinStep5(cardProjectionData, c.id, m) : 0;
         return s + Math.max(0, pin - Number(c.minPayment || 0));
       }, 0);
+    const isbPinExcess = (m: number): number => (cardProjectionData?.manualIsbPins ?? [])
+      .filter(p => p.month === m)
+      .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0);
+    // e2850463: MONTHS 1+ USE THE MINIMUM THE SIM ACTUALLY PAYS, card by card, not today's static
+    // `minPayment` summed over every card. The sim's Step 5 pays `revolvingMinDue(card, revOwed)`
+    // on each card that still owes revolving (or backlog) debt and $0 on a card that has paid off.
+    // The static sum was wrong in BOTH directions. On Tre's 2026-09-29 capture it charged $25 for
+    // each of two cards that owe nothing, and once an installment plan ended it charged that card's
+    // whole stated minimum again: $973.45 a month against the $412.95 the sim paid. That phantom
+    // outflow (with the goal half below) drove this walk $5,688 below the engine's real cash and
+    // held the cards to their minimums for no reason. On a card with an unstated minimum it modelled
+    // $25 while the sim paid the formula (~$140), which under-reserves.
+    // ENTERING balance (`[m - 1]`, the same index `reducibleDebtCapByMonth` reads) because that is
+    // what the sim's minimum is computed on; a later, smaller balance would understate the minimum.
+    // A pin SUPERSEDES the minimum (the sim pays a pinned card its pin, not its minimum), the same
+    // rule useCardProjection's look-ahead uses. Not modelled: a card not yet billed
+    // (`noMinDueBeforeMonth`) - this reserves its minimum anyway, which only over-reserves.
+    // Month 0 keeps the static form: it is live-anchored and already matches the sim to the cent.
+    const simDueByMonth = (m: number): number => {
+      if (!cardProjectionData) return NaN;
+      return cardProjectionData.simCards.reduce((s, c) => {
+        const revOwed = Math.max(0, cardProjectionData.monthlyRevolvingBalances.get(c.id)?.[m - 1] ?? 0);
+        const backlog = Math.max(0, cardProjectionData.monthlyCyclingBacklog.get(c.id)?.[m - 1] ?? 0);
+        const due = revOwed > 0 ? revolvingMinDue(c, revOwed) : backlog > 0 ? revolvingMinDue(c, backlog) : 0;
+        return s + Math.max(due, mandatoryPinStep5(cardProjectionData, c.id, m));
+      }, 0);
+    };
     const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
-      Math.max(0,
-        ccMinTotal
-        - (m === 0 ? m0SettledCcMin : 0)
-        - installmentCostByMonth[m]
-        + ((cardProjectionData?.manualIsbPins ?? [])
-          .filter(p => p.month === m)
-          .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0))
-        + unconditionalPinExcess(m)));
+      m > 0 && cardProjectionData && cardProjectionData.simCards.length > 0
+        // ⚠️ The ISB pin stays ADDITIVE against `minPayment` because `manualIsbPins` carries no
+        // card id. That card's due here is `revolvingMinDue`, which is at least its contract
+        // minimum less any installment portion, so the residual is at most that portion.
+        ? Math.max(0, simDueByMonth(m) + isbPinExcess(m))
+        : Math.max(0,
+          ccMinTotal
+          - (m === 0 ? m0SettledCcMin : 0)
+          - installmentCostByMonth[m]
+          + isbPinExcess(m)
+          + unconditionalPinExcess(m)));
     // Upper bound on the reducible (revolving + backlog) debt payment per month: the debt
     // outstanding entering month m, from the sim's own trajectory. Keeps the look-ahead's cash
     // walk from assuming surplus keeps flowing to debt after all revolving debt has cleared —
@@ -1780,16 +1814,28 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // Month 0 stays uncapped: it is live-anchored elsewhere and its payment is already bounded
     // by the live balances. Slight overestimate is safe (falls back toward legacy behavior);
     // the sim can never pay more than what's owed, so this bound is exact where it matters.
+    // e2850463: A CARD STILL REVOLVING OWES ITS WHOLE BALANCE PLUS THIS MONTH'S INTEREST, not only
+    // its revolving carry-over. A statement-preference card's `monthlyRevolvingBalances` leaves out
+    // the cycle's purchases, but while the card revolves the sim pays those out of the same debt
+    // pool, and a payoff month pays the interest too. Bounding by the carry-over alone stopped the
+    // walk from draining what the sim really pays in a card's last months, so it ran ABOVE real cash
+    // (measured on the synthetic persona in floor-protection.walkTracksReal.test.ts: $108.53, which
+    // the old static-minimum over-charge had been hiding). Only cards that still revolve entering
+    // the month get the wider bound: once a card cycles, its purchases are its statement, which
+    // `cyclingByMonth` already charges, and counting them here too would ride the floor again.
     const reducibleDebtCapByMonth = cardProjectionData
       ? Array.from({ length: PROJECTION_MONTHS }, (_, m) => {
           if (m === 0) return Infinity;
-          let owed = 0;
-          for (const arr of cardProjectionData.monthlyRevolvingBalances.values()) owed += Math.max(0, arr[m - 1] ?? 0);
-          for (const arr of cardProjectionData.monthlyCyclingBacklog.values()) owed += Math.max(0, arr[m - 1] ?? 0);
-          return owed;
+          return cardProjectionData.simCards.reduce((owed, c) => {
+            const rev = Math.max(0, cardProjectionData.monthlyRevolvingBalances.get(c.id)?.[m - 1] ?? 0);
+            const backlog = Math.max(0, cardProjectionData.monthlyCyclingBacklog.get(c.id)?.[m - 1] ?? 0);
+            if (rev <= 0) return owed + backlog;
+            const whole = Math.max(rev + backlog, cardProjectionData.monthlyBalances.get(c.id)?.[m - 1] ?? 0);
+            return owed + whole * (1 + Math.max(0, Number(c.apr) || 0) / 1200);
+          }, 0);
         })
       : undefined;
-    const { maxDebtPaymentByMonth, strictSaveUpMonths, requiredEndByMonth } = computeFloorProtection({
+    const { maxDebtPaymentByMonth, strictSaveUpMonths, requiredEndByMonth, walkEndByMonth: lookAheadWalkEndByMonth } = computeFloorProtection({
       incomeByMonth: baseData.map(b => b.netIncome),
       expenseByMonth: baseData.map((b, i) =>
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
@@ -1811,6 +1857,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       ccMinByMonth,
       cyclingExcessByMonth: cyclingByMonth,
       reducibleDebtCapByMonth,
+      // e2850463: the goal half of `expenseByMonth` above, so the walk can apply PASS 3's
+      // affordability back-off. Month 0 is 0 because PASS 3 exempts it (it takes the contribution
+      // whole, live-anchored to useCardProjection's month-0 chain).
+      goalContribByMonth: baseData.map((b, i) => (i === 0 ? 0 : b.monthlySavingsContrib)),
       carFunds, transactions, ccSourceIds, now: nowDate, formatCurrency,
     });
 
@@ -3082,12 +3132,18 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           .filter(cf => cf.balance > 0),
         // See Step 3 above: the sim's own revolving share (ledgerEntry.revolving) plus any
         // not-yet-routed surplus — the target fed to the next convergence pass.
-        revolvingDebtCash: Math.max(0, Math.round(revolvingDebtCashTarget)),
+        // ⚠️ ROUNDED DOWN, never to nearest (e2850463). A month that lands in step 3's dead zone
+        // keeps the sim's own revolving share as its target, and rounding that UP pays up to $0.50
+        // more on the next pass, out of cash that may sit only cents above the floor. Measured on
+        // the synthetic persona in floor-protection.unfundedAccountOutflow.test.ts: a target of
+        // $2,970.80 rounded to $2,971 ended Oct 2027 $0.03 under its floor on the published pass.
+        // Down-rounding leaves under a dollar a month for the next pass's surplus branch instead.
+        revolvingDebtCash: Math.max(0, Math.floor(revolvingDebtCashTarget)),
       });
     }
 
     return {
-      data, milestones, maxDebtPaymentByMonth,
+      data, milestones, maxDebtPaymentByMonth, lookAheadWalkEndByMonth,
       // Pure exposure of the arrays the loop above already maintains - shared references, zero new
       // math. Both stay id-keyed so a reader never has to name-match across months (fragile once a
       // fund pays off and `carLoanPerFund` stops carrying it).

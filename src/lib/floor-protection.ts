@@ -58,6 +58,21 @@ export interface FloorProtectionParams {
    * minimum) by this bound makes the walk accumulate cash exactly where reality does.
    * Omitted ⇒ Infinity everywhere (legacy floor-riding behavior). */
   reducibleDebtCapByMonth?: number[];
+  /**
+   * The part of `expenseByMonth[m]` that is savings-GOAL contributions which the caller's own cash
+   * walk cuts before a month ends below its floor (forecast-engine's PASS 3 "affordability
+   * back-off": the debt payment falls to its minimum first, then the goal contribution gives way
+   * for whatever shortfall is left). Already INCLUDED in `expenseByMonth`; this only tells the
+   * forward walk which dollars do not actually leave in a month that cannot afford them.
+   *
+   * Ask e2850463: without it the walk kept subtracting the full planned contribution in months
+   * where the engine contributed $0, so it ran below real cash and every later cap was sized
+   * from money that was in fact still in checking.
+   *
+   * ⚠️ READ ONLY BY THE FORWARD WALK. The backward pass (`requiredEndByMonth`) still assumes every
+   * contribution is made, which can only over-reserve. Omitted ⇒ 0 everywhere (old behaviour).
+   */
+  goalContribByMonth?: number[];
   /** Per-month cycling-card statement EXCESS over baseline — used only for "what caused this"
    * save-up reason labeling (the historical "$X CC purchase statement payment" label), not for
    * the cash-flow math itself (that's already folded into expenseByMonth by the caller). */
@@ -98,6 +113,15 @@ export interface FloorProtectionResult {
    * then no reducible debt remained for it to reduce.
    */
   requiredEndByMonth: number[];
+  /**
+   * The forward pass's own modelled ENDING cash for each month: what this look-ahead believes
+   * checking holds after month m once the caps above are applied. It is the balance every cap is
+   * sized from, so a walk that runs below the engine's real ending cash makes the caps too tight
+   * (debt held back for no reason) and one that runs above it lets a month breach its floor.
+   * Exposed so that gap can be measured (ask e2850463). NaN in every month when no walk ran
+   * (`ccMinTotal <= 0`, the early return below) - "no reading", never a confident zero.
+   */
+  walkEndByMonth: number[];
 }
 
 /**
@@ -120,6 +144,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     incomeByMonth, expenseByMonth, oneTimeNetByMonth, carDownPaymentByMonth, floorByMonth,
     startingBalance, ccMinTotal, ccMinByMonth, cyclingExcessByMonth, carFunds, transactions,
     ccSourceIds, now, formatCurrency, reducibleDebtCapByMonth, ccMandatoryReasonByMonth,
+    goalContribByMonth,
   } = params;
 
   const debtCap = (m: number) => reducibleDebtCapByMonth?.[m] ?? Infinity;
@@ -186,7 +211,8 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   // The caps below are still skipped, which is the part that was always right:
   // with `ccMinTotal <= 0` there is no reducible payment to cap.
   if (ccMinTotal <= 0) {
-    return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason, requiredEndByMonth };
+    const walkEndByMonth: number[] = Array(PROJECTION_MONTHS).fill(NaN);
+    return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason, requiredEndByMonth, walkEndByMonth };
   }
 
   // Unprotected (no caps at all) trajectory, purely to identify which future months would
@@ -259,6 +285,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
   // Forward pass: the actual cash trajectory, capping each month's debt payment so the ending
   // balance never dips below what requiredEndByMonth says this month must end with.
   let bal = startingBalance;
+  const walkEndByMonth: number[] = Array(PROJECTION_MONTHS).fill(NaN);
   for (let m = 0; m < PROJECTION_MONTHS; m++) {
     const mInc = incomeByMonth[m];
     const mExp = expenseByMonth[m];
@@ -295,7 +322,14 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     } else {
       bal += mInc - mExp - natural + oneTimeNet - carDP;
     }
+    // The goal back-off (see `goalContribByMonth`). Ending below the floor here means the debt
+    // payment is already at its minimum (`natural` drains only to the floor, and a cap above the
+    // minimum leaves `requiredEnd` > floor), so the contribution is the only lever left and gives
+    // back exactly the shortfall it can cover - never more than it planned to put in.
+    const goalContrib = Math.max(0, goalContribByMonth?.[m] ?? 0);
+    if (goalContrib > 0 && bal < mFloor) bal += Math.min(goalContrib, mFloor - bal);
+    walkEndByMonth[m] = bal;
   }
 
-  return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason, requiredEndByMonth };
+  return { maxDebtPaymentByMonth, saveUpMonths, strictSaveUpMonths, saveUpReason, requiredEndByMonth, walkEndByMonth };
 }

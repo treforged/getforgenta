@@ -190,7 +190,13 @@ describe('runDebtCashConvergence — real sim + real engine on the golden fixtur
     // RE-PINNED 2026-09-30 to May 2029 with the golden moved to the 09-29 capture: his data moved
     // (lease break, move costs, new rules), not the code - the live sim and the captured snapshot
     // agree at month 27 on that capture, and the same code read Sep 2028 on the old golden.
-    expect(ccFree!.month, 'payoff month regressed').toBe('May 2029');
+    // RE-PINNED 2026-10-04 to Oct 2028 (e2850463), same capture, code change: PASS 2's floor
+    // look-ahead walk now charges the minimum the sim actually pays per card and lets a goal
+    // contribution give way where PASS 3 does. Its walk had run up to $2,103.61 below real cash in
+    // Oct 2026-Mar 2027 alone, so the caps held the cards back while checking piled up to $5k-$7k
+    // (Jul 2027-Apr 2029). Card interest 5,112.78 -> 4,642.96; the three months under the floor
+    // (Oct-Dec 2026: 392.88 / 811.74 / 655.77) are unchanged to the cent.
+    expect(ccFree!.month, 'payoff month regressed').toBe('Oct 2028');
     // RE-PINNED 2026-09-30: on the 09-29 capture his Oct-Dec 2026 are genuinely under the floor
     // (393 / 811 / 656 short, the gaps Tre is choosing cuts for in ask 9fa0eb4c), and the milestone
     // fires once, at the first. Anything beyond that one month would be convergence adding a breach.
