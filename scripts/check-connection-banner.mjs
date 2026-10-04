@@ -203,7 +203,13 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 
     check(arm, vp, got, want);
     if (want && got === want) {
       // 9 dismiss: the notice floats over the header, so it must be dismissable - PRESS it.
-      await page.getByRole('button', { name: 'Dismiss' }).click({ timeout: 5_000 });
+      // Its tap target must be the app's 44px minimum: a 16px icon with p-1 shipped at 24px.
+      const dismiss = page.getByRole('button', { name: 'Dismiss' });
+      const box = await dismiss.boundingBox();
+      if (!box || box.width < 44 || box.height < 44) {
+        findings.push(`9 dismiss @${vp}: tap target ${box ? `${box.width}x${box.height}` : 'not found'}, want >= 44x44`);
+      }
+      await dismiss.click({ timeout: 5_000 });
       await page.waitForTimeout(500);
       check('9 dismiss', vp, await readHeadline(page), null);
     }

@@ -86,7 +86,9 @@ export default function BackendHealthBanner() {
             type="button"
             aria-label="Dismiss"
             onClick={() => setDismissed(diagnosis.headline)}
-            className="shrink-0 -m-1 p-1 text-muted-foreground hover:text-foreground transition-colors rounded-md"
+            // 44px tap target (the app's minimum, as on the reorder arrows); the negative margin keeps
+            // the 16px icon where it was, so the card does not grow to fit the hit area.
+            className="shrink-0 -m-3.5 flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-foreground transition-colors rounded-md"
           >
             <X className="h-4 w-4" aria-hidden="true" />
           </button>
