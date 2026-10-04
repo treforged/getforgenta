@@ -57,7 +57,7 @@ import { hasPinnedStatement } from '@/lib/statement-pin';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 import { month0ProfilePaycheckIncome } from '@/lib/month0-profile-paychecks';
-import { month0UnfundedAccountOutflow, type Month0AccountMovements } from '@/lib/month0-account-outflow';
+import { month0AccountFlows, type Month0AccountMovements } from '@/lib/month0-account-outflow';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 /** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
@@ -760,6 +760,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         accounts.filter(a => a.active && ['401k', 'roth_ira', 'ira', 'hsa'].includes(a.account_type)).map(a => a.id),
       );
       const simTransferRules = rules.filter(r => r.active && (r.rule_type === 'transfer' || r.rule_type === 'investment'));
+      // A transfer whose money does NOT leave the funding account: its source is a savings,
+      // investment or retirement account, or a SECOND checking account (d651b7b5). forecast-engine.ts
+      // `srcIsNonCash` (incl. `srcIsOtherLiquid`) keeps these out of checking's walk in EVERY month,
+      // so the month-0 chain and the months 1+ walk below both use this one predicate.
+      const nonCashSrcTypes = new Set(['savings', 'high_yield_savings', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa']);
+      const nonCashTransferSource = (tr: (typeof simTransferRules)[number]) => {
+        const srcAcct = tr.payment_source ? accounts.find(a => a.id === tr.payment_source) : null;
+        if (!srcAcct) return null;
+        const srcIsOtherLiquid = resolvedDebtFundingId != null
+          && FUNDING_ACCOUNT_TYPES.includes(srcAcct.account_type as string) && srcAcct.id !== resolvedDebtFundingId;
+        return nonCashSrcTypes.has(srcAcct.account_type as string) || srcIsOtherLiquid ? srcAcct : null;
+      };
       let simIncMult = 1;
       // Same annualized Federal Withholding the engine feeds the tax estimator (from Budget
       // Control's paycheck deductions) so the sim's tax-return injection matches the engine's.
@@ -820,6 +832,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           const goalCutoff = tr.id ? goalTransferCutoffs.get(tr.id) : undefined;
           if (goalCutoff != null && idx >= goalCutoff) continue;
           if (tr.deposit_account) simActiveTransferDests.add(tr.deposit_account);
+          // Transfer parity: a transfer out of a non-cash or second checking account never leaves
+          // the funding account, so it is not checking's expense here either (the engine's
+          // `srcIsNonCash`). Until 2026-10-04 every transfer rule was charged.
+          //
+          // ⚠️ AND ONE INTO CHECKING IS NOT CREDITED HERE. The engine adds what its source really
+          // GAVE (`nonCashIntoFunding`, 4b-ii), floored at the source's balance - which this walk
+          // does not track past month 0. Crediting the rule amount would let the sim spend money a
+          // dry source never sends. Leaving it out under-counts cash, so it can only pay the cards
+          // LESS, never overdraw; the convergence loop already hands the engine's realised figure to
+          // its PASS 2 look-ahead (`nonCashIntoFundingByMonth`).
+          if (nonCashTransferSource(tr)) continue;
           const amt = Number(tr.amount);
           monthTransfers += amt * countRuleOccurrencesInMonth(tr, d.getFullYear(), d.getMonth(), now);
         }
@@ -1024,7 +1047,6 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // Transfers: only occurrences strictly after the sync cutoff day — earlier ones are already
       // in the live balance. Non-cash-source transfers move money between non-cash accounts and
       // never touch checking (both rules mirror forecast-engine's month-0 monthTransfers loop).
-      const nonCashSrcTypes = new Set(['savings', 'high_yield_savings', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa']);
       const m0ActiveTransferDests = new Set<string>();
       let m0Transfers = 0;
       // The same transfers, by account, for month 0's other-account model below (`m0Unfunded...`).
@@ -1053,13 +1075,11 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           monthAmt = amt / 12;
         }
         // biweekly: leave monthAmt = amt (conservative; at most once per month — engine parity)
-        const srcAcct = tr.payment_source ? accounts.find(a => a.id === tr.payment_source) : null;
         // d651b7b5: A SECOND CHECKING ACCOUNT IS NOT THE FUNDING ACCOUNT EITHER. A transfer out of it
         // was charged here as if checking had sent it. Same rule as forecast-engine.ts's month loop
         // (`srcIsNonCash`), which moves it out of that account in step 4b-iii instead.
-        const srcIsOtherLiquid = srcAcct != null && resolvedDebtFundingId != null
-          && FUNDING_ACCOUNT_TYPES.includes(srcAcct.account_type as string) && srcAcct.id !== resolvedDebtFundingId;
-        if (srcAcct && (nonCashSrcTypes.has(srcAcct.account_type as string) || srcIsOtherLiquid)) {
+        const srcAcct = nonCashTransferSource(tr);
+        if (srcAcct) {
           if (monthAmt > 0) m0NonCashTransfers.push({ fromAcctId: srcAcct.id, toAcctId: tr.deposit_account ?? null, amount: monthAmt });
           continue;
         }
@@ -1119,17 +1139,22 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           if (srcId != null && amount > 0) m0OtherAccountExpenseItems.push({ fromAcctId: srcId, amount });
         }
       }
-      const m0UnfundedAccountOutflow = month0UnfundedAccountOutflow(
-        accounts as unknown as Parameters<typeof month0UnfundedAccountOutflow>[0],
+      // Transfer parity (follow-up of b80124a0): the same model also returns what a transfer from
+      // savings or another account really moved INTO checking this month (`nonCashIntoFunding`, the
+      // engine's 4b-ii), at what its source gave. The engine adds it to month 0's cash, so this chain
+      // does too; before 2026-10-04 the Dashboard ended month 0 below the Forecast by the transfer.
+      const { unfundedAccountOutflow: m0UnfundedAccountOutflow, nonCashIntoFunding: m0NonCashIntoFunding } = month0AccountFlows(
+        accounts as unknown as Parameters<typeof month0AccountFlows>[0],
         resolvedDebtFundingId,
         { cashTransfersIn: m0CashTransfersIn, nonCashTransfers: m0NonCashTransfers, expenseItems: m0OtherAccountExpenseItems },
       );
 
-      // `m0UnfundedAccountOutflow` is checking's money too, so the sim's month-0 cash model carries it.
+      // `m0UnfundedAccountOutflow` is checking's money too, so the sim's month-0 cash model carries it,
+      // and `m0NonCashIntoFunding` is checking's money IN, so it nets off the same outflow.
       const m0ExtraOutflow = m0Transfers + m0Savings + m0CarSaving
         + getTotalCarLoanMonthly(carFunds ?? [], m0MonthStart)
         + getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0] + carLoanLumpByMonth[0]
-        + otherDebtPaymentByMonth[0] + lumpTransferByMonth[0] + m0UnfundedAccountOutflow;
+        + otherDebtPaymentByMonth[0] + lumpTransferByMonth[0] + m0UnfundedAccountOutflow - m0NonCashIntoFunding;
 
       // ── Combined look-ahead: one-time DB expenses + cycling excess ────────────
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
@@ -1737,7 +1762,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // terms folded in), so the vehicle/insurance/lump-sum figures still need adding here. For
         // m>0, simulationMonthEvents[m].expenses already includes them — adding again would
         // double-count.
-        const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0] + m0UnfundedAccountOutflow
+        const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0] + m0UnfundedAccountOutflow - m0NonCashIntoFunding
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
           + otherDebtPaymentByMonth[m] + lumpTransferByMonth[m] + mOneTimeNet;
         // Augmented (not bare cashFloorByMonth) so this matches the floor Forecast.tsx uses for
@@ -2276,7 +2301,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet
         // 5810a568 / d651b7b5: the engine's own `- unfundedAccountOutflow` term, for month 0 (see
         // `m0UnfundedAccountOutflow`). Without it the Dashboard ended month 0 that much above Forecast.
-        - m0UnfundedAccountOutflow;
+        - m0UnfundedAccountOutflow
+        // b80124a0 / transfer parity: the engine's own `+ nonCashIntoFunding` term, for month 0.
+        + m0NonCashIntoFunding;
 
       // ── RANKED AUTOMATIC EXTRA PAYMENTS ───────────────────────────────────────
       // Every user-facing debt surface (Dashboard, Budget Control, Savings Goals via
@@ -2388,6 +2415,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // own below so a reader can still tell it apart.
         transfers: m0Transfers + lumpTransferByMonth[0] + m0UnfundedAccountOutflow,
         unfundedAccountOutflow: m0UnfundedAccountOutflow,
+        // Money IN, so it is NOT folded into `transfers`: Safe to Spend reserves that term against
+        // dated items, and netting an inflow off it would spend money before it arrives.
+        nonCashIntoFunding: m0NonCashIntoFunding,
         oneTimeNet: m0OneTimeNet,
         oneTimeItems: m0OneTimeItems,
         cashPreDebt,

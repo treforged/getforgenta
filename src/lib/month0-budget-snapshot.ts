@@ -312,6 +312,9 @@ export function buildMonth0Snapshot(month0: Month0Result, spentSoFar = 0, hasCar
     // for what it now is — it was 'Mortgage payment' while the sum could only ever be a mortgage.
     term('otherDebt', 'Other loan payments', c.otherDebtPayment, '−', 'muted'),
     term('transfers', 'Transfers & lump sums', c.transfers, '−', 'muted'),
+    // b80124a0 / transfer parity: a '+' term of `cashPreDebt`, so without this row the column
+    // would fold short of 'Projected remaining' by exactly the transfer.
+    term('nonCashIntoFunding', 'Moved into checking from other accounts', c.nonCashIntoFunding ?? 0, '+', 'positive'),
     term('oneTime', 'One-time transactions', c.oneTimeNet, '+', c.oneTimeNet >= 0 ? 'positive' : 'negative'),
     {
       key: 'projectedRemaining', label: 'Projected remaining', value: projectedRemaining,

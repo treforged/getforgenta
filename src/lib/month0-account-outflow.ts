@@ -23,9 +23,16 @@
  *         and the whole bill goes to checking.
  * month0-unfunded-parity.test.ts asserts the two copies agree on month 0 to the cent.
  *
- * NOT MODELLED, and each one can only make this figure HIGHER than the engine's (it leaves a credit
- * out): step 4a's paycheck retirement deductions, which credit a retirement account before 4b-iii.
- * A bill paid out of a 401(k) is the only case that reaches it.
+ * It also returns 4b-ii's `nonCashIntoFunding` (ask "transfer parity", follow-up of b80124a0): what a
+ * transfer from a savings, investment, retirement or second checking account really moved INTO the
+ * funding account. The funding account has no tracker, so the engine adds that to the month's cash
+ * at what the source GAVE - a source that runs dry gives less than the rule asks.
+ *
+ * NOT MODELLED, and each one can only make `unfundedAccountOutflow` HIGHER than the engine's (it
+ * leaves a credit out): step 4a's paycheck retirement deductions, which credit a retirement account
+ * before 4b-iii. A bill paid out of a 401(k) is the only case that reaches it. The same omission can
+ * only make `nonCashIntoFunding` LOWER than the engine's: a 401(k) -> checking transfer gives at most
+ * the synced balance here, never the paycheck deduction on top.
  */
 
 /** Liquid (checking-shaped) account types - forecast-engine.ts `liquidTypes`. */
@@ -54,16 +61,23 @@ export interface Month0AccountMovements {
 
 type Bal = { balance: number };
 
+export interface Month0AccountFlows {
+  /** Dollars of month 0's other-account bills that the funding account pays (4b-iii). */
+  unfundedAccountOutflow: number;
+  /** Dollars non-cash transfers really moved into the funding account (4b-ii), source floored at 0. */
+  nonCashIntoFunding: number;
+}
+
 /**
- * Dollars of month 0's other-account bills that the funding account pays. 0 when there is no
- * funding account (nothing can be "other than" it, and the engine lists no such bill either).
+ * Month 0's checking-side flows to and from the other accounts. Both 0 when there is no funding
+ * account (nothing can be "other than" it, and the engine lists no such movement either).
  */
-export function month0UnfundedAccountOutflow(
+export function month0AccountFlows(
   accounts: readonly Month0AccountRow[],
   fundingAccountId: string | null | undefined,
   movements: Month0AccountMovements,
-): number {
-  if (!fundingAccountId) return 0;
+): Month0AccountFlows {
+  if (!fundingAccountId) return { unfundedAccountOutflow: 0, nonCashIntoFunding: 0 };
   const active = accounts.filter(a => a.active);
   const tracker = (types: string[], extra: (a: Month0AccountRow) => boolean = () => true) =>
     new Map<string, Bal>(active.filter(a => types.includes(a.account_type) && extra(a))
@@ -102,6 +116,8 @@ export function month0UnfundedAccountOutflow(
       moved = true;
     });
   }
+  // b80124a0: money a non-cash transfer moved into the funding account, at what its source gave.
+  const nonCashIntoFunding = nonCash.reduce((s, item, k) => (item.toAcctId === fundingAccountId ? s + given[k] : s), 0);
 
   // 4b-iii: a second checking account's movements, then every bill.
   nonCash.forEach((t, k) => {
@@ -122,5 +138,5 @@ export function month0UnfundedAccountOutflow(
     unfunded += Math.max(0, item.amount - Math.max(0, src.balance));
     src.balance = src === liquid && src.balance < 0 ? src.balance : Math.max(0, src.balance - item.amount);
   }
-  return unfunded;
+  return { unfundedAccountOutflow: unfunded, nonCashIntoFunding };
 }

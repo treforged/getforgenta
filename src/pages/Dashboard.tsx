@@ -102,6 +102,7 @@ import { useSafeToSpend } from '@/hooks/useSafeToSpend';
 import { usePublishSafeToSpend } from '@/hooks/usePublishSafeToSpend';
 import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { isManualCashFloor } from '@/lib/cash-floor';
+import { month0DrawerChainLines } from '@/lib/month0-drawer-lines';
 
 // Runs renderWidget INSIDE the boundary's own subtree. Calling renderWidget(id)
 // straight in the map would execute the widget's data-mapping during the
@@ -866,33 +867,10 @@ export default function Dashboard() {
     // chain below balances to the cent — printing it rounded would show a column that does not add
     // up to its own total, which is the defect this drawer exists to prevent.
     const money = (v: number) => formatCurrency(v, true);
-    const t = (label: string, value: number, op: string) =>
-      Math.abs(value) >= 0.005 ? [{ label, value: money(Math.abs(value)), op: value < 0 ? (op === '−' ? '+' : '−') : op }] : [];
-
     const chainLines = m0
-      ? [
-          { label: 'Balance on hand', value: money(m0.chain.fundingBalance) },
-          ...t('Income still coming', m0.chain.income, '+'),
-          ...t('Bills still coming', m0.chain.expenses, '−'),
-          ...t('Payment Plans (from checking)', m0.chain.planExpenses, '−'),
-          ...t('Savings goals', m0.chain.goalContributions, '−'),
-          // Ranked automatic extra payments: surplus the user's ranking sent to goals and car
-          // funds ahead of the cards. Omit it and the column is short by exactly that amount.
-          ...t('Extra to goals & car funds', m0.chain.autoExtraReserve, '−'),
-          // §2.9: 'Balance on hand' is the GROSS balance now, so this row is what keeps the drawer's
-          // column adding up to `cashPreDebt`. Omit it and the equation is short by the earmark.
-          ...t('Already saved toward a car', m0.chain.carSavedEarmark, '−'),
-          ...t('Car down payment reserve', m0.chain.carReserve, '−'),
-          ...t('Auto loan payment', m0.chain.carLoanPayment, '−'),
-          ...t('Vehicle insurance (est.)', m0.chain.vehicleInsurance, '−'),
-          ...t('Other loan payments', m0.chain.otherDebtPayment, '−'),
-          ...t('Transfers & lump sums', m0.chain.transfers, '−'),
-          ...t('One-time transactions', m0.chain.oneTimeNet, '+'),
-          { label: 'Cash before debt payments', value: money(m0.chain.cashPreDebt), op: '=' },
-          ...t('Debt payments (available to deploy)', m0.safeToPayTotal, '−'),
-          ...t('Car reserve still held at month end', m0.carReserveHeld, '+'),
-          { label: 'Projected Month-End Cash', value: money(monthEndCash), op: '=' },
-        ]
+      // Every row is a term the engine consumed; month0-drawer-lines.ts builds them so a test can
+      // fold the column (month0-transfer-parity.test.ts).
+      ? month0DrawerChainLines(m0, monthEndCash).map(l => ({ label: l.label, value: money(l.amount), ...(l.op ? { op: l.op } : {}) }))
       : [
           { label: 'Funding Account Balance', value: money(fundingBalance) },
           { label: 'Remaining Income', value: money(remainingTxIncome), op: '+' },

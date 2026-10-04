@@ -179,6 +179,12 @@ export interface Month0CashChain {
    *  d651b7b5). ALREADY INCLUDED in `transfers` - every renderer balances on that term - and named
    *  here only so a reader can tell it apart. Optional: older producers omit it, meaning 0. */
   unfundedAccountOutflow?: number;
+  /** What a transfer from a savings, investment, retirement or second checking account really moved
+   *  INTO the funding account this month, at what its source gave (forecast-engine.ts step 4b-ii's
+   *  `nonCashIntoFunding`, b80124a0 / transfer parity). A separate '+' term of `cashPreDebt`, NOT
+   *  netted into `transfers`: that term is an outflow Safe to Spend reserves against dated items.
+   *  Optional: older producers omit it, meaning 0. */
+  nonCashIntoFunding?: number;
   /** Net one-time DB transactions (income − expenses); may be negative. */
   oneTimeNet: number;
   /**
