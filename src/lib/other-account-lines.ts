@@ -32,11 +32,14 @@ export type OtherAccountMovement = {
 export type NonCashTransfer = OtherAccountMovement & {
   toAcctId: string | null;
   toAcctName: string;
+  /** 951af777: set only when the source ran dry. `amount` is then what MOVED and this is what the
+   *  rule asked for, so the popup can say both instead of printing a transfer that never happened. */
+  requestedAmount?: number;
 };
 
 export type PopupLine = { label: string; value: string; op?: '+' | '−' | '=' };
 
-type Entry = { label: string; amount: number };
+type Entry = { label: string; amount: number; keep?: boolean };
 
 /** One account's movements, keyed by whatever identifies it — its id, or its name when a source
  *  carries no id (the vehicle down-payment rows have never had one). */
@@ -52,15 +55,21 @@ export function buildOtherAccountLines(
 ): PopupLine[] {
   const groups = new Map<string, Group>();
   const push = (key: string, name: string, entry: Entry) => {
-    if (!(Math.abs(entry.amount) > 0.005)) return;
+    if (!entry.keep && !(Math.abs(entry.amount) > 0.005)) return;
     const g = groups.get(key) ?? { name, entries: [] };
     g.entries.push(entry);
     groups.set(key, g);
   };
 
   for (const t of row.nonCashTransferItems ?? []) {
+    // 951af777: a source that ran dry gave less than the rule asked. Show what moved and say why,
+    // and keep the line even when nothing moved - a transfer that silently vanishes reads as a bug.
+    const ranDry = t.requestedAmount != null && t.requestedAmount - t.amount > 0.005;
+    const fromLabel = ranDry
+      ? `${t.name} (asked ${formatCurrency(t.requestedAmount!, true)}, account ran dry)`
+      : t.name;
     push(t.fromAcctId || t.fromAcctName, t.fromAcctName || 'Other account',
-      { label: t.name, amount: -t.amount });
+      { label: fromLabel, amount: -t.amount, keep: ranDry });
     // The receiving end, when the transfer records one. Without it a savings → brokerage move
     // reads as money that simply left the plan.
     if (t.toAcctId || t.toAcctName) {

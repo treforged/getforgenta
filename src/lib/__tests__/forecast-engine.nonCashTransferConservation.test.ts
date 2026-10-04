@@ -97,6 +97,14 @@ describe('forecast-engine - a non-cash transfer conserves money when its source 
     expect(bal(out.data[1], 'brk-1')).toBeCloseTo(100, 2);
     expect(bal(out.data[11], 'brk-1')).toBeCloseTo(100, 2);
     for (const row of out.data) expect(bal(row, 'sav-1') + bal(row, 'brk-1')).toBeCloseTo(100, 2);
+    // 951af777: the month row reports what MOVED, with the request beside it only when short.
+    const item = (i: number) => out.data[i].nonCashTransferItems.find(t => t.toAcctId === 'brk-1')!;
+    expect(item(0).amount).toBeCloseTo(65, 2);
+    expect(item(0).requestedAmount).toBeUndefined();
+    expect(item(1).amount).toBeCloseTo(35, 2);
+    expect(item(1).requestedAmount).toBe(65);
+    expect(item(2).amount).toBeCloseTo(0, 2);
+    expect(item(2).requestedAmount).toBe(65);
   });
 
   it('a chain (A -> B -> brokerage) settles whatever order the rules are listed in', () => {

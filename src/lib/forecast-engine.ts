@@ -134,7 +134,7 @@ export interface ForecastMonthRow {
    *  and the popup's "Other Accounts" section cannot show a change honestly with only one of them
    *  (a savings → brokerage transfer would read as money simply gone). `toAcctId` is null when the
    *  transfer records no deposit account. */
-  nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; toAcctId: string | null; toAcctName: string; amount: number }[];
+  nonCashTransferItems: { name: string; fromAcctId: string; fromAcctName: string; toAcctId: string | null; toAcctName: string; amount: number; requestedAmount?: number }[];
   otherAccountExpenseItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
   otherAccountOneTimeItems: { name: string; fromAcctId: string; fromAcctName: string; amount: number }[];
   lumpSumSavings: number; lumpSumBrokerage: number; lumpSumRothIra: number;
@@ -3062,7 +3062,11 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         transfersTotal: actualTransfers,
         transferBreakdown: b.transferBreakdown,
         nonCashTransferItems: [
-          ...b.nonCashTransferItems,
+          // 951af777: report what MOVED (4b-ii's nonCashGiven), not what was asked; keep the request
+          // beside it only when the source ran dry, so a funded transfer's row is unchanged.
+          ...b.nonCashTransferItems.map((t, k) => t.amount - nonCashGiven[k] > 0.005
+            ? { ...t, amount: Math.round(nonCashGiven[k] * 100) / 100, requestedAmount: t.amount }
+            : t),
           ...vehicleDPFromSavingsThisMonth.map(v => ({ name: `${v.vehicleName} Down Payment`, fromAcctName: v.fromAcctName, fromAcctId: '', toAcctId: null, toAcctName: '', amount: v.amount })),
         ],
         otherAccountExpenseItems: b.otherAccountExpenseItems,
