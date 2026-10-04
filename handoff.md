@@ -30,12 +30,13 @@ CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagg
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
 R-NOW69 (10-04 ~05:50 ET, Ada getforgenta-7b hit the call gate). START HERE, IN ORDER:
-    1. [ ] 09:19 ET: ec48da25 read-back. MY CRON DIES WITH ME - arm your own CronCreate '19 9 4 10 *' (SQL R-NOW62 item 2),
+    1. [~] 09:19 ET: ec48da25 read-back. Successor (437e2d04) armed cron a31752aa 05:52; if that tab is gone, run the SQL by hand (R-NOW62 item 2),
        then `ask done ec48da25` with the rows (or `ask block` with what read back).
-    2. [ ] VERIFY 6c14ef11 on localhost:8080 /forecast as Tre, read-only (Chrome MCP; open Monthly breakdown by
+    2. [x] 05:55 VERIFIED as Tre (uid a72f416e; /forecast lands on /transactions): Short months 0, warning x1,
+       "Sep 2028: CC Debt Free!", 60 rows. Was: VERIFY 6c14ef11 on localhost:8080 /forecast as Tre, read-only (Chrome MCP; open Monthly breakdown by
        button aria-expanded; rows = div.grid with 'grid-cols-[5rem_1fr_1fr_1fr]' + 'py-2'). Expect: no "Short months
        ahead" card, "more than its account holds" x1, "Sep 2028: CC Debt Free". Revert 6c14ef11 if the app disagrees.
-    3. [ ] e2850463 (PASS 2 forward walk pessimistic, up to $5,688 below real cash; static $25 min in ccMinTotal) -
+    3. [~] opus-executor building in a WORKTREE (uncommitted; captures copied to scratchpad 437e2d04.../fx). e2850463 (PASS 2 forward walk pessimistic, up to $5,688 below real cash; static $25 min in ccMinTotal) -
        this is what makes 6c14ef11 cost interest. Executor slice; measure LEVERS + fi-paused interest before/after.
     4. [ ] 5810a568 (month-0 hook site of both look-ahead fixes), then 202b320d, d651b7b5.
     5. STANDING e1b0fffc. Monday 10-05: e501632b.
