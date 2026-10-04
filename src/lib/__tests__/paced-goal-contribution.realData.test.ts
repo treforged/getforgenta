@@ -82,7 +82,13 @@ describe('585ec24a paced goal contribution — flat vs paced on the real fixture
     // ($3,830 from checking) lands on the floor, so the counterfactual arm dips there. The paced arm
     // (what ships) is asserted free of one-time breaches in (e).
     expect(ms(flat.out, 'One-time expense caused floor breach'), 'flat arm').toEqual(['Mar 2027']);
-    expect(ms(flat.out, 'CC Debt Free')).toEqual(['Feb 2029']); // 09-29 capture (was Sep 2028 on 09-23)
+    // RE-PINNED 2026-10-04 against the capture in forecast-inputs.real.json: Feb 2029 -> Oct 2028
+    // when the "always pay this" pin entered both floor look-aheads. The flat arm's floor breaches
+    // are unchanged month for month. In May and Aug 2027 it used to pay Prime Visa $609.62 against
+    // its $773.05 contract minimum and now pays $823.05 (Sep 2027 +$48 more). Those dollars reached
+    // the cards instead of sitting above the floor (May's ending margin falls by the same $213), so
+    // card interest falls $4,764.74 -> $4,602.50 and the cards clear four months earlier.
+    expect(ms(flat.out, 'CC Debt Free')).toEqual(['Oct 2028']); // 09-29 capture (was Sep 2028 on 09-23, Feb 2029 on 09-30)
 
     // ── Both arms converge.
     expect(flat.out.converged && paced.out.converged).toBe(true);

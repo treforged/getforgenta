@@ -1149,6 +1149,21 @@ export interface SimResult {
    * which is the same lie as shrinking the payment — just pointed the other way.
    */
   monthlyUnconditionalShortfall: Map<string, number[]>;
+  /**
+   * Per-card per-month Step-5 dollars an "always pay this, no matter what" card is PINNED to -
+   * the `step5Share` the pin registers below, 0 in every month the card is not pinned that way.
+   *
+   * ⚠️ IT IS A FIXED OBLIGATION, SO A FLOOR RESERVE MUST PLAN FOR IT. The pin is paid outside the
+   * save-up cap (`mDebtCap - pinnedStep5Total`, floored at `totalMins`), so a look-ahead that models
+   * this card at its CONTRACT minimum lets an earlier month spend the cash the pin needs, and the
+   * pin month ends below its floor. Measured 2026-10-04 on Tre's capture: Nov 2026 ended $83.39
+   * under its floor. Both look-aheads (useCardProjection's `ccMinByMonth`, forecast-engine's PASS 2
+   * `ccMinByMonth`) read THIS array, so the sim and the engine reserve the same dollars.
+   *
+   * Excludes the mandatory cycling share of a cycling card's pin: that is this cycle's statement,
+   * which both look-aheads already reserve through their cycling-payment term.
+   */
+  monthlyUnconditionalPin: Map<string, number[]>;
 }
 
 export interface PaymentLedgerCardEntry {
@@ -1360,6 +1375,7 @@ export function simulateVariablePayoff(
       debtPaymentTransactions: [],
       warningMessages: [],
       monthlyUnconditionalShortfall: new Map(),
+      monthlyUnconditionalPin: new Map(),
     };
   }
 
@@ -1383,6 +1399,9 @@ export function simulateVariablePayoff(
   // Step-5 debt-cash-pool spend per card per month — see the SimResult field's JSDoc.
   const monthlyDebtCashPayment = new Map<string, number[]>(cards.map(c => [c.id, []]));
   const monthlyUnconditionalShortfall = new Map<string, number[]>(cards.map(c => [c.id, []]));
+  // Filled by index, not pushed: a card is pinned only in some months, and every other month must
+  // read 0 rather than be missing. See the SimResult field's JSDoc.
+  const monthlyUnconditionalPin = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(months).fill(0)]));
   // A cycling card's accumulated backlog, end-of-month, post-payment — the unambiguous signal
   // for "does this card need avalanche priority / a reserved minimum in the floor," kept separate
   // from monthlyRevolvingBalances (which must stay a one-way 0-once-cycling signal — see the
@@ -1821,6 +1840,10 @@ export function simulateVariablePayoff(
       const step5Share = Math.max(0, Math.round((pin - instDue) * 100) / 100);
       pinnedThisMonth.set(card.id, { mandatoryShare: 0, step5Share });
       unconditionalPinned.set(card.id, step5Share);
+    }
+    for (const [cardId, step5Share] of unconditionalPinned) {
+      const arr = monthlyUnconditionalPin.get(cardId);
+      if (arr) arr[m] = step5Share;
     }
 
     let pinnedStep5Total = 0;
@@ -2727,6 +2750,7 @@ export function simulateVariablePayoff(
     monthlyMandatoryCyclingPayment,
     monthlyDebtCashPayment,
     monthlyUnconditionalShortfall,
+    monthlyUnconditionalPin,
     monthlyCyclingBacklog,
     projectedPayoffMonths,
     cashFloorBreaches,

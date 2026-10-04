@@ -1715,6 +1715,20 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // installmentCashCost and therefore too loose to bind (36w). It is now built unconditionally;
     // with no installments, no pins and no settlement it is ccMinTotal in every month, which is
     // what the `undefined` fallback resolved to anyway.
+    // AN "ALWAYS PAY THIS" CARD IS A FIXED OBLIGATION. The sim pins its whole balance every month
+    // and pays it outside the save-up cap, so modelling that card at its contract minimum let an
+    // earlier month spend the pin's cash and the pin month ended below its floor (Tre's capture,
+    // 2026-10-04: Nov 2026 $83.39 under). Same additive rule as the ISB pin just below, against
+    // the same base (`ccMinTotal` sums each card's `minPayment`), from the sim's own per-month pin
+    // (`monthlyUnconditionalPin`), which useCardProjection's look-ahead reads too - ONE source.
+    // ⚠️ `minPayment` includes any installment portion while the pin excludes it, so for a pinned
+    // card that ALSO carries an installment plan this reserves up to that card's installment less
+    // than the sim pays. No such card exists in the captures this was measured on.
+    const unconditionalPinExcess = (m: number): number =>
+      (cardProjectionData?.simCards ?? []).reduce((s, c) => {
+        const pin = cardProjectionData?.monthlyUnconditionalPin?.get(c.id)?.[m] ?? 0;
+        return s + Math.max(0, pin - Number(c.minPayment || 0));
+      }, 0);
     const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
       Math.max(0,
         ccMinTotal
@@ -1722,7 +1736,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         - installmentCostByMonth[m]
         + ((cardProjectionData?.manualIsbPins ?? [])
           .filter(p => p.month === m)
-          .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0))));
+          .reduce((s, p) => s + Math.max(0, p.amount - p.minPayment), 0))
+        + unconditionalPinExcess(m)));
     // Upper bound on the reducible (revolving + backlog) debt payment per month: the debt
     // outstanding entering month m, from the sim's own trajectory. Keeps the look-ahead's cash
     // walk from assuming surplus keeps flowing to debt after all revolving debt has cleared —

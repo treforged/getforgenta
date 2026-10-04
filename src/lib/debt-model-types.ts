@@ -225,6 +225,11 @@ export interface CardProjectionResult {
   /** Mandatory statement payment made to each cycling card per month (before backlog cascade).
    * Exposed so simDebug and other consumers can distinguish mandatory vs discretionary payments. */
   monthlyMandatoryCyclingPayment: Map<string, number[]>;
+  /** Per-card per-month Step-5 dollars an "always pay this" card is pinned to (SimResult's
+   * `monthlyUnconditionalPin`, from the same sim as every field above). Both floor look-aheads
+   * read it as a mandatory outflow, so the reserve plans for the pin. Optional for fixture
+   * compatibility: absent means no card is pinned that way, which is the old behaviour. */
+  monthlyUnconditionalPin?: Map<string, number[]>;
   /** Per-month cap on Step-5 debt payments from the look-ahead floor-protection pass.
    * Infinity = uncapped; finite = save-up month. Exposed for debugging interest-accrual causes. */
   maxDebtPaymentByMonth: number[];

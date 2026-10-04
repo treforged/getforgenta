@@ -48,7 +48,7 @@ export type ResimOverrides = Pick<CardProjectionResult,
   | 'data' | 'debtPaymentTotals' | 'allPaymentTotals' | 'perCardPayments'
   | 'perCardPaymentsScaled' | 'monthlyRevolvingBalances' | 'monthlyBalances'
   | 'perCardMinPayments' | 'monthlyCyclingOwed' | 'monthlyCyclingInterest' | 'monthlyInterest'
-  | 'monthlyCyclingBacklog' | 'monthlyMandatoryCyclingPayment' | 'paymentLedger'
+  | 'monthlyCyclingBacklog' | 'monthlyMandatoryCyclingPayment' | 'monthlyUnconditionalPin' | 'paymentLedger'
   | 'forecastAdjustedRevolvingBalances' | 'simRevolvingPayoffMonth' | 'forecastRevolvingPayoffMonth'
 >;
 
@@ -206,6 +206,7 @@ export function buildResimOverrides(simT: SimResult, ctx: ResimContext): ResimOv
     monthlyInterest: simT.monthlyInterest,
     monthlyCyclingBacklog: simT.monthlyCyclingBacklog,
     monthlyMandatoryCyclingPayment: simT.monthlyMandatoryCyclingPayment,
+    monthlyUnconditionalPin: simT.monthlyUnconditionalPin,
     paymentLedger: buildPaymentLedger(simT, cards).map((e, i) => (i === 0 && month0PaymentLedger ? month0PaymentLedger : e)),
     forecastAdjustedRevolvingBalances: simT.monthlyRevolvingBalances,
     simRevolvingPayoffMonth: payoffMonth,

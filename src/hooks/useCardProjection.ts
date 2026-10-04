@@ -1344,6 +1344,13 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             // ccMinTotal, a sum of contract minimums. Same rule, different base.)
             const pin = isbPinByCard.get(c.id);
             if (pin && pin.month === m) due = Math.max(due, Math.min(pin.amount, revBal));
+            // AN "ALWAYS PAY THIS" PIN SUPERSEDES THE CONTRACT MINIMUM TOO, in every month the sim
+            // pins it. It is a fixed obligation the sim pays outside the save-up cap, so the reserve
+            // has to be banked before it lands, like a bill. Same superseding rule as the statement
+            // pin above, for the same reason (the contract minimum is already this card's term).
+            // ONE SOURCE: the sim's own `monthlyUnconditionalPin`, which forecast-engine's PASS 2
+            // reads as well (via CardProjectionResult), so both look-aheads hold the same dollars.
+            due = Math.max(due, sim.monthlyUnconditionalPin.get(c.id)?.[m] ?? 0);
             return s + due;
           }, 0) + installmentCostByMonth[m],
         );
@@ -2598,6 +2605,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyInterest: activeSim.monthlyInterest,
         monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
         monthlyMandatoryCyclingPayment: activeSim.monthlyMandatoryCyclingPayment,
+        monthlyUnconditionalPin: activeSim.monthlyUnconditionalPin,
         // Month 0: overwrite ledger[0] with the augmented-floor-capped entry (see month0PaymentLedger
         // above). The engine consumes the RESIM ledger, not this base one, so the same override is
         // also threaded through the two buildResimOverrides ctx objects; this base override keeps the

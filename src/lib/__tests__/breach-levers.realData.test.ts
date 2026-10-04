@@ -72,6 +72,12 @@ const PINNED_MONTHS: [string, number][] = [
 // MIN_COVERED_DOLLARS. Its old 702 came from the separate unfunded charge, which let freed dollars
 // pile up in checking until Jul 2027. In the real cash chain, cash above the floor in the months
 // between goes to the cards, so those $25s never reach July.
+// RE-PINNED 2026-10-04 against the capture in forecast-inputs.real.LEVERS-2026-09-29.json (the
+// "always pay this" pin now sits in both floor look-aheads): Owners 5,264 -> 5,051. The base run is
+// unchanged to the dollar (PINNED_MONTHS above). Only the Owners-paused arm moves: in Jul 2027 it
+// used to pay Prime Visa $609.62 against its $773.05 contract minimum and now pays $823.05, so that
+// $213.43 is no longer left in checking to cover August (Aug 2027 short 188 -> 402, Sep 2027 card
+// pay 1,122 -> 908). The old 5,264 counted $213 the plan only had by under-paying a minimum.
 const PINNED_LEVERS: [string, number, string[]][] = [
-  ['Owners Contribution', 5264, ['Jul 2027', 'Sep 2027']],
+  ['Owners Contribution', 5051, ['Jul 2027', 'Sep 2027']],
 ];
