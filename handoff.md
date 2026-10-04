@@ -36,6 +36,10 @@ R-NOW77 (10-04 ~10:45 ET, Ada getforgenta-1e, successor of -30). R-NOW76 progres
        payoff earlier/same, interest down/same; Tre's live (10-04 default) unchanged. Both worktrees + branch removed.
     2. [~] 853aba70: PUSH half VERIFIED - run 37211685319 (3af8e182) success, 'Deploy to Google Play' skipped. LEFT:
        the 10-05 10:00Z SCHEDULE run's deploy step = success. Session cron 06:23 ET 10-05 (dies with this tab).
+    4. [x] FULL WALK after 3af8e182 (Sam's order): walk:empty 10/10 clean (throwaway c24aacbc, frames look honest);
+       check:one-banner PASS; walk:first-run 8/8 on fresh throwaway 8ad75ea3 (wizard on SCREEN, finish+completed held
+       10 s); walk:press 390 enumerated (was 370), 168 pressed, 168 changed, 0 no-change, 0 not-found, stub 12/12 both
+       ways. Both throwaways deleted, read back 0 users / 0 profiles.
     3. e1b0fffc fill list: Forecast Next milestone 362px and Avalanche order 252px DROPPED as not defects (hero headline
        card matches its neighbour's height; Avalanche card is names-and-order-only by Tre's ask, ecde4f9a). The width
        probe over-flags short headline cards.
