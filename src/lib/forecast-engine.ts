@@ -29,6 +29,7 @@ import { buildGoalTransferCutoffs, buildGoalOwnCompletionCutoffs, goalLinkedBala
 import { buildPacedContributionSchedules, buildPacedStopSchedules, goalContributionForMonth, scheduledAfterForStop, accountOutflowsFrom, hasCardDebt } from '@/lib/paced-goal-contribution';
 import { computeFloorProtection, FLOOR_CUSHION_DOLLARS } from '@/lib/floor-protection';
 import { computeAutoExtraReserve, type AutoExtraReserve, type AutoExtraReserveKind, type RankedTarget } from '@/lib/ranked-surplus-allocation';
+import { cardResidueHold } from '@/lib/card-residue-hold';
 import { carFundRemainingNeed, buildRankableLiabilities, goalStages, stopRowId, stopIndexOfRow } from '@/lib/ranked-extra-payment-targets';
 import {
   IRA_ANNUAL_LIMIT, isIraCapped, levelMonthlyAllowance, levelMonthlyToDate, monthsUntilTargetDate,
@@ -48,6 +49,57 @@ import { toLocalDateStr } from '@/lib/scheduling';
  * contributions when it fires, so it must not fire on floating-point noise.
  */
 const AUTO_EXTRA_CLAMP_CENT = 0.005;
+
+/**
+ * Take `excess` dollars off a month's ranked reserve, LOWEST-RANKED TARGET FIRST.
+ *
+ * ⚠️ THE LOWEST-RANKED TARGET GIVES UP ITS MONEY FIRST. This is the waterfall running backwards,
+ * and it is the whole point: the user put these in an order, so a shortfall has to come off the
+ * bottom of that order, not off everything at once. Scaling every target by one shared factor was
+ * the first version of the floor clamp and it was wrong in exactly the way a user would notice,
+ * taking from their top priority and their last priority in equal proportion (Tre, 2026-08-26:
+ * "the lowest priority item ... should pull back first").
+ *
+ * Shared by the floor clamp and the card-residue hold (ceb711fc), so both give money back in the
+ * same order. Returns a NEW list; the input is not modified.
+ */
+function shedLowestRankFirst(
+  perTarget: AutoExtraReserve['perTarget'],
+  rankById: ReadonlyMap<string, number>,
+  excessIn: number,
+): AutoExtraReserve['perTarget'] {
+  const ranked = perTarget.map(t => ({
+    ...t,
+    // An unranked target is one this month could not place in the list at all. It sheds first,
+    // because guessing that it outranks something the user ranked deliberately is the worse of
+    // the two possible errors.
+    rank: rankById.get(t.id) ?? Number.POSITIVE_INFINITY,
+  }));
+  const amountById = new Map(ranked.map(t => [t.id, t.amount]));
+  const tiers = [...new Set(ranked.map(t => t.rank))].sort((a, b) => b - a);
+
+  let excess = excessIn;
+  for (const rank of tiers) {
+    if (excess <= 0) break;
+    const tier = ranked.filter(t => t.rank === rank);
+    const tierTotal = tier.reduce((s, t) => s + (amountById.get(t.id) ?? 0), 0);
+    if (tierTotal <= 0) continue;
+    // Within one tier, proportionally. Two targets the user ranked EQUALLY have no order between
+    // them, so shedding them in array order would make the answer depend on how the rows happened
+    // to be loaded.
+    const take = Math.min(excess, tierTotal);
+    for (const t of tier) {
+      amountById.set(t.id, (amountById.get(t.id) ?? 0) * (1 - take / tierTotal));
+    }
+    excess -= take;
+  }
+
+  // A line that survived at less than a cent did not happen, and the drawer printing "$0.00" next
+  // to a goal reads as a contribution that was made rather than one that was cancelled.
+  return ranked
+    .map(t => ({ id: t.id, kind: t.kind, amount: amountById.get(t.id) ?? 0 }))
+    .filter(t => t.amount > AUTO_EXTRA_CLAMP_CENT);
+}
 
 /**
  * How long an amortizing-liability balance array is: ONE ENTRY PAST THE HORIZON.
@@ -2081,7 +2133,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           // `undefined` means this fund has no projected balance array at all (the schedule threw),
           // which is not the same claim as "it owes nothing" — leave its payment alone rather than
           // cancel a real bill on the strength of a missing number.
-          return owed !== undefined && owed <= 0 ? s + payments[i] : s;
+          return owed !== undefined && owed <= AUTO_EXTRA_CLAMP_CENT ? s + payments[i] : s;
         },
         0,
       );
@@ -2559,48 +2611,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
             - Math.max(step3SpendFloor + FLOOR_CUSHION_DOLLARS, lookaheadEnd),
         );
         if (autoExtraOutThisMonth - affordableReserve > AUTO_EXTRA_CLAMP_CENT) {
-          // ⚠️ THE LOWEST-RANKED TARGET GIVES UP ITS MONEY FIRST. This is the
-          // waterfall running backwards, and it is the whole point: the user put
-          // these in an order, so a shortfall has to come off the bottom of that
-          // order, not off everything at once. Scaling every target by one
-          // shared factor was the first version of this clamp and it was wrong
-          // in exactly the way a user would notice, taking from their top
-          // priority and their last priority in equal proportion (Tre,
-          // 2026-08-26: "the lowest priority item ... should pull back first").
-          const ranked = autoExtraThisMonth.map(t => ({
-            ...t,
-            // An unranked target is one this month could not place in the list
-            // at all. It sheds first, because guessing that it outranks
-            // something the user ranked deliberately is the worse of the two
-            // possible errors.
-            rank: autoExtraRankById.get(t.id) ?? Number.POSITIVE_INFINITY,
-          }));
-          const amountById = new Map(ranked.map(t => [t.id, t.amount]));
-          const tiers = [...new Set(ranked.map(t => t.rank))].sort((a, b) => b - a);
-
-          let excess = autoExtraOutThisMonth - affordableReserve;
-          for (const rank of tiers) {
-            if (excess <= 0) break;
-            const tier = ranked.filter(t => t.rank === rank);
-            const tierTotal = tier.reduce((s, t) => s + (amountById.get(t.id) ?? 0), 0);
-            if (tierTotal <= 0) continue;
-            // Within one tier, proportionally. Two targets the user ranked
-            // EQUALLY have no order between them, so shedding them in array
-            // order would make the answer depend on how the rows happened to be
-            // loaded.
-            const take = Math.min(excess, tierTotal);
-            for (const t of tier) {
-              amountById.set(t.id, (amountById.get(t.id) ?? 0) * (1 - take / tierTotal));
-            }
-            excess -= take;
-          }
-
-          // A line that survived at less than a cent did not happen, and the
-          // drawer printing "$0.00" next to a goal reads as a contribution that
-          // was made rather than one that was cancelled.
-          autoExtraThisMonth = ranked
-            .map(t => ({ id: t.id, kind: t.kind, amount: amountById.get(t.id) ?? 0 }))
-            .filter(t => t.amount > AUTO_EXTRA_CLAMP_CENT);
+          autoExtraThisMonth = shedLowestRankFirst(
+            autoExtraThisMonth, autoExtraRankById, autoExtraOutThisMonth - affordableReserve,
+          );
           // DERIVED from the survivors rather than set to `affordableReserve`,
           // so the itemised parts always sum to the total exactly. Steps
           // 4c-ii-b and 4c-ii-c credit those per-target amounts to real goal and
@@ -2608,6 +2621,58 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           // dollars on a balance that never left checking. Dropping the sub-cent
           // lines makes this very slightly SMALLER than the ceiling, which is
           // the safe direction.
+          autoExtraOutThisMonth = autoExtraThisMonth.reduce((s, t) => s + t.amount, 0);
+        }
+
+        // ═══ ceb711fc: A CARD STILL OWING OUTRANKS EVERY TARGET THE USER PUT BELOW IT ═══
+        //
+        // The waterfall above is told each card needs only the balance LEFT AFTER the sim's
+        // payment, out of a pool that was never reduced by that payment. So the payment silently
+        // consumes the cards' whole share, and the residue it leaves goes to whatever sits below
+        // them. Measured on Tre's 2026-10-04 capture (forecast-inputs.real.json, flat arm): in
+        // Oct 2028 the C5 loan (10.18% APR, rank 4) took $206.82 while Discover (16.6% APR, rank
+        // 2) still owed $17.69 after its payment, so the cards cleared in Nov 2028, not Oct. That
+        // breaks his rank order and the standing rule to save the user the most money.
+        //
+        // So the residue is taken back off the BOTTOM of the reserve and left in checking. Step
+        // 3's surplus branch below sees that cash above the floor and adds it to the next
+        // convergence pass's revolving target, which is what actually pays the card. At the
+        // fixed point the residue is gone, and so is the hold.
+        //
+        // ⚠️ ONLY THE PART THE MONTH'S SLACK DOES NOT ALREADY COVER. Cash still above the clamp's
+        // own floor after the reserve is cash step 3 can already send to the card, so it is netted
+        // off. Not netting it was measured on the 2026-09-17 golden capture: Prime Visa sits on a
+        // permanent $0.04 the sim never clears, the hold shaved that $0.04 off the emergency-runway
+        // stop every month, the stop never completed, and it held every rank below it shut for the
+        // rest of the horizon ($62,216 of later goal contributions vanished).
+        //
+        // ⚠️ RUN ON THE SURVIVORS OF THE FLOOR CLAMP, NOT FOLDED INTO IT. Adding the hold to the
+        // floor shortfall (the first draft) lets the combined excess run past a loan the floor has
+        // already emptied and into a goal the user ranked ABOVE the cards. The bound that forbids it is
+        // pinned in card-residue-hold.test.ts (cases 5-7 go red without it). `cardResidueHold` is
+        // bounded so no dollar leaves a target for a card ranked at or below it, and the hold
+        // never raises spending: it only keeps more cash in checking.
+        //
+        // A card with its own `surplus_sort_order` keeps that rank, exactly as the waterfall
+        // above seats it (all five of Tre's cards carry one). Every other card sits half a rank
+        // ahead of `cards_sort_order`, the block's own tie-break in `computeAutoExtraReserve`.
+        const cardsBlockRank = (profile?.cards_sort_order ?? 0) - 0.5;
+        const cardResidues = simCards.map(c => {
+          const own = accountMap.get(c.id)?.surplus_sort_order;
+          const ownRank = own == null ? NaN : Number(own);
+          return { rank: Number.isFinite(ownRank) ? ownRank : cardsBlockRank, residue: revBalAt(c.id) };
+        });
+        const residueHold = cardResidueHold(
+          autoExtraThisMonth.map(t => ({
+            rank: autoExtraRankById.get(t.id) ?? Number.POSITIVE_INFINITY,
+            amount: t.amount,
+          })),
+          cardResidues,
+        );
+        const slackAboveFloor = Math.max(0, affordableReserve - autoExtraOutThisMonth);
+        const residueExcess = residueHold - slackAboveFloor;
+        if (residueExcess > AUTO_EXTRA_CLAMP_CENT) {
+          autoExtraThisMonth = shedLowestRankFirst(autoExtraThisMonth, autoExtraRankById, residueExcess);
           autoExtraOutThisMonth = autoExtraThisMonth.reduce((s, t) => s + t.amount, 0);
         }
       }

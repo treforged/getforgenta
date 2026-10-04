@@ -93,7 +93,12 @@ describe('585ec24a paced goal contribution — flat vs paced on the real fixture
     // where PASS 3 does. On this flat arm the same six months sit under the floor and Mar 2027's
     // shortfall falls 456.70 -> 243.22; card interest falls 4,602.50 -> 4,539.58 while the last
     // dollar clears one month later. Why the payoff moves later on less interest is not diagnosed.
-    expect(ms(flat.out, 'CC Debt Free')).toEqual(['Nov 2028']); // 09-29 capture (was Oct 2028 on 10-04, Sep 2028 on 09-23, Feb 2029 on 09-30)
+    // DIAGNOSED AND RE-PINNED 2026-10-04 (ceb711fc): Nov 2028 -> Oct 2028. In Oct 2028 the C5 loan
+    // (rank 4) took $206.82 of surplus while Discover (rank 2) still owed $17.69 after its
+    // payment. `cardResidueHold` now keeps a card's residue out of every target ranked below it,
+    // so interest falls 4,540.87 -> 4,540.63 and the cards clear one month EARLIER. This pin is
+    // the realData red: it reads Nov 2028 on the engine without the hold.
+    expect(ms(flat.out, 'CC Debt Free')).toEqual(['Oct 2028']); // 10-04 capture (Nov 2028 before ceb711fc, Oct 2028 on e2850463's parent, Sep 2028 on 09-23, Feb 2029 on 09-30)
 
     // ── Both arms converge.
     expect(flat.out.converged && paced.out.converged).toBe(true);
