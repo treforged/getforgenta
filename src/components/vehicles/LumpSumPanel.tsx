@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LUMP_SUM_AUTO_EXTRA_NOTE } from '@/lib/lump-sum-guard';
+import MoreInfo from '@/components/shared/MoreInfo';
 import { Plus, X, Edit2, Check } from 'lucide-react';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { formatCurrency } from '@/lib/calculations';
@@ -211,7 +212,7 @@ export default function LumpSumPanel({
       </div>
 
       {autoExtraOn && (
-        <p className="text-[10px] text-muted-foreground">{LUMP_SUM_AUTO_EXTRA_NOTE}</p>
+        <MoreInfo label="Why Add is off">{LUMP_SUM_AUTO_EXTRA_NOTE}</MoreInfo>
       )}
 
       {!autoExtraOn && !hasLumps && (

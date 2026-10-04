@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { LUMP_SUM_AUTO_EXTRA_NOTE, lumpSumsBlocked } from '@/lib/lump-sum-guard';
+import MoreInfo from '@/components/shared/MoreInfo';
 import type { Json, Tables } from '@/integrations/supabase/types';
 import DateScrollPicker from '@/components/shared/DateScrollPicker';
 import { useMonth0DebtBreakdown } from '@/hooks/useMonth0DebtBreakdown';
@@ -254,7 +255,7 @@ export function GoalLumpSumPanel({
           Same sentence as `LumpSumPanel`, from one constant, so the two surfaces cannot describe
           the same rule differently. */}
       {blocked && (
-        <p className="text-[10px] text-muted-foreground">{LUMP_SUM_AUTO_EXTRA_NOTE}</p>
+        <MoreInfo label="Why Add is off">{LUMP_SUM_AUTO_EXTRA_NOTE}</MoreInfo>
       )}
 
       {isRothIra && Object.keys(rothByYear).length > 0 && (
@@ -395,7 +396,13 @@ function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses, pace
   return (
     <div className="card-forged p-4 sm:p-5 overflow-hidden w-full">
       <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Savings Growth Projection</h3>
-      <p className="text-[10px] text-muted-foreground mb-3 sm:mb-5">Next 5 years — includes interest, planned contributions, and future start dates. Contributions stop once a goal hits its target; interest keeps compounding. A stop you marked as spent drops out of the line on its date.</p>
+      {/* Ask 52898f88: the method sits behind one tap; the time span stays visible. */}
+      <p className="text-[10px] text-muted-foreground">Next 5 years</p>
+      <MoreInfo label="What this line includes" className="mb-3 sm:mb-5">
+        Includes interest, planned contributions, and future start dates. Contributions stop once a
+        goal hits its target; interest keeps compounding. A stop you marked as spent drops out of the
+        line on its date.
+      </MoreInfo>
       <ResponsiveContainer className={AXIS_TEXT_CLASS} width="100%" height={isMobile ? 200 : 260}>
         <LineChart data={chartData} margin={{ left: 0, right: 0, top: 5, bottom: 5 }} onTouchStart={selectPointOnTouch}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(0, 0%, 15%)" />

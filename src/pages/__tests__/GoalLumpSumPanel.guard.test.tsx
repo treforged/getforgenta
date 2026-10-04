@@ -12,11 +12,11 @@
 // run here.
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 
 // jest-dom's matchers are not registered in this project's vitest setup, so the DOM property is
 // read directly. It is also the more literal assertion: `disabled` is what the browser acts on.
-const addButton = () => screen.getByRole('button', { name: /add/i }) as HTMLButtonElement;
+const addButton = () => screen.getByRole('button', { name: /^add$/i }) as HTMLButtonElement;
 import { GoalLumpSumPanel } from '@/pages/SavingsGoals';
 import { LUMP_SUM_AUTO_EXTRA_NOTE } from '@/lib/lump-sum-guard';
 
@@ -33,6 +33,8 @@ describe('GoalLumpSumPanel and the auto-extra guard', () => {
   it('⚠️ DISABLES Add and explains why when the sweep is on', () => {
     render(<GoalLumpSumPanel {...base} autoExtraOn />);
     expect(addButton().disabled).toBe(true);
+    // The reason sits behind one tap since 2026-10-04 (ask 52898f88); one press must show it.
+    fireEvent.click(screen.getByRole('button', { name: /Why Add is off/ }));
     expect(screen.getByText(LUMP_SUM_AUTO_EXTRA_NOTE)).toBeTruthy();
   });
 
@@ -40,6 +42,7 @@ describe('GoalLumpSumPanel and the auto-extra guard', () => {
     render(<GoalLumpSumPanel {...base} autoExtraOn={false} />);
     expect(addButton().disabled).toBe(false);
     expect(screen.queryByText(LUMP_SUM_AUTO_EXTRA_NOTE)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Why Add is off/ })).toBeNull();
   });
 
   it('⚠️ an ABSENT flag leaves it usable — never take a control away on a value you could not read', () => {

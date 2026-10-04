@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import MoreInfo from '@/components/shared/MoreInfo';
 import {
   ArrowDown, ArrowUp, Banknote, Car, CreditCard, Landmark, Link2, Target, Unlink,
 } from 'lucide-react';
@@ -357,11 +358,12 @@ export default function SurplusRankingSection({
       <div className="flex items-start justify-between gap-3 mb-1">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Where the extra money goes</h2>
+          {/* Ask 52898f88 (Tre 10-02: "too complicated for a new user"): the rule stays on screen,
+              the method moves behind one tap. The goal-order sentence STAYS VISIBLE - Tre asked for
+              that rule to be clear to users (decision 2d104bc7). */}
           <p className="text-xs text-muted-foreground mt-0.5">
-            Left-over cash after the bills goes to these one at a time, in order. Card minimums are
-            always paid first; this ranks what happens to the surplus. Goals are paid in order: a
-            card ranked lower gets only its minimum until the goals above it have this month's share,
-            even on Full Balance.
+            Left-over cash after the bills goes to these one at a time, in order. A card ranked lower
+            gets only its minimum until the goals above it have this month's share.
           </p>
         </div>
         {saving && <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0 mt-0.5">Saving…</span>}
@@ -371,13 +373,19 @@ export default function SurplusRankingSection({
           telling the user to look for a control that is not on screen. The sparse list says how it
           grows instead. */}
       {canReorder ? (
-        <p className="text-xs text-muted-foreground mb-3">
-          Tick <span className="text-foreground font-medium">Auto extra</span> on anything that should
-          take a share. Nothing is diverted until you do. Only the highest one that is not finished
-          gets the money; when it is done the tick comes off and the next one takes over. A goal with
-          a date, or a retirement account with an annual limit, takes only what that month calls for
-          and passes the rest straight down the list.
-        </p>
+        <div className="mb-3">
+          <p className="text-xs text-muted-foreground">
+            Tick <span className="text-foreground font-medium">Auto extra</span> on anything that should
+            take a share. Nothing is diverted until you do.
+          </p>
+          <MoreInfo label="How the order works" className="mt-1" testId="surplus-order-note">
+            Card minimums are always paid first; this list ranks what happens to the surplus, even on
+            Full Balance. Only the highest one that is not finished gets the money; when it is done the
+            tick comes off and the next one takes over. A goal with a date, or a retirement account
+            with an annual limit, takes only what that month calls for and passes the rest straight
+            down the list.
+          </MoreInfo>
+        </div>
       ) : (
         <p className="text-xs text-muted-foreground mb-3">
           Savings goals, car funds and loans you add will show up here, and you choose which one gets
