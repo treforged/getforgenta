@@ -4,6 +4,7 @@ import CountrySync from '@/components/shared/CountrySync';
 import PushTapHandler from '@/components/shared/PushTapHandler';
 import { useTheme } from '@/hooks/useTheme';
 import ConnectionNotice from '@/components/shared/ConnectionNotice';
+import BackendHealthBanner from '@/components/shared/BackendHealthBanner';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation, useNavigationType } from "react-router";
@@ -522,6 +523,9 @@ const App = () => (
     <MotionConfig reducedMotion="user">
     <TooltipProvider>
       <Sonner />
+      {/* ONCE, above both routers, so it shows on /auth and on the "Authenticating…" gate — the
+          screens a hung auth request actually strands people on. See BackendHealthBanner. */}
+      <BackendHealthBanner />
       {Capacitor.isNativePlatform() ? (
         <MemoryRouter initialEntries={['/auth']}>
           <AppReadySignal />

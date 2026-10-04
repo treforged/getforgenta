@@ -6,6 +6,7 @@ import { initMonitoring, reportError } from './lib/monitoring'
 import { installChunkFailureHandling, reportPriorBootFailure } from './lib/boot-failure'
 import { installModalDismissGuard } from './lib/modal-dismiss-guard'
 import { maybeLoadDebugConsole } from './lib/debug-console'
+import { installBackendHealth } from './lib/backend-health-store'
 // Side-effect import: i18next must be initialised BEFORE the first render, or the
 // first paint shows raw translation keys and then restates itself.
 import './lib/i18n'
@@ -33,6 +34,13 @@ import './lib/i18n'
 // closes while you are selecting text in it is a bug you can hit on the first
 // screen, so this one does not wait for idle.
 installModalDismissGuard();
+
+// Before the first render, because the very first request is the auth restore — and on
+// 2026-10-04 that was the request that hung. Observes every request to the Supabase origin and
+// names the cause when one fails (src/lib/backend-health.ts). Requests elsewhere pass untouched.
+if (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+  installBackendHealth(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+}
 
 // Opt-in in-page debug console, for testing a preview build on a real phone.
 // It loads in NON-PRODUCTION builds that explicitly ask for it and nowhere
