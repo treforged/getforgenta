@@ -286,6 +286,13 @@ export async function persistAccount(
     if (dueDay != null) update.payment_due_day = dueDay;
   }
 
+  // The bank's own figure is recorded on EVERY sync, manual or not (ask ec48da25): a manual minimum
+  // is the user's decision and is never overwritten, but its staleness must be visible.
+  if (account.minPayment != null) {
+    update.bank_min_payment = account.minPayment;
+    update.bank_min_seen_at = new Date().toISOString();
+  }
+
   if (!minIsManual) {
     if (account.minPayment != null) {
       update.min_payment = account.minPayment;

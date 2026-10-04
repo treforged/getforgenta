@@ -44,6 +44,7 @@ import { usePlaidItems } from '@/hooks/usePlaidItems';
 import { useCardPayHistory } from '@/hooks/useCardPayHistory';
 import { inferCardPayBehavior } from '@/lib/card-pay-behavior';
 import { cardPayHint } from '@/lib/card-pay-hint';
+import { bankMinNote } from '@/lib/bank-min-note';
 import { consentItemForAccount } from '@/lib/statement-consent';
 import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
 import { usePersistedState } from '@/hooks/usePersistedState';
@@ -2292,6 +2293,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <div className="min-w-0 sm:contents">
                       <p className={TILE_FACT_LABEL}>Min Payment</p>
                       <p className={TILE_FACT_NOTE}>Edit on Accounts</p>
+                      {(() => {
+                        // A typed-in minimum stays the user's, but a stale one must be visible (ec48da25).
+                        const a = accounts.find(x => x.id === proj.card.id);
+                        const note = bankMinNote(a?.min_payment, a?.min_payment_is_manual, a?.bank_min_payment);
+                        return note ? <p className={`${TILE_FACT_NOTE} sm:order-3`} data-testid="bank-min-note">{note}</p> : null;
+                      })()}
                     </div>
                     <p className={`${TILE_FACT_VALUE} sm:order-2`}>{formatCurrency(proj.card.minPayment)}</p>
                   </div>

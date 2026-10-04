@@ -145,6 +145,22 @@ describe('persistAccount — update path writes the policy decision, not the pro
     await persistAccount(db, 'user-1', connection, account({ minPayment: 350 }), NOW);
     expect('min_payment' in writes.updated!).toBe(false);
   });
+
+  // ec48da25: the manual figure stays, AND the bank's figure is recorded beside it, so the card row
+  // can show that the typed-in minimum is stale. A provider that omits the minimum writes neither.
+  it('records the bank minimum beside a manual min_payment, without touching min_payment', async () => {
+    const { db, writes } = fakeDb({ ...manualDiscover, min_payment_is_manual: true });
+    await persistAccount(db, 'user-1', connection, account({ minPayment: 198.17 }), NOW);
+    expect(writes.updated?.bank_min_payment).toBe(198.17);
+    expect(typeof writes.updated?.bank_min_seen_at).toBe('string');
+    expect('min_payment' in writes.updated!).toBe(false);
+  });
+
+  it('writes no bank minimum when the provider gave none', async () => {
+    const { db, writes } = fakeDb({ ...manualDiscover, min_payment_is_manual: true });
+    await persistAccount(db, 'user-1', connection, account({ minPayment: null }), NOW);
+    expect('bank_min_payment' in writes.updated!).toBe(false);
+  });
 });
 
 // A USER-CHOSEN NAME IS THEIRS (2026-08-21).
