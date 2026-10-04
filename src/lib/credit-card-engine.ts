@@ -924,7 +924,13 @@ export function projectCardVariable(
       const payment = Math.round((monthlyPayments[m - 1] ?? 0) * 100) / 100;
       const trueOwedThisCycle = cyclingOwedByMonth?.[m - 1];
       const cycleStartBal = trueOwedThisCycle !== undefined ? Math.round(trueOwedThisCycle * 100) / 100 : payment;
-      const cycleInterest = cyclingInterestByMonth?.[m - 1] ?? 0;
+      // Backlog interest PLUS any revolving interest the engine charged this month. The second
+      // term is non-zero only in the revolving -> cycling transition month, whose Step-3 interest
+      // the engine reports in monthlyInterest alone (ask c2e84e6e); every steady cycling month
+      // pushes 0 there. Summing keeps the transition row reconciling without the engine having to
+      // report one charge in two series.
+      const cycleInterest = Math.round(((cyclingInterestByMonth?.[m - 1] ?? 0)
+        + (trueInterestByMonth?.[m - 1] ?? 0)) * 100) / 100;
       const trueOwedNextCycle = cyclingOwedByMonth?.[m];
       const endBal = trueOwedNextCycle !== undefined ? Math.round(trueOwedNextCycle * 100) / 100 : Math.round(newPurchases * 100) / 100;
       // 8a90fa8a: when the End is the sim's, show the purchases the sim CHARGED. The sim bills a
@@ -2617,18 +2623,34 @@ export function simulateVariablePayoff(
         remainingInstAfterPay <= 0.01
       ) {
         paidOffCards.add(card.id);
+        // ⚠️ THE SAME NEVER-BILL-TWICE RULE AS THE finalBal === 0 PATH ABOVE (ask c2e84e6e). A
+        // statement card normally transitions having paid only its carry, so the whole month's
+        // purchases become next cycle's statement. But a PIN replaces the payment, and a pin
+        // larger than startBal + interest has already settled part of this month's purchases in
+        // cash - $167.62 of d7's month-7 spend under a $1,000 demo pin - and seeding the full
+        // amount billed that part again on the next statement. Subtract what was already paid,
+        // exactly as the other path does. Without a pin the cascade caps a statement card at
+        // startBal + interest, so alreadyPaidPurchases is 0 and nothing changes.
+        const nominalSeed = Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases);
+        const alreadyPaidPurchases = Math.max(0, Math.round((totalPay - startBal - interest) * 100) / 100);
         paidOffDeferredPurchases.set(card.id,
-          Math.max(cardPurchasesThisMonth(card), card.monthlyNewPurchases));
+          Math.max(0, Math.round((nominalSeed - alreadyPaidPurchases) * 100) / 100));
         balances.set(card.id, 0);
       }
 
       // If this card's total balance just reached $0 (either path above), retroactively correct
-      // the cycling display arrays pushed as 0-placeholders in Step 2.
+      // the cycling display OWED array pushed as a 0-placeholder in Step 2.
+      //
+      // ⚠️ NOT THE INTEREST ARRAY (ask c2e84e6e, 2026-10-04). This used to copy `interest` into
+      // monthlyCyclingInterest too, so the transition month's Step-3 interest - already pushed
+      // into monthlyInterest above - was reported in BOTH series: $38.09 on the demo's d7 in
+      // month 7, $8.80 on d8 in month 15. It is revolving interest (charged on the revolving
+      // start balance), so monthlyInterest owns it; monthlyCyclingInterest stays what its doc
+      // says, interest on a cycling BACKLOG. projectCardVariable's cycling branch adds the two
+      // series, so the transition row still shows (and reconciles with) the interest, once.
       if ((balances.get(card.id) ?? 0) === 0) {
         const owedArr = monthlyCyclingOwed.get(card.id);
-        const interestArr = monthlyCyclingInterest.get(card.id);
         if (owedArr && owedArr.length > 0) owedArr[owedArr.length - 1] = Math.round(startBal * 100) / 100;
-        if (interestArr && interestArr.length > 0) interestArr[interestArr.length - 1] = interest;
       }
 
       // Tranche ledger: this cycle's payment goes to the highest-APR bucket first (CARD Act §164,

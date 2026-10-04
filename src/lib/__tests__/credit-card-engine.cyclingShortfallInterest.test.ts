@@ -142,12 +142,18 @@ describe('simulateVariablePayoff / projectCardVariable — cycling shortfall int
     // The transition month's retroactively-corrected "owed" must equal the PRIOR month's
     // end balance exactly — that's the continuity the bug broke.
     expect(sim.monthlyCyclingOwed.get('cardP')![2]).toBeCloseTo(m1EndBalance, 2);
-    expect(sim.monthlyCyclingInterest.get('cardP')![2]).toBeGreaterThan(0);
+    // The transition month's interest is REVOLVING interest and is reported ONCE, in
+    // monthlyInterest. It used to be copied into monthlyCyclingInterest as well, so a reader of
+    // both series counted it twice (ask c2e84e6e). The row below still shows it: the cycling
+    // display branch adds the two series.
+    expect(sim.monthlyInterest.get('cardP')![2]).toBeGreaterThan(0);
+    expect(sim.monthlyCyclingInterest.get('cardP')![2]).toBe(0);
 
     const proj = projectCardVariable(
       card, sim.monthlyPayments.get('cardP')!, 3, true, undefined,
       sim.monthlyRevolvingBalances.get('cardP')!,
       sim.monthlyCyclingOwed.get('cardP')!, sim.monthlyCyclingInterest.get('cardP')!,
+      sim.monthlyBalances.get('cardP')!, sim.monthlyInterest.get('cardP')!,
     );
 
     const transitionRow = proj.months[2]; // 1-indexed row 3 = sim month index 2

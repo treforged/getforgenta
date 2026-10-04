@@ -66,7 +66,9 @@ export function buildDebugRows(sim: SimResult, months = 36) {
         const owed = sim.monthlyCyclingOwed.get(card.id)?.[m] ?? 0;
         const mandatory = sim.monthlyMandatoryCyclingPayment.get(card.id)?.[m] ?? 0;
         const pay = sim.perCardPaymentsScaled.find(p => p.id === card.id)?.payments[m] ?? 0;
-        const int = sim.monthlyCyclingInterest.get(card.id)?.[m] ?? 0;
+        // Backlog interest plus the transition month's revolving interest, which the engine
+        // reports in monthlyInterest only (ask c2e84e6e) - the same sum projectCardVariable shows.
+        const int = (sim.monthlyCyclingInterest.get(card.id)?.[m] ?? 0) + (sim.monthlyInterest.get(card.id)?.[m] ?? 0);
         const backlog = sim.monthlyCyclingBacklog.get(card.id)?.[m] ?? 0;
         row[`${label}_owed`] = fmt(owed);
         row[`${label}_pay`] = fmt(pay);
