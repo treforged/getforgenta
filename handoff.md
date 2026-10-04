@@ -34,7 +34,8 @@ R-NOW77 (10-04 ~10:45 ET, Ada getforgenta-1e, successor of -30). R-NOW76 progres
     1. [x] ceb711fc SHIPPED 3af8e182 (pushed 0/0). Executor died before its tests; Ada reviewed, added
        card-residue-hold.test.ts (10, 3 red under mutation), re-pinned realData Nov->Oct 2028. All 32 capture/arm pairs:
        payoff earlier/same, interest down/same; Tre's live (10-04 default) unchanged. Both worktrees + branch removed.
-    2. [ ] 853aba70 verify: session cron armed for 10-05 06:23 ET (dies with this tab - redo if successor).
+    2. [~] 853aba70: PUSH half VERIFIED - run 37211685319 (3af8e182) success, 'Deploy to Google Play' skipped. LEFT:
+       the 10-05 10:00Z SCHEDULE run's deploy step = success. Session cron 06:23 ET 10-05 (dies with this tab).
     3. e1b0fffc fill list: Forecast Next milestone 362px and Avalanche order 252px DROPPED as not defects (hero headline
        card matches its neighbour's height; Avalanche card is names-and-order-only by Tre's ask, ecde4f9a). The width
        probe over-flags short headline cards.
@@ -13165,7 +13166,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 10:43 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 11:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13184,14 +13185,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+fbcf3ee5 [handoff]: R-NOW77 - ceb711fc shipped 3af8e182
+3af8e182 [engine]: a card that still owes outranks every target ranked below it, and a paid-off loan is not charged (ceb711fc)
+bf6d794c [handoff]: R-NOW77 - Sam told, ceb711fc executor still writing, two fill targets dropped as not defects
 18496976 [handoff]: R-NOW76 - 853aba70 shipped a019bf3b, verify 10-05 10:00Z, ceb711fc executor running
 a019bf3b [ci]: Play deploys once a day, not per push, so a busy day cannot spend Play's edit quota (853aba70)
 fcfb148e [handoff]: R-NOW75 - c2e84e6e shipped 807f8b07
 807f8b07 [sim]: a card's revolving->cycling month reports its interest once, and a pin's purchases are not billed twice (c2e84e6e)
 eabb29e5 [handoff]: R-NOW75 - goal starts shipped 48647f9f
-48647f9f [goals]: the empty Goals tab offers one-press starts per goal type (e1b0fffc)
-ce2c6b0f [handoff]: R-NOW75 - 1d5b95d3 shipped 041353dd, ceb711fc + c2e84e6e executors running
-041353dd [sim]: transfer parity - months 1+ skip non-cash transfer sources, month 0 credits money moved into checking (1d5b95d3)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
