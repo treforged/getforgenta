@@ -2422,11 +2422,14 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     >
                       <div className="min-w-0">
                         <span className="text-[10px] font-medium">Always pay this, no matter what</span>
-                        <span className="block text-[9px] text-muted-foreground mt-0.5">
-                          {proj.card.paymentUnconditional === true
-                            ? 'Treated as a fixed obligation — settled first, and the rest of the plan flexes around it. A month that cannot cover it reports a shortfall instead of paying less.'
-                            : 'Treat this card like a debit card: the payment never shrinks to fit the month.'}
-                        </span>
+                        {/* The explanation shows only when the switch is ON, where it describes what is
+                            happening (ask 52898f88, "too complicated for a new user"). Off, the same
+                            sentence repeated under every card on the page - five times on Tre's. */}
+                        {proj.card.paymentUnconditional === true && (
+                          <span className="block text-[9px] text-muted-foreground mt-0.5">
+                            Treated as a fixed obligation — settled first, and the rest of the plan flexes around it. A month that cannot cover it reports a shortfall instead of paying less.
+                          </span>
+                        )}
                       </div>
                       <div className="shrink-0 pt-0.5">
                         <ToggleSwitch
