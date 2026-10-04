@@ -46,7 +46,8 @@ R-NOW63 (10-04 ~00:40 ET, Ada successor of f1). START HERE, IN ORDER:
     5. [x] Tre 10-04 paycheck prompt FIXED b297f418 (matcher naming the same rule no longer vetoes link memory).
        Overload slice also shipped 0c303e81 (Bank Activity choices behind a tap). walk:routes 27/27 after both.
        walk:press after all of it: 386 enumerated (+3 = the new taps) / 163 pressed / 163 changed / 0 no-change /
-       1 not-found ("Connect a bank" on /dashboard - a dismissable notice, check its frame before chasing), stub 12/12.
+       1 not-found ("Connect a bank" on /dashboard - its frame shows the page still on SKELETONS at press time: an
+       instrument timing miss, not an app defect; the press lookup's quietNetwork wait did not cover it this run), stub 12/12.
     6. [x] 17e959d3 pgss date check CLOSED: 394 kB text, temp_files still 199100. Next check filed for 2026-11-01.
     7. [x] 52898f88 CLOSED after the empty-account scan (6d49d42e; throwaway 7bda58ef deleted, read back 0). Was: the empty-account scan (create a throwaway @forgenta.test in SQL, scan `main p` > 110 chars per
        route, DELETE it after - the delete asks for a confirm). Screens already scanned as Tre + /demo signed-out:
