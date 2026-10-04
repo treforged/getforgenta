@@ -352,8 +352,12 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
               </section>
             )}
 
+            {/* Tre, 2026-10-03 (ask 1be673ad): Followers and Following sit side by side from sm up.
+                Stacked, each was a heading and one short line across a 756px card. One column on
+                a phone. Every row, button and empty line is unchanged. */}
+            <div className="grid gap-5 sm:grid-cols-2">
             {/* Followers */}
-            <section>
+            <section className="min-w-0">
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Followers
               </h3>
@@ -384,7 +388,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
             </section>
 
             {/* Following */}
-            <section>
+            <section className="min-w-0">
               <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Following
               </h3>
@@ -433,6 +437,7 @@ export function FollowersPanel({ currentUserId }: FollowersPanelProps) {
                 </>
               )}
             </section>
+            </div>
           </>
         )}
         {/*

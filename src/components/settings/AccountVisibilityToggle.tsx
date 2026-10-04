@@ -31,7 +31,7 @@ export function AccountVisibilityToggle() {
 
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-semibold pt-2">Who can follow you</h4>
+      <h4 className="text-xs font-semibold">Who can follow you</h4>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-medium flex items-center gap-1.5">

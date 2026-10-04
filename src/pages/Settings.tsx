@@ -614,14 +614,19 @@ export default function SettingsPage() {
       {/* Profile */}
       <div className="card-forged p-4 sm:p-5 space-y-4">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Profile</h2>
-        <div>
+        {/* Tre, 2026-10-03 (ask 1be673ad): Email and Display Name share a row from sm up, so the
+            card is not a tall stack with its right half empty. One column on a phone. Email
+            wraps rather than truncating: it is an identifier the user reads. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="min-w-0">
           <label className="text-xs text-muted-foreground uppercase">Email</label>
-          <p className="text-sm mt-0.5">{isDemo ? 'demo@forgenta.com' : user?.email || '—'}</p>
+          <p className="text-sm mt-0.5 break-all">{isDemo ? 'demo@forgenta.com' : user?.email || '—'}</p>
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="text-xs text-muted-foreground uppercase">Display Name</label>
           <input aria-label="Display name" value={displayName} onChange={e => { setDisplayName(e.target.value); markDirty(); }}
             className="w-full mt-1 bg-secondary border border-border px-3 py-2 text-sm text-foreground focus:outline-hidden focus:ring-1 focus:ring-ring" style={{ borderRadius: 'var(--radius)' }} placeholder="Your name" />
+        </div>
         </div>
       </div>
 
@@ -903,12 +908,17 @@ export default function SettingsPage() {
       {panel === 'account' && !isDemo && (
         <div className="card-forged p-4 sm:p-5 space-y-3">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Connections</h2>
-          <p className="text-xs text-muted-foreground">
-            Partners and friends now live on your Account page.
-          </p>
-          <Link to="/account" className="text-xs text-primary hover:underline font-medium">
-            Go to Account
-          </Link>
+          {/* Tre, 2026-10-03 (ask 1be673ad): the sentence and its link were two stacked rows in
+              the left third of a 756px card. One row now: sentence left, link right - same text,
+              same href, 51px shorter at 1440. */}
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 text-xs text-muted-foreground">
+              Partners and friends now live on your Account page.
+            </p>
+            <Link to="/account" className="shrink-0 inline-flex items-center gap-0.5 text-xs text-primary hover:underline font-medium">
+              Go to Account <ChevronRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
         </div>
       )}
 

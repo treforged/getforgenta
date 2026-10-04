@@ -155,8 +155,11 @@ export default function Vehicles() {
       */}
       {activeTab === 'builds' && <Builds />}
 
+      {/* Tre, 2026-10-03 (ask 1be673ad): cars are tiles in an even grid - one column on a phone,
+          two from sm, three from lg. As full-width rows each car was a name in the left corner and
+          a link 1,100px away at 1440. Same text, same link per car. */}
       {activeTab === 'vehicles' && (
-        <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {roster.map(cf => {
             const isLoan = cf.phase === 'loan';
             const linkedAccount = cf.linked_account ? accountMap[cf.linked_account] : null;
@@ -186,10 +189,13 @@ export default function Vehicles() {
             );
           })}
           {roster.length === 0 && (
-            <div className="card-forged p-12 text-center">
-              <Car size={32} className="text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground">No vehicles yet.</p>
-              <Link to="/debt?tab=auto" className="mt-2 text-xs text-primary hover:underline block">Add one on Debt Payoff →</Link>
+            /* A tile like a car's, not a 205px p-12 box holding an icon and two short lines. */
+            <div className="card-forged p-4 flex items-center gap-3">
+              <Car size={20} className="text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">No vehicles yet.</p>
+                <Link to="/debt?tab=auto" className="text-xs text-primary hover:underline">Add one on Debt Payoff →</Link>
+              </div>
             </div>
           )}
         </div>
