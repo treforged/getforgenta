@@ -242,6 +242,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const [editingMonth, setEditingMonth] = useState<{ cardId: string; month: number } | null>(null);
   const [monthPayInput, setMonthPayInput] = useState('');
   const [liquidCashOpen, setLiquidCashOpen] = useState(false);
+  const [recNoteOpen, setRecNoteOpen] = useState(false);
   const [safeToPayOpen, setSafeToPayOpen] = useState(false);
 
   // Auto-save cash floor to profile on change
@@ -1865,12 +1866,23 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               {paymentMode === 'variable' ? 'Variable' : 'Consistent'}
             </span>
           </div>
-          <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-3 sm:mb-4">
-            Recommended from this month's cash flow. Later bills are not counted. If a due date has
-            passed, the card shows next month's payment, with what you still owe this month underneath.
-            Your goal order decides who is paid first: a card ranked below a goal gets only its minimum
-            until that goal has this month's share, even on Full Balance.
-          </p>
+          {/* BEHIND A TAP, NOT DELETED (Tre, 2026-10-02, ask 52898f88: "the overload of information,
+              it's too complicated for a new user"). These three sentences sat above every figure for
+              every user; they explain the method, which a user wants once, not on every visit. */}
+          <button type="button" onClick={() => setRecNoteOpen(v => !v)} aria-expanded={recNoteOpen}
+            aria-controls="rec-method-note"
+            className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground mb-3 sm:mb-4">
+            <Info size={11} aria-hidden="true" /> How this is worked out
+            {recNoteOpen ? <ChevronUp size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />}
+          </button>
+          {recNoteOpen && (
+            <p id="rec-method-note" className="text-[10px] sm:text-xs text-muted-foreground -mt-2 mb-3 sm:mb-4">
+              Recommended from this month's cash flow. Later bills are not counted. If a due date has
+              passed, the card shows next month's payment, with what you still owe this month underneath.
+              Your goal order decides who is paid first: a card ranked below a goal gets only its minimum
+              until that goal has this month's share, even on Full Balance.
+            </p>
+          )}
 
           {month0Recs.cashWarningText && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
