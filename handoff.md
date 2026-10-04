@@ -45,6 +45,12 @@ R-NOW63 (10-04 ~00:40 ET, Ada successor of f1). START HERE, IN ORDER:
     4. Monday 10-05: e501632b.
     5. [x] Tre 10-04 paycheck prompt FIXED b297f418 (matcher naming the same rule no longer vetoes link memory).
        Overload slice also shipped 0c303e81 (Bank Activity choices behind a tap). walk:routes 27/27 after both.
+       walk:press after all of it: 386 enumerated (+3 = the new taps) / 163 pressed / 163 changed / 0 no-change /
+       1 not-found ("Connect a bank" on /dashboard - a dismissable notice, check its frame before chasing), stub 12/12.
+    6. [x] 17e959d3 pgss date check CLOSED: 394 kB text, temp_files still 199100. Next check filed for 2026-11-01.
+    7. 52898f88 NEXT: the empty-account scan (create a throwaway @forgenta.test in SQL, scan `main p` > 110 chars per
+       route, DELETE it after - the delete asks for a confirm). Screens already scanned as Tre + /demo signed-out:
+       /debt, /dashboard (Overview, Goals), /transactions (Plan, Bank Activity), /forecast, /settings.
 R-NOW62 (10-04 ~00:45 ET, Ada getforgenta-f1, handoff gate). START HERE, IN ORDER:
     1. [ ] VERIFY last commit on localhost:8080 /debt as Tre (read-only): "Always pay this, no matter what" label shows on
        each card, the off-state sentence "never shrinks to fit" appears 0 times, "Treated as a fixed obligation" appears
@@ -12956,7 +12962,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 00:18 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 01:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12975,14 +12981,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ef65f17b [handoff]: R-NOW63 - paycheck prompt fixed b297f418
+b297f418 [bank]: a paycheck the matcher AND link memory both name is auto-linked, not asked every week
+0c303e81 [transactions]: Bank Activity keeps what the list is; what each choice does goes behind one tap
+db12739e [handoff]: R-NOW63 - always-pay verified, overload taps on /debt, dashboard, goals
+029e1266 [goals]: Goals tab method notes behind one tap; the per-row Add-is-off sentence no longer repeats
+a457316f [dashboard]: the loan-totals note on Recommended This Month goes behind the same tap as /debt
+4001692a [debt]: three more method notes go behind one tap, through one shared MoreInfo control
 03b28e26 [handoff]: R-NOW62 - verify always-pay render, ec48da25 read-back, overload next
-12f5eb88 [debt]: 'Always pay this' explains itself only when switched on
-737f49f9 [debt]: 'How this is worked out' - the Recommended method note moves behind a tap
-57015f4f [handoff]: Mac brief for native glass (ask 28589795)
-70a64576 [handoff]: R-NOW61 - four asks closed, ec48da25 read-back first
-9662049b [legal]: privacy policy names Plaid as the only bank-link provider
-e197ed4e [handoff]: fill progress 57 -> 51
-99b87f9a [layout]: loan tiles one line, Goal Progress empty state one row, Which Card rows one line
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
