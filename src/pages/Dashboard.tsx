@@ -131,6 +131,8 @@ interface DashboardGoalEntry {
 
 /** Static class names so Tailwind keeps them; index = goals shown (the card shows at most 3). */
 const GOAL_GRID_COLS = ['', 'md:grid-cols-1', 'md:grid-cols-2', 'md:grid-cols-3'] as const;
+/** Same idea for Upcoming This Week's rows, from lg up. */
+const UPCOMING_COLS = ['', 'lg:grid-cols-1', 'lg:grid-cols-2', 'lg:grid-cols-3'] as const;
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -1021,7 +1023,9 @@ export default function Dashboard() {
         return (
           <div key="upcoming_week" className="card-forged p-4 card-clickable" onClick={() => navigate('/transactions')}>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Upcoming This Week</h3>
-            <div className="space-y-1">
+            {/* Desktop: up to 3 columns, so a name and its amount are ~400px apart rather than the
+                ~1000px a single full-width row put between them at 1440. */}
+            <div className={`space-y-1 lg:space-y-0 lg:grid lg:gap-x-10 lg:gap-y-1 ${UPCOMING_COLS[Math.min(upcomingBillsWeek.length, 5, 3)]}`}>
               {upcomingBillsWeek.slice(0, 5).map((e, i) => (
                 <div key={i} className="flex items-center justify-between py-1.5 text-xs">
                   <div>
