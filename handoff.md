@@ -35,6 +35,9 @@ R-NOW68 (10-04 04:50 ET, Ada getforgenta-7b). R-NOW67 items 2-3 DONE:
     [x] Offline re-measure on the fixed engine (predecessor's fx/fi-*.json): paused 0 short (Nov $3,096 / floor $2,460),
         resume65 0 short. 74b080fc DROPPED with evidence; Sam (tre-forged-24) told 'no question needed'.
     [~] e2f7101f: told Sam I take it (funding checking pays a non-funding checking overdraft) unless he objects. Building.
+    [x] 9fa0eb4c CLOSED: fixed engine on the 10-04 capture, 0 of 60 months below floor (re-check after e2f7101f).
+        d676a785 (Sam: e2f7101f is Ada's call) closed. Executor building e2f7101f in a WORKTREE (not committed).
+    NEXT after e2f7101f lands: R-NOW67 item 4 (f077f9bb residue: user pins bypass the cap) - same files, so it waits.
     [ ] ec48da25: cron 4ec19f73 armed in getforgenta-7b for 09:19. If this tab is gone, run R-NOW62 item 2 SQL by hand.
 R-NOW67 (10-04 ~06:00 ET, Ada getforgenta-b7 hit the call gate). START HERE, IN ORDER:
     1. [~] 09:19 ET: ec48da25 read-back. MY CRON DIES WITH ME - arm your own CronCreate '19 9 4 10 *' (SQL R-NOW62 item 2),
