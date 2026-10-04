@@ -93,8 +93,7 @@ const PINNED_MONTHS: [string, number][] = [
 // 5,051 covered. Now the part the empty account cannot pay comes out of checking (130.87 in Oct 2026,
 // then 140.90 a month), so pausing frees only ~$69 a month: the arm's 12-month shortfall is
 // 9,065.06 against the base's 9,379.72, and the payoff moves Aug 2029 -> Sep 2029, so the helper
-// excludes it as delays_debt_payoff. (Why a net ~$69 a month moves the payoff LATER is not
-// diagnosed: neither floor look-ahead models an unfunded account-paid outflow yet.)
+// excludes it as delays_debt_payoff.
 // The base run is unchanged to the dollar (PINNED_MONTHS above).
 // Was: ['Owners Contribution', 5051, ['Jul 2027', 'Sep 2027']].
 // RE-PINNED 2026-10-04 (b520a4e7): PASS 2's floor look-ahead now reserves for the checking-paid

@@ -11,7 +11,7 @@ import type { PaymentLedgerEntry } from '@/lib/credit-card-engine';
 import { PaymentPlan, getMonthlyPlanCashExpenses, getPaymentDates, deriveUpfrontPlanFields } from '@/lib/payment-plan-generator';
 import {
   PayScheduleConfig, getMinSafeCash, getAugmentedMinSafeCash,
-  getNormalizedMonthNetIncome, getMonthNetIncome,
+  getNormalizedMonthNetIncome, getMonthNetIncome, getRuleOccurrenceDatesInMonth,
 } from '@/lib/pay-schedule';
 import { countRuleOccurrencesInMonth } from '@/lib/scheduling';
 import { ordinal } from '@/lib/ordinal';
@@ -51,10 +51,13 @@ import { settleUnconditional } from '@/lib/unconditional-payment';
 
 /** Month 0's payments are in cents, never whole dollars (Tre, 2026-10-03: "lets just use the decimals"). */
 const cents = (x: number): number => Math.round(x * 100) / 100;
+/** A user's per-card, per-month payment pins (/debt's override), as `withPaymentOverrides` takes them. */
+type PinnedPayments = { [cardId: string]: Record<number, number> };
 import { hasPinnedStatement } from '@/lib/statement-pin';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { resolvePaycheckRuleIds } from '@/lib/paycheck-rule-ids';
 import { month0ProfilePaycheckIncome } from '@/lib/month0-profile-paychecks';
+import { month0UnfundedAccountOutflow, type Month0AccountMovements } from '@/lib/month0-account-outflow';
 export type { Month0Result, Month0CashChain, ProjectionDataRow, CardProjectionResult };
 
 /** Module-level so the "no confirmations" case keeps a STABLE identity across renders — a fresh
@@ -168,6 +171,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
   const confirmed: ConfirmedOccurrences = confirmedOccurrences ?? EMPTY_CONFIRMED;
 
   return useMemo(() => {
+    // ⚠️ ONE PROJECTION, OPTIONALLY WITH THE USER'S PER-MONTH PINS (ask 5810a568). The body below is
+    // the whole projection; `withPaymentOverrides` calls it again with the pins, so the save-up
+    // look-ahead and month 0 are re-decided with the pins in view. It used to replay only the
+    // finished sim, so a pin in month 1 could never make month 0 save for it: the synthetic persona
+    // in floor-protection.userPinMonth0.test.ts ended October $489.65 under its floor. Kept at its
+    // old indentation so the diff stays readable.
+    //
+    // `renderNow` is read ONCE, so a re-run for the pins models the same month 0 as the render it
+    // belongs to, even when /debt asks for it later.
+    const renderNow = new Date();
+    const compute = (userPins?: PinnedPayments): CardProjectionResult | null => {
     try {
       const rawCards = buildCardData(accounts, transactions, rules, debts);
       // A cash-only user (no card, but checking/cash) still gets month 0 - ask 536c0db1. It used to
@@ -176,7 +190,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // there is neither a card nor a cash account to model.
       if (rawCards.length === 0 && !accounts.some(a => a.active && FUNDING_ACCOUNT_TYPES.includes(a.account_type))) return null;
 
-      const now = new Date();
+      const now = new Date(renderNow);
       const todayStr = toLocalDateStr(now);
 
       // Handoff item 4b — mirrors forecast-engine.ts exactly (same inputs, same function, built
@@ -1013,6 +1027,9 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       const nonCashSrcTypes = new Set(['savings', 'high_yield_savings', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa']);
       const m0ActiveTransferDests = new Set<string>();
       let m0Transfers = 0;
+      // The same transfers, by account, for month 0's other-account model below (`m0Unfunded...`).
+      const m0CashTransfersIn: { toAcctId: string; amount: number }[] = [];
+      const m0NonCashTransfers: { fromAcctId: string; toAcctId: string | null; amount: number }[] = [];
       for (const tr of simTransferRules) {
         if (tr.start_date && new Date(tr.start_date + 'T00:00:00') > m0MonthEnd) continue;
         if (tr.end_date && new Date(tr.end_date + 'T00:00:00') < m0MonthStart) continue;
@@ -1037,8 +1054,17 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
         // biweekly: leave monthAmt = amt (conservative; at most once per month — engine parity)
         const srcAcct = tr.payment_source ? accounts.find(a => a.id === tr.payment_source) : null;
-        if (srcAcct && nonCashSrcTypes.has(srcAcct.account_type as string)) continue;
+        // d651b7b5: A SECOND CHECKING ACCOUNT IS NOT THE FUNDING ACCOUNT EITHER. A transfer out of it
+        // was charged here as if checking had sent it. Same rule as forecast-engine.ts's month loop
+        // (`srcIsNonCash`), which moves it out of that account in step 4b-iii instead.
+        const srcIsOtherLiquid = srcAcct != null && resolvedDebtFundingId != null
+          && FUNDING_ACCOUNT_TYPES.includes(srcAcct.account_type as string) && srcAcct.id !== resolvedDebtFundingId;
+        if (srcAcct && (nonCashSrcTypes.has(srcAcct.account_type as string) || srcIsOtherLiquid)) {
+          if (monthAmt > 0) m0NonCashTransfers.push({ fromAcctId: srcAcct.id, toAcctId: tr.deposit_account ?? null, amount: monthAmt });
+          continue;
+        }
         m0Transfers += monthAmt;
+        if (monthAmt !== 0 && tr.deposit_account) m0CashTransfersIn.push({ toAcctId: tr.deposit_account, amount: monthAmt });
       }
       const m0Savings = pauseSavings ? 0 : (goals ?? []).reduce((s, g) => {
         if (g.contribution_start_date && new Date(g.contribution_start_date + 'T00:00:00') > m0MonthStart) return s;
@@ -1059,10 +1085,51 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         }
         return s + Math.min(rem / purchaseMonthIdx, rem);
       }, 0);
+      // ── Month 0: bills another account cannot pay (asks 5810a568 / d651b7b5) ──────
+      // forecast-engine.ts step 4b-iii pays an account-paid bill from its own account and charges
+      // what that account cannot cover to checking (`unfundedAccountOutflow`). Month 0's cash is
+      // decided HERE, so this chain has to charge the same dollars, or the Dashboard and the
+      // Forecast disagree on month 0 by exactly the bill (synthetic: $1,604 against $1,304, see
+      // month0-unfunded-parity.test.ts). The bills are listed the way the engine lists them:
+      //   - recurring rules paid from another account, only occurrences still to come after the
+      //     sync date (forecast-engine.ts's `otherAccountExpenseItems`, e2f7101f's cutoff);
+      //   - one-time expenses paid from another account, dated after the sync date
+      //     (useForecastEngineInputs.ts's `otherAccountOneTimeByMonth`).
+      // The balance model is month0-account-outflow.ts. Months 1+ are not modelled here: the
+      // engine's PASS 2 reads its own figure back for those (`unfundedAccountOutflowByMonth`).
+      const m0OtherAccountExpenseItems: Month0AccountMovements['expenseItems'][number][] = [];
+      if (resolvedDebtFundingId) {
+        for (const r of rules) {
+          if (!r.active || r.rule_type !== 'expense' || !r.payment_source) continue;
+          if (ccPaymentSources.has(r.payment_source)) continue;
+          const srcId = (r.payment_source as string).replace(/^account:/, '');
+          if (srcId === resolvedDebtFundingId) continue;
+          const all = countRuleOccurrencesInMonth(r, now.getFullYear(), now.getMonth());
+          const settled = getRuleOccurrenceDatesInMonth(r, now.getFullYear(), now.getMonth())
+            .filter(dt => dt <= m0SyncCutoff).length;
+          const amount = Number(r.amount) * Math.max(0, all - settled);
+          if (amount > 0) m0OtherAccountExpenseItems.push({ fromAcctId: srcId, amount });
+        }
+        const m0Key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        for (const t of transactions) {
+          if (t.isGenerated || t.type !== 'expense' || !t.date || !t.date.startsWith(m0Key)) continue;
+          if (t.date <= m0SyncCutoff) continue;
+          const srcId = otherAssetSourceId(t.payment_source, resolvedDebtFundingId, otherAssetIds);
+          const amount = Number(t.amount);
+          if (srcId != null && amount > 0) m0OtherAccountExpenseItems.push({ fromAcctId: srcId, amount });
+        }
+      }
+      const m0UnfundedAccountOutflow = month0UnfundedAccountOutflow(
+        accounts as unknown as Parameters<typeof month0UnfundedAccountOutflow>[0],
+        resolvedDebtFundingId,
+        { cashTransfersIn: m0CashTransfersIn, nonCashTransfers: m0NonCashTransfers, expenseItems: m0OtherAccountExpenseItems },
+      );
+
+      // `m0UnfundedAccountOutflow` is checking's money too, so the sim's month-0 cash model carries it.
       const m0ExtraOutflow = m0Transfers + m0Savings + m0CarSaving
         + getTotalCarLoanMonthly(carFunds ?? [], m0MonthStart)
         + getVehicleExtrasForMonth(0) + carLoanInsuranceByMonth[0] + carLoanLumpByMonth[0]
-        + otherDebtPaymentByMonth[0] + lumpTransferByMonth[0];
+        + otherDebtPaymentByMonth[0] + lumpTransferByMonth[0] + m0UnfundedAccountOutflow;
 
       // ── Combined look-ahead: one-time DB expenses + cycling excess ────────────
       // Comprehensive per-month expense figure for the look-ahead — mirrors Forecast.tsx's own
@@ -1253,7 +1320,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         installmentChargeByMonth,
         upfrontPayByMonth,
         undefined,
-        undefined,
+        userPins,
         { purchasesAfterDueByMonth: cardPurchasesAfterDuePerMonth },
       );
 
@@ -1352,10 +1419,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             // ONE SOURCE: the sim's own `monthlyUnconditionalPin`, which forecast-engine's PASS 2
             // reads as well (via CardProjectionResult), so both look-aheads hold the same dollars.
             // A USER PIN (`monthlyUserPin`, ask f077f9bb) is the same obligation for one month, and
-            // `mandatoryPinStep5` is the one rule both look-aheads read the two through. ⚠️ HERE
-            // IT IS INERT FOR USER PINS: this refinement loop never passes `paymentOverridesByMonth`,
-            // and `withPaymentOverrides` replays the active sim without re-running this loop, so
-            // only forecast-engine's PASS 2 (which governs months 1+ during convergence) sees them.
+            // `mandatoryPinStep5` is the one rule both look-aheads read the two through. 5810a568:
+            // the sims in this loop now carry the user's pins (`userPins`, set when
+            // `withPaymentOverrides` re-runs the projection), so this reserve sees them too and
+            // month 0 can save for a pin in month 1.
             due = Math.max(due, mandatoryPinStep5(sim, c.id, m));
             return s + due;
           }, 0) + installmentCostByMonth[m],
@@ -1427,7 +1494,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           installmentChargeByMonth,
           upfrontPayByMonth,
           undefined,
-          undefined,
+          userPins,
           { purchasesAfterDueByMonth: cardPurchasesAfterDuePerMonth },
         );
       }
@@ -1670,7 +1737,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         // terms folded in), so the vehicle/insurance/lump-sum figures still need adding here. For
         // m>0, simulationMonthEvents[m].expenses already includes them — adding again would
         // double-count.
-        const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0]
+        const mExp   = (m === 0 ? m0Expenses + monthlySavingsAndCar + getVehicleExtrasForMonth(0) + carLoanLumpByMonth[0] + carLoanInsuranceByMonth[0] + m0UnfundedAccountOutflow
           : (simulationMonthEvents[m]?.expenses ?? monthlyExpenses) + (carDownPaymentByMonth[m] ?? 0))
           + otherDebtPaymentByMonth[m] + lumpTransferByMonth[m] + mOneTimeNet;
         // Augmented (not bare cashFloorByMonth) so this matches the floor Forecast.tsx uses for
@@ -1768,7 +1835,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
           installmentChargeByMonth,
           upfrontPayByMonth,
           undefined,
-          undefined,
+          userPins,
           { purchasesAfterDueByMonth: cardPurchasesAfterDuePerMonth },
         );
         perCardPayments = cards.map(c => ({
@@ -2206,7 +2273,10 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // row actually had, and the chain below rendered a total the Forecast page never agreed with.
       const m0PlanExpenses = planCashExpensesEarly[0] ?? 0;
       const cashPreDebtBeforeAutoExtra = debtFundingBalance + m0Income - m0Expenses - m0PlanExpenses - monthlySavingsAndCar - m0VehicleInsurance - m0OtherDebtPayment
-        - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet;
+        - m0Transfers - lumpTransferByMonth[0] + m0OneTimeNet
+        // 5810a568 / d651b7b5: the engine's own `- unfundedAccountOutflow` term, for month 0 (see
+        // `m0UnfundedAccountOutflow`). Without it the Dashboard ended month 0 that much above Forecast.
+        - m0UnfundedAccountOutflow;
 
       // ── RANKED AUTOMATIC EXTRA PAYMENTS ───────────────────────────────────────
       // Every user-facing debt surface (Dashboard, Budget Control, Savings Goals via
@@ -2312,7 +2382,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         carLoanPayment: carLoanTotal,
         vehicleInsurance: m0VehicleInsurance,
         otherDebtPayment: m0OtherDebtPayment,
-        transfers: m0Transfers + lumpTransferByMonth[0],
+        // The checking-paid part of another account's bills rides in `transfers`: it is money
+        // checking sends to cover that account, and every renderer of this chain (the Dashboard
+        // drawer, the month-0 snapshot, Safe to Spend) already balances on this term. Named on its
+        // own below so a reader can still tell it apart.
+        transfers: m0Transfers + lumpTransferByMonth[0] + m0UnfundedAccountOutflow,
+        unfundedAccountOutflow: m0UnfundedAccountOutflow,
         oneTimeNet: m0OneTimeNet,
         oneTimeItems: m0OneTimeItems,
         cashPreDebt,
@@ -2574,12 +2649,18 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         };
         return resim;
       };
-      const resimulateWithDebtCash = makeResimulate();
+      const resimulateWithDebtCash = makeResimulate(userPins);
 
       // Anomaly B: same result rebuilt with user month-pins applied — base sim AND the
       // resimulateWithDebtCash closure both carry the pins, so a convergence loop run on
       // the variant keeps them on every pass.
-      const withPaymentOverrides = (pinnedPayments: { [cardId: string]: Record<number, number> }): CardProjectionResult => {
+      //
+      // 5810a568: the WHOLE projection is re-run with the pins (`compute`), so the save-up look-ahead
+      // reserves for a pinned month and month 0 can save for it. The replay below is the fallback
+      // only if that re-run throws (already logged by `compute`), so /debt still shows the pins.
+      const withPaymentOverrides = (pinnedPayments: PinnedPayments): CardProjectionResult => {
+        const full = compute(pinnedPayments);
+        if (full) return full;
         const simP = replayActiveSim(undefined, undefined, mergeM0FloorPins(pinnedPayments));
         const resimFields = buildResimOverrides(simP, {
           cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger,
@@ -2665,17 +2746,19 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
       // the augmented-floor-capped month-0 payment. month0 (the recommendation), income and save-up
       // sets stay from hookResult; the resimulateWithDebtCash / withPaymentOverrides closures already
       // bake the same pins so every convergence pass stays consistent.
-      const m0PinnedSim = replayActiveSim(undefined, undefined, mergeM0FloorPins());
+      const m0PinnedSim = replayActiveSim(undefined, undefined, mergeM0FloorPins(userPins));
       const m0PinnedFields = buildResimOverrides(m0PinnedSim, {
         cards, cardPurchasesPerMonth, now, saveUpMonths, maxDebtPaymentByMonth, month0PaymentLedger,
       });
       const finalResult: CardProjectionResult = { ...hookResult, ...m0PinnedFields };
-      if (import.meta.env.DEV) attachSimDebug(finalResult);
+      if (import.meta.env.DEV && !userPins) attachSimDebug(finalResult);
       return finalResult;
     } catch (e) {
       console.error('[useCardProjection] projection failed:', e);
       return null;
     }
+    };
+    return compute();
   }, [
     accounts, transactions, rules, debts, goals, carFunds, profile,
     debtPayoffOptions, payConfig, scheduledEvents, pauseSavings,

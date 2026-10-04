@@ -73,6 +73,23 @@ export interface FloorProtectionParams {
    * contribution is made, which can only over-reserve. Omitted ⇒ 0 everywhere (old behaviour).
    */
   goalContribByMonth?: number[];
+  /**
+   * A month whose debt payment is ALREADY DECIDED, in the same units as `ccMinByMonth` (the
+   * reducible payment, cycling excluded - cycling sits in `expenseByMonth`). The forward walk spends
+   * exactly this in that month, whatever its own cap would have paid. `undefined` / NaN = not
+   * decided, the walk sizes it as before.
+   *
+   * Ask 5810a568: month 0 is live-anchored - useCardProjection decides its payment and every later
+   * month starts from the cash that payment leaves. The walk modelled month 0 at its own capped
+   * figure instead, which left out the "always pay this" statement and paid the minimums only as
+   * the static sum, so it ended month 0 $129.17 ABOVE real cash on Tre's 2026-10-04 capture
+   * ($214.90 with the Owners transfer resumed) and every later cap was sized from that money.
+   *
+   * ⚠️ READ ONLY BY THE FORWARD WALK'S BALANCE. The month's cap, its save-up flags and the
+   * backward pass are computed exactly as before, so no published cap or label moves for the
+   * decided month itself; only the cash every later month starts from does.
+   */
+  fixedDebtPaymentByMonth?: readonly (number | undefined)[];
   /** Per-month cycling-card statement EXCESS over baseline — used only for "what caused this"
    * save-up reason labeling (the historical "$X CC purchase statement payment" label), not for
    * the cash-flow math itself (that's already folded into expenseByMonth by the caller). */
@@ -144,7 +161,7 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     incomeByMonth, expenseByMonth, oneTimeNetByMonth, carDownPaymentByMonth, floorByMonth,
     startingBalance, ccMinTotal, ccMinByMonth, cyclingExcessByMonth, carFunds, transactions,
     ccSourceIds, now, formatCurrency, reducibleDebtCapByMonth, ccMandatoryReasonByMonth,
-    goalContribByMonth,
+    goalContribByMonth, fixedDebtPaymentByMonth,
   } = params;
 
   const debtCap = (m: number) => reducibleDebtCapByMonth?.[m] ?? Infinity;
@@ -304,6 +321,9 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
     // now single terms inside requiredEndByMonth[m], which is never below mFloor, so one
     // comparison covers what two used to.
     const requiredEnd = requiredEndByMonth[m];
+    // See `fixedDebtPaymentByMonth`: a decided month spends what was decided, never the walk's guess.
+    const fixedPay = fixedDebtPaymentByMonth?.[m];
+    const decided = fixedPay !== undefined && Number.isFinite(fixedPay);
     if (requiredEnd > mFloor) {
       const requiredEndBal = requiredEnd + FLOOR_CUSHION_DOLLARS;
       const availableForDebt = Math.max(0, bal + mInc - mExp + oneTimeNet - carDP - requiredEndBal);
@@ -318,9 +338,9 @@ export function computeFloorProtection(params: FloorProtectionParams): FloorProt
           saveUpReason.set(m, describeBreach(i !== undefined ? i : Math.min(PROJECTION_MONTHS - 1, m + 1)));
         }
       }
-      bal += mInc - mExp - actualPay + oneTimeNet - carDP;
+      bal += mInc - mExp - (decided ? fixedPay : actualPay) + oneTimeNet - carDP;
     } else {
-      bal += mInc - mExp - natural + oneTimeNet - carDP;
+      bal += mInc - mExp - (decided ? fixedPay : natural) + oneTimeNet - carDP;
     }
     // The goal back-off (see `goalContribByMonth`). Ending below the floor here means the debt
     // payment is already at its minimum (`natural` drains only to the floor, and a cap above the

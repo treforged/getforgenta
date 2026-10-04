@@ -157,8 +157,22 @@ describe('payment pin semantics — the demo fixture', () => {
     for (const amount of [400, 600, 1000]) {
       const pinned = pinMonths1to12(HIGHEST_APR_CARD, amount);
       const delta = ledgerTotal(pinned) - baseTotal;
-      expect(delta, `a $${amount} pin changed the 18-month total by $${delta}`)
-        .toBeLessThanOrEqual(INTEREST_SCALE);
+      // ⚠️ RE-BASED 2026-10-04 (ask 5810a568): `withPaymentOverrides` now re-runs the save-up
+      // look-ahead with the pins, so month 0 can HOLD CASH BACK for a pinned month it has to fund.
+      // The $1,000 pin is a RAISE in months 4-6 (the plan sends $213, $45, $60 there), so month 0
+      // now pays $2,325.70 instead of $2,530.16. Months 1-7 pay those $204.46 back to the cent;
+      // the rest of the +$114 is month 15 paying the other card $113.32 more. The bound is therefore
+      // "interest-scale PLUS what month 0 held back". The $400 and $600 pins leave month 0 alone and
+      // still pass the old bound (measured -163 and -497: they save earlier now, which only moves
+      // payments past the horizon).
+      // ⚠️ NOT EXPLAINED HERE, AND NOT NEW: on this persona a pinned plan's ledger total does not
+      // equal starting balances + purchases + the sim's own interest. The $1,000 pin pays $113.45
+      // more over 60 months while the sim's interest FALLS $90.50; the OLD hook did the same
+      // (+$2.13 with interest -$175.41; +$216.19 with month 0 pinned to $2,281.33). Reported with
+      // 5810a568 rather than tuned away.
+      const heldInMonth0 = Math.max(0, (base.paymentLedger[0]?.total ?? 0) - (pinned.paymentLedger[0]?.total ?? 0));
+      expect(delta, `a $${amount} pin changed the 18-month total by $${delta} (month 0 held back $${heldInMonth0.toFixed(2)})`)
+        .toBeLessThanOrEqual(INTEREST_SCALE + heldInMonth0);
 
       // ⚠️ THE POSITIVE CONTROL, and the half the old assertion could not do. `<=` is satisfied
       // perfectly by a pin that does NOTHING AT ALL, so a broken override mechanism would have

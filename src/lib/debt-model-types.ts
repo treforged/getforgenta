@@ -171,8 +171,14 @@ export interface Month0CashChain {
   vehicleInsurance: number;
   /** Non-credit-card debt service leaving checking this month — see {@link Month0Result}. */
   otherDebtPayment: number;
-  /** Transfer/investment rules plus goal lump-sum transfers leaving checking this month. */
+  /** Transfer/investment rules plus goal lump-sum transfers leaving checking this month, plus
+   *  `unfundedAccountOutflow` below. */
   transfers: number;
+  /** The part of this month's bills paid out of ANOTHER account that the account cannot cover, so
+   *  checking pays it (forecast-engine.ts step 4b-iii's `unfundedAccountOutflow`, asks 5810a568 /
+   *  d651b7b5). ALREADY INCLUDED in `transfers` - every renderer balances on that term - and named
+   *  here only so a reader can tell it apart. Optional: older producers omit it, meaning 0. */
+  unfundedAccountOutflow?: number;
   /** Net one-time DB transactions (income − expenses); may be negative. */
   oneTimeNet: number;
   /**

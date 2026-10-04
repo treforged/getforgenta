@@ -1510,8 +1510,15 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         // If payment_source is a non-cash account, this transfer moves money between
         // non-cash accounts and should NOT reduce checking cash.
         const srcAcct = tr.payment_source ? accountMap.get(tr.payment_source) : null;
+        // d651b7b5: A SECOND CHECKING ACCOUNT IS NOT CHECKING'S CASH EITHER. A transfer out of it was
+        // charged to the funding account's walk as if checking had sent it. It now travels as a
+        // non-cash transfer, so step 4b-iii takes it out of the account it really leaves. Mirrored
+        // in useCardProjection's month-0 transfer loop so the two month-0 chains still agree.
+        const srcIsOtherLiquid = srcAcct != null && forecastFundingAccountId != null
+          && liquidTypes.includes(srcAcct.account_type as string) && srcAcct.id !== forecastFundingAccountId;
         const srcIsNonCash = srcAcct
           ? (['savings', 'high_yield_savings', 'brokerage', 'roth_ira', '401k', 'ira', 'hsa'] as string[]).includes(srcAcct.account_type as string)
+            || srcIsOtherLiquid
           : false;
         if (srcIsNonCash) {
           if (monthAmt > 0) {
@@ -1879,6 +1886,17 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // affordability back-off. Month 0 is 0 because PASS 3 exempts it (it takes the contribution
       // whole, live-anchored to useCardProjection's month-0 chain).
       goalContribByMonth: baseData.map((b, i) => (i === 0 ? 0 : b.monthlySavingsContrib)),
+      // 5810a568: MONTH 0'S PAYMENT IS ALREADY DECIDED - by useCardProjection, which PASS 3 replays
+      // below (`plannedDebtPayment` = the month-0 ledger total, or 0 when every card is settled).
+      // The walk modelled it at its own capped figure, which left out the "always pay this"
+      // statement, so it ended month 0 $129.17 above real cash on Tre's 2026-10-04 capture and every
+      // later cap was sized from money that had already gone to the cards. Cycling is subtracted
+      // because `expenseByMonth` already carries it (`cyclingByMonth`).
+      fixedDebtPaymentByMonth: cardProjectionData?.paymentLedger?.[0]
+        ? [(cardProjectionData.month0?.safeToPayTotal ?? 1) === 0
+          ? 0
+          : Math.max(0, cardProjectionData.paymentLedger[0].total - cyclingByMonth[0])]
+        : undefined,
       carFunds, transactions, ccSourceIds, now: nowDate, formatCurrency,
     });
 
