@@ -29,6 +29,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW73 (10-04 ~10:00 ET, Ada getforgenta-73). START HERE, IN ORDER:
+    1. [~] opus-executor building ask 1d5b95d3 (transfer parity: months 1+ charge every transfer to checking; month-0
+       inflow for savings->funding; drawer lines for nonCashIntoFunding + unfundedAccountOutflow) in a worktree under
+       .claude/worktrees/. Brief: scratchpad brief-transfer-parity.md (session-local). If my tab is gone, review
+       `git -C <wt> diff` yourself, rerun red-before + test:tz WITH .env.local and *.real*.json copied in (without
+       them ~17 tests fail on VITE_SUPABASE_URL and goldens skip), apply the patch to main, regate, ship on green.
+       Remove the worktree after: rmdir its node_modules junction, `git worktree unlock`, then remove --force.
+    2. [ ] 3343b814 Discover statement_balance NULL after sync (bank_min 0.00). 81cbb7ca paced-goal payoff later
+       while interest falls. STANDING e1b0fffc. Monday 10-05: e501632b.
+    DONE this session: ec48da25 closed (13:00Z read-back: Robinhood 334.26/25/12, Prime 1451.88/773.05/7, Discover
+    min 0.00). b80124a0 verified live (Oct end moved 3,740.08 -> 3,774.23 from the 09:00 sync, not the commit; Tre's
+    only transfer is checking->savings). 23ed14fb closed not-a-bug (Prime 773.05 - Amazon plans 510.50 = 262.55).
+    85a59232 SHIPPED 5810a568 + d651b7b5 (pushed 0/0; test:tz 5952 x3); live as Tre identical (3,774.23, 0 short, Sep 2028).
 R-NOW72 (10-04 09:25 ET, Ada 798974e7 hit the call gate). START HERE, IN ORDER:
     1. [ ] ec48da25 read-back NOW (09:17 sync has passed; my cron ebf56ac4 dies with me): run SQL R-NOW62 item 2 via
        Supabase MCP, then `ask done ec48da25` with the rows (expect bank_min_seen_at 2026-10-04 on Robinhood/Chase/
@@ -13096,17 +13109,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 08:53 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 09:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13116,14 +13128,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+1bf7a44a [handoff]: R-NOW72 - b80124a0 shipped 37a0065b, read-back + live verify + executor worktree review next
+37a0065b [lint]: ignore .claude/worktrees, so an executor's live worktree cannot fail lint with 2215 parser errors
+5bbc8a07 [engine]: money moved from savings into checking now lands in checking (b80124a0)
 21bf3703 [handoff]: R-NOW71 - ecfeb25d verified live, 951af777 shipped 4053084b, cron ebf56ac4 armed
 4053084b [forecast]: the month popup shows what a transfer moved, and says when its account ran dry (951af777)
 6d512040 [handoff]: R-NOW70 - e2850463 shipped ecfeb25d, live verify + 09:19 read-back next
 ecfeb25d [engine]: the floor look-ahead walk tracks real cash, so the caps stop holding back card payments (e2850463)
 e36a97d5 [handoff]: R-NOW69 - 202b320d + fbc5671a shipped
-ff549846 [engine]: a transfer out of a savings account that runs dry credits only what the source gave (202b320d)
-f0f4e8b3 [leo]: spend-by-category endpoint - month-to-date bank spending by category for Leo (ask fbc5671a)
-fa9fab61 [handoff]: R-NOW69 - 6c14ef11 verified live as Tre, cron re-armed, e2850463 executor running
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
