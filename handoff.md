@@ -29,6 +29,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW81 (10-04 ~20:05Z, Ada getforgenta-97). START HERE, IN ORDER:
+    1. [x] e618b2f0 outage notice SHIPPED a10aa5b3 (pushed 0/0, origin/main grep ok). Reviewed: observe-only fetch
+       wrap (supabase-js resolves global fetch at call time, so auth/REST are seen), 4xx never a failure, status
+       pages read direct with credentials omit. Gates: unit 40/40 red under 3 mutants; check:connection-banner
+       20/20 at 390+1440 (frames looked right); test:tz 6015 x3; tsc 0. Worktree + branch removed (an EMPTY dir
+       .claude/worktrees/agent-a174767c0bdfab366 may remain - shell held it; rmdir it).
+       LEFT: FULL WALK (walk:press, walk:empty w/ throwaway @forgenta.test made+deleted in SQL, check:one-banner)
+       - BLOCKED until Supabase recovers (keyed requests hang). Then `ask done e618b2f0`.
+    2. [~] da91e541: Monitor bgzifx3u9 polls keyed /auth/v1/health every 2 min (30 min, re-arm on expiry). Still
+       hanging at 19:51Z. On 200: tell Sam the time, ask take + done da91e541, then run the walk in item 1.
+    3. [x] 853aba70 CronCreate 04d35a7e armed for 06:23 ET 10-05 (session-only; dies with this tab).
 R-NOW80 (10-04 ~19:55Z, Ada getforgenta-1e hit the 175-call gate). START HERE, IN ORDER:
     1. [~] e618b2f0 outage notice: opus-executor running in .claude/worktrees/agent-a174767c0bdfab366
        (not ceb-regate, already removed). Its report goes to MY dead tab. When its files go quiet: review `git -C <wt>
@@ -13190,7 +13201,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 15:18 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 15:50 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13209,14 +13220,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+08da0a35 [handoff]: R-NOW80 - name the executor worktree
+b4deceaf [handoff]: R-NOW80 - call gate; e618b2f0 executor running, outage watch, 853aba70 date check
+3b0ee858 [handoff]: R-NOW79 - e618b2f0 outage notice executor running
 de1347d4 [handoff]: R-NOW78 - da91e541 Supabase gateway outage confirmed all users, recovery monitor armed
 8198fd3a [ui]: an inactive payment plan reads "(not counted)", not "(off)"
 007293c0 [handoff]: R-NOW77 - full walk after 3af8e182 clean (empty 10/10, first-run 8/8, press 168/168)
 3b54003a [handoff]: R-NOW77 - 853aba70 push half verified (37211685319 deploy skipped)
 fbcf3ee5 [handoff]: R-NOW77 - ceb711fc shipped 3af8e182
-3af8e182 [engine]: a card that still owes outranks every target ranked below it, and a paid-off loan is not charged (ceb711fc)
-bf6d794c [handoff]: R-NOW77 - Sam told, ceb711fc executor still writing, two fill targets dropped as not defects
-18496976 [handoff]: R-NOW76 - 853aba70 shipped a019bf3b, verify 10-05 10:00Z, ceb711fc executor running
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
