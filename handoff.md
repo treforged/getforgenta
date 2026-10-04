@@ -29,6 +29,19 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW62 (10-04 ~00:45 ET, Ada getforgenta-f1, handoff gate). START HERE, IN ORDER:
+    1. [ ] VERIFY last commit on localhost:8080 /debt as Tre (read-only): "Always pay this, no matter what" label shows on
+       each card, the off-state sentence "never shrinks to fit" appears 0 times, "Treated as a fixed obligation" appears
+       once per card that is ON (Robinhood). Revert if wrong.
+    2. [ ] 09:17 ET 10-04 ec48da25 read-back (the session cron died with me - run it by hand): select name, min_payment,
+       min_payment_is_manual, bank_min_payment, bank_min_seen_at from accounts where user_id::text like 'a72f416e%' and
+       account_type='credit_card'. Expect bank_min_seen_at today on Robinhood/Chase/Discover; then ask done ec48da25.
+    3. [~] 52898f88 overload (taken). Done: Recommended method note behind "How this is worked out"; always-pay
+       sentence only when on. NEXT candidates on /debt: cash-floor note "Set from the bills due before your next
+       paycheck...", the "0% plans lower utilization..." line, "Loan and other debt payments..." note -> behind taps.
+       Then other pages (Dashboard, Budget) for a NEW user (walk:empty needs a throwaway @forgenta.test account).
+    4. Full walk done 10-04 00:20: walk:routes 27/27, walk:press 383 enumerated / 161 pressed / 161 changed, stub 12/12.
+    5. Monday 10-05: e501632b (Robinhood transfer plan). Mac items -> ask 28589795 (blocked-on-mac).
 MAC BRIEF R-NOW61 (for Mac Ada; ask 28589795, Sam 10-03): native iOS glass, 8a202850 then f22f17b1.
     Goal: ONE background glass surface with NO web content behind it, native UIVisualEffectView, seen in the iOS 27
     simulator; send Tre one screenshot. Context: CLAUDE.md "NATIVE iOS MATERIAL IS A FORK" (a UIVisualEffectView is a
@@ -12927,7 +12940,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 23:35 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 00:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12946,14 +12959,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+57015f4f [handoff]: Mac brief for native glass (ask 28589795)
+70a64576 [handoff]: R-NOW61 - four asks closed, ec48da25 read-back first
+9662049b [legal]: privacy policy names Plaid as the only bank-link provider
 e197ed4e [handoff]: fill progress 57 -> 51
 99b87f9a [layout]: loan tiles one line, Goal Progress empty state one row, Which Card rows one line
 943a064b [handoff]: width-ranked fill targets
 9a03f7b0 [scripts]: inventory:fill also reports empty WIDTH, with its own planted controls
 0572573c [handoff]: bank minimum deployed, read-back pending
-806da67e [sync]: record the bank's minimum beside a typed-in one; card row shows 'Bank's minimum: $X'
-f88360bd [handoff]: Discover Oct residue resolved
-3bb3114f [goals]: goal-order copy says 'this month's share', matching how dated goals are paced
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
