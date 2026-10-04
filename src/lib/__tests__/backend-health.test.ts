@@ -88,22 +88,22 @@ describe('diagnose', () => {
   it('names Supabase and its incident', () => {
     const d = diagnose({ online: true, statuses: { ...allNone, supabase: ok('minor', [{ name: 'Intermittent latency in Eastern US' }]) }, failure: failed });
     expect(d).toMatchObject({ kind: 'provider', provider: 'supabase' });
-    expect(d?.headline).toBe('Supabase, our database provider, is having an outage: Intermittent latency in Eastern US');
+    expect(d?.headline).toBe('Supabase, our database provider, reports a problem: Intermittent latency in Eastern US');
   });
 
   it('falls back to the page description when the indicator is up but no incident is listed', () => {
     const d = diagnose({ online: true, statuses: { ...allNone, supabase: ok('minor', [], 'Partially Degraded Service') }, failure: failed });
-    expect(d?.headline).toBe('Supabase, our database provider, is having an outage: Partially Degraded Service');
+    expect(d?.headline).toBe('Supabase, our database provider, reports a problem: Partially Degraded Service');
   });
 
   it('names the most severe open incident', () => {
     const d = diagnose({ online: true, statuses: { ...allNone, supabase: ok('major', [{ name: 'Small', impact: 'minor' }, { name: 'Big', impact: 'major' }]) }, failure: failed });
-    expect(d?.headline).toBe('Supabase, our database provider, is having an outage: Big');
+    expect(d?.headline).toBe('Supabase, our database provider, reports a problem: Big');
   });
 
   it('names Cloudflare at major', () => {
     const d = diagnose({ online: true, statuses: { ...allNone, cloudflare: ok('major', [{ name: 'Global network degradation' }]) }, failure: failed });
-    expect(d?.headline).toBe('Cloudflare, our network provider, is having an outage: Global network degradation');
+    expect(d?.headline).toBe('Cloudflare, our network provider, reports a problem: Global network degradation');
   });
 
   it('a minor Cloudflare incident is not blamed (measured: Workers Builds, 2026-10-04)', () => {
@@ -113,12 +113,12 @@ describe('diagnose', () => {
 
   it('names Vercel at major', () => {
     const d = diagnose({ online: true, statuses: { ...allNone, vercel: ok('critical', [{ name: 'Edge network outage' }]) }, failure: failed });
-    expect(d?.headline).toBe('Vercel, our hosting provider, is having an outage: Edge network outage');
+    expect(d?.headline).toBe('Vercel, our hosting provider, reports a problem: Edge network outage');
   });
 
   it('Supabase is named FIRST when several providers report', () => {
     const d = diagnose({ online: true, statuses: { supabase: ok('minor', [{ name: 'S' }]), cloudflare: ok('critical', [{ name: 'C' }]), vercel: ok('major', [{ name: 'V' }]), plaid: ok('major', [{ name: 'P' }]) }, failure: failed });
-    expect(d?.headline).toBe('Supabase, our database provider, is having an outage: S');
+    expect(d?.headline).toBe('Supabase, our database provider, reports a problem: S');
   });
 
   it('no provider incident: the generic sentence, no guessed cause', () => {
@@ -246,7 +246,7 @@ describe('backend health store', () => {
     store.report({ target: 'supabase', ok: false, reason: 'timeout' });
     expect(store.getSnapshot().diagnosis?.headline).toBe(UNKNOWN_HEADLINE); // before the status read lands
     await vi.waitFor(() => expect(store.getSnapshot().checking).toBe(false));
-    expect(store.getSnapshot().diagnosis?.headline).toBe('Supabase, our database provider, is having an outage: Intermittent latency in Eastern US');
+    expect(store.getSnapshot().diagnosis?.headline).toBe('Supabase, our database provider, reports a problem: Intermittent latency in Eastern US');
     expect(readStatus).toHaveBeenCalledTimes(4);
 
     store.report({ target: 'supabase', ok: true });

@@ -66,10 +66,10 @@ const incident = (indicator, name) => ({
 
 const HEADLINE = {
   offline: "You're offline",
-  supabase: 'Supabase, our database provider, is having an outage: Intermittent latency in Eastern US',
+  supabase: 'Supabase, our database provider, reports a problem: Intermittent latency in Eastern US',
   unknown: "Forgenta can't reach its servers right now.",
-  cloudflare: 'Cloudflare, our network provider, is having an outage: Global network degradation',
-  vercel: 'Vercel, our hosting provider, is having an outage: Edge network outage',
+  cloudflare: 'Cloudflare, our network provider, reports a problem: Global network degradation',
+  vercel: 'Vercel, our hosting provider, reports a problem: Edge network outage',
   plaid: 'Bank sync is delayed: Plaid reports Delayed transactions for some institutions',
 };
 

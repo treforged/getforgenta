@@ -219,8 +219,12 @@ function providerDiagnosis(id: ProviderId, what: string): Diagnosis {
   return {
     kind: 'provider',
     provider: id,
-    headline: `${name}, ${role}, is having an outage: ${what}`,
-    detail: "Forgenta can't reach its servers until they recover. Nothing has been lost, and this clears on its own.",
+    // ⚠️ "REPORTS A PROBLEM", NEVER "IS HAVING AN OUTAGE". A status page proves the provider has an
+    // open incident, not that the incident is what stopped THIS request. On 2026-10-04 the banner
+    // blamed Supabase's regional latency incident while our own database was I/O-starved: their
+    // gateway answered a garbage key in 0.1 s, and only our valid key hung.
+    headline: `${name}, ${role}, reports a problem: ${what}`,
+    detail: "Forgenta can't reach its servers right now, and this may be why. Nothing has been lost, and this clears the moment a request gets through.",
   };
 }
 
