@@ -15,7 +15,7 @@ import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } fr
 import { buildCardData, getMonthlyDebtBreakdown, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses, type PaymentPlan } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
-import { getMonthNetIncome, getPaychecksInMonth, getAugmentedMinSafeCash, type PayScheduleConfig } from '@/lib/pay-schedule';
+import { getMonthNetIncome, getPaychecksInMonth, getAugmentedMinSafeCash, getRuleOccurrenceDatesInMonth, type PayScheduleConfig } from '@/lib/pay-schedule';
 import type { FloorMinLatch } from '@/lib/floor-min-latch';
 import { computeBonusAndTax } from '@/lib/income-model';
 import { getTotalCarLoanMonthly, getActiveCarLoanPayments, calculateScheduledPayment, buildAmortizationSchedule, getLoanPrincipal, monthsBetween, resolveCarFundEarmark, getCarFundSaved } from '@/lib/vehicle-loan-engine';
@@ -1535,7 +1535,19 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         const srcId = (r.payment_source as string).replace(/^account:/, '');
         if (!forecastFundingAccountId || srcId === forecastFundingAccountId) continue;
         const srcAcct = accountMap.get(srcId);
-        const monthAmt = Number(r.amount) * countRuleOccurrencesInMonth(r, d.getFullYear(), d.getMonth());
+        // e2f7101f: MONTH 0 COUNTS ONLY WHAT IS STILL TO COME. The account's synced balance already
+        // reflects every occurrence on or before the sync date, so counting those again debited the
+        // same bill twice. That was a display error while this list was only debited from the asset
+        // row; once 4b-iii pays the uncovered part from checking it would be a real charge. Tre's
+        // 2026-10-04 dump: a Google Workspace bill paid on Oct 1 was debited again from General
+        // Operations, which read -$6.77 in a month it actually ends at +$0.23. Same cutoff rule as
+        // the one-time list (`otherAccountOneTimeByMonth` skips current-month rows dated on or before
+        // the sync date) and as paychecks above. Only occurrences PROVEN past are removed.
+        const allOccurrences = countRuleOccurrencesInMonth(r, d.getFullYear(), d.getMonth());
+        const settledOccurrences = i === 0 && syncCutoffDate
+          ? getRuleOccurrenceDatesInMonth(r, d.getFullYear(), d.getMonth()).filter(dt => dt <= syncCutoffDate).length
+          : 0;
+        const monthAmt = Number(r.amount) * Math.max(0, allOccurrences - settledOccurrences);
         if (monthAmt > 0) {
           // ⚠️ THE ID, not only the name. Until 2026-08-27 this list was display-only: the expense
           // was (rightly) kept out of `baseExpenses` and then debited from NOTHING, so the money
@@ -2095,14 +2107,52 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // the month read as fully funded. f3c0cdf5: that remainder is paid from checking. These steps
       // run BEFORE the cash chain so the chain can subtract it; the sim takes its card budget from
       // that cash, so engine and sim stay on the same dollars.
+      //
+      // e2f7101f: A SECOND CHECKING ACCOUNT IS A SOURCE TOO. Until 2026-10-04 this loop looked only
+      // in the savings, investment and retirement maps, while the asset tracker further down debited
+      // a non-funding checking account (`perAcctOtherLiquid`) with no clamp and no remainder. Tre's
+      // General Operations ($134, $161/mo of bills) read -$6.77 in Oct 2026 and -$250.37 in Feb 2027
+      // and nobody paid the gap. It now takes the savings rule exactly: it pays what it holds, floors
+      // at 0, and the rest is paid from checking through `unfundedAccountOutflow`, once.
+      //
+      // So that "what it holds" includes this month's money IN, its credits move up here too, ahead
+      // of the debits (same order as 4b's contributions ahead of the savings debits above). Nothing
+      // between here and the old position reads these balances, so an unclamped month moves no number.
+      //   - from savings (nonCashTransferItems): the receiving half of 4b-ii. A non-cash transfer's
+      //     source is always savings, investment or retirement, so the `from` side never matches here.
+      //   - from the funding account (cashTransferInItems): the 2026-10-01 refill fix, see below.
+      for (const t of b.nonCashTransferItems ?? []) {
+        const from = t.fromAcctId ? perAcctOtherLiquid.get(t.fromAcctId) : undefined;
+        if (from) from.balance -= t.amount;
+        const to = t.toAcctId ? perAcctOtherLiquid.get(t.toAcctId) : undefined;
+        if (to) to.balance += t.amount;
+      }
+      // ⚠️ AND THE MONEY THAT REACHES THEM FROM THE FUNDING ACCOUNT. Before 2026-10-01 only the
+      // debits were applied, so a checking account refilled by a transfer from checking paid its
+      // bills and never got the refill: Tre's General Operations (~$60.90/mo of bills, a $65
+      // "Owners Contribution" in) fell ~$61 a month and went negative, which he flagged as
+      // impossible. The cash walk already pays these out of the funding account (monthTransfers);
+      // this is the receiving half only. Savings-sourced transfers arrive via nonCashTransferItems
+      // above and are not in this list, so nothing is credited twice.
+      for (const t of b.cashTransferInItems ?? []) {
+        const to = perAcctOtherLiquid.get(t.toAcctId);
+        if (to) to.balance += t.amount;
+      }
       let unfundedAccountOutflow = 0;
       for (const item of [...b.otherAccountExpenseItems, ...b.otherAccountOneTimeItems]) {
         const src = perAcctSavings.get(item.fromAcctId)
           ?? perAcctInvest.get(item.fromAcctId)
-          ?? perAcctRetire.get(item.fromAcctId);
+          ?? perAcctRetire.get(item.fromAcctId)
+          ?? perAcctOtherLiquid.get(item.fromAcctId);
         if (!src) continue;
         unfundedAccountOutflow += Math.max(0, item.amount - Math.max(0, src.balance));
-        src.balance = Math.max(0, src.balance - item.amount);
+        // A checking account that STARTS overdrawn keeps its overdraft: flooring it to 0 would
+        // erase money the user really owes the bank, the same vanish in the other direction. It pays
+        // nothing new (the whole bill went to checking just above). At or above 0 this is the same
+        // floor-at-0 as the savings line, so no savings, investment or retirement number moves.
+        src.balance = perAcctOtherLiquid.get(item.fromAcctId) === src && src.balance < 0
+          ? src.balance
+          : Math.max(0, src.balance - item.amount);
       }
 
       // Ending cash if this month contributed nothing to goals. The CAR contribution is cash
@@ -2765,27 +2815,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // so that section and the asset row beneath it cannot tell different stories about one
       // account. No interest is applied: these are checking-shaped accounts and inventing a yield
       // for them would be a number with no source.
-      for (const t of b.nonCashTransferItems ?? []) {
-        const from = t.fromAcctId ? perAcctOtherLiquid.get(t.fromAcctId) : undefined;
-        if (from) from.balance -= t.amount;
-        const to = t.toAcctId ? perAcctOtherLiquid.get(t.toAcctId) : undefined;
-        if (to) to.balance += t.amount;
-      }
-      for (const e of [...(b.otherAccountExpenseItems ?? []), ...(b.otherAccountOneTimeItems ?? [])]) {
-        const acct = e.fromAcctId ? perAcctOtherLiquid.get(e.fromAcctId) : undefined;
-        if (acct) acct.balance -= e.amount;
-      }
-      // ⚠️ AND THE MONEY THAT REACHES THEM FROM THE FUNDING ACCOUNT. Before 2026-10-01 only the
-      // debits above were applied, so a checking account refilled by a transfer from checking paid
-      // its bills and never got the refill: Tre's General Operations (~$60.90/mo of bills, a $65
-      // "Owners Contribution" in) fell ~$61 a month and went negative, which he flagged as
-      // impossible. The cash walk already pays these out of the funding account (monthTransfers);
-      // this is the receiving half only. Savings-sourced transfers arrive via nonCashTransferItems
-      // above and are not in this list, so nothing is credited twice.
-      for (const t of b.cashTransferInItems ?? []) {
-        const to = perAcctOtherLiquid.get(t.toAcctId);
-        if (to) to.balance += t.amount;
-      }
+      //
+      // e2f7101f: the movements themselves are applied in step 4b-iii, before the cash chain, so the
+      // part of a bill one of these accounts cannot cover is paid from checking instead of driving
+      // the account negative. Only the total is read here.
       const otherLiquidBal = Array.from(perAcctOtherLiquid.values()).reduce((s, a) => s + a.balance, 0);
 
       const totalAssets = finalLiquid + investBal + retireBal + savingsBal + otherLiquidBal;
@@ -2839,7 +2872,10 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       }
       // The unfunded part of an account-paid expense is paid from checking (f3c0cdf5). Say so where
       // the user reads warnings, so a savings plan that falls short is named, not just absorbed.
-      if (unfundedAccountOutflow > 0.005) {
+      // e2f7101f: ONCE PER RUN, like "Cash below safe minimum". A recurring bill on an account with
+      // no refill is short every month, and Tre's 2026-10-04 dump printed the same warning 59 times.
+      const prevUnfunded = data.length > 0 ? (data[data.length - 1].unfundedAccountOutflow ?? 0) : 0;
+      if (unfundedAccountOutflow > 0.005 && prevUnfunded <= 0.005) {
         milestones.push({ month: b.monthLabel, event: `⚠️ A planned expense is more than its account holds - $${Math.ceil(unfundedAccountOutflow).toLocaleString('en-US')} must come from checking` });
       }
 

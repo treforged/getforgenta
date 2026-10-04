@@ -194,8 +194,12 @@ describe('forecast-engine — a recurring expense rule paid from another account
     // ⚠️ THE DEFECT THIS CLOSES: before step 4b-iii the difference here was 0 — the money was
     // excluded from cash and debited from nothing, so it was spent by nobody and Net Worth carried
     // it forever.
-    expect(savOf(withRule.data[M]) - savOf(base.data[M])).toBeCloseTo(-RULE_AMT * (M + 1), 2);
-    expect(savOf(withRule.data[M + 2]) - savOf(base.data[M + 2])).toBeCloseTo(-RULE_AMT * (M + 3), 2);
+    // e2f7101f: one occurrence per month AFTER month 0. The rule is due on the 5th and the sync
+    // date is the 15th, so October's bill is already in the synced savings balance; it used to be
+    // debited a second time (was -RULE_AMT * (M + 1)).
+    expect(savOf(withRule.data[0]) - savOf(base.data[0])).toBeCloseTo(0, 2);
+    expect(savOf(withRule.data[M]) - savOf(base.data[M])).toBeCloseTo(-RULE_AMT * M, 2);
+    expect(savOf(withRule.data[M + 2]) - savOf(base.data[M + 2])).toBeCloseTo(-RULE_AMT * (M + 2), 2);
   });
 
   it('carries the account id, not only its label', () => {

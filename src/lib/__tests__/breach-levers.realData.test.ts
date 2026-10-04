@@ -38,8 +38,9 @@ describe('rankBreachLevers on the 2026-09-29 capture', () => {
     // Positive control: the base run is the one Sam was sent, month by month.
     expect(r.months.map(m => [m.month, Math.round(m.shortfall)])).toEqual(PINNED_MONTHS);
     expect(r.levers.map(l => [l.name, Math.round(l.coveredDollars), l.monthsCleared])).toEqual(PINNED_LEVERS);
-    expect(r.levers.find(l => l.name === 'Owners Contribution')?.paysRules.sort())
-      .toEqual(['Claude', 'Google Workspace', 'Plaid', 'QUO']);
+    // e2f7101f: the Owners transfer is what pays General Operations' bills, so pausing it no longer
+    // frees its whole $210 a month - see the re-pin note under PINNED_LEVERS.
+    expect(r.excluded).toEqual(expect.arrayContaining([{ name: 'Owners Contribution', reason: 'delays_debt_payoff' }]));
 
     const offered = r.levers.map(l => l.name);
     expect(offered).not.toContain('401K Roth');
@@ -78,6 +79,15 @@ const PINNED_MONTHS: [string, number][] = [
 // used to pay Prime Visa $609.62 against its $773.05 contract minimum and now pays $823.05, so that
 // $213.43 is no longer left in checking to cover August (Aug 2027 short 188 -> 402, Sep 2027 card
 // pay 1,122 -> 908). The old 5,264 counted $213 the plan only had by under-paying a minimum.
-const PINNED_LEVERS: [string, number, string[]][] = [
-  ['Owners Contribution', 5051, ['Jul 2027', 'Sep 2027']],
-];
+// RE-PINNED 2026-10-04 (e2f7101f): NO LEVER IS LEFT, and that is the fix working. The Owners
+// transfer ($145 + $65 a month into General Operations) is the money that pays that account's bills
+// (Claude, Google Workspace, Plaid, QUO: $140.90 a month here). With it paused, General Operations
+// ran dry and the engine debited the bills from nobody, so the arm "freed" the whole $210 and showed
+// 5,051 covered. Now the part the empty account cannot pay comes out of checking (130.87 in Oct 2026,
+// then 140.90 a month), so pausing frees only ~$69 a month: the arm's 12-month shortfall is
+// 9,065.06 against the base's 9,379.72, and the payoff moves Aug 2029 -> Sep 2029, so the helper
+// excludes it as delays_debt_payoff. (Why a net ~$69 a month moves the payoff LATER is not
+// diagnosed: neither floor look-ahead models an unfunded account-paid outflow yet.)
+// The base run is unchanged to the dollar (PINNED_MONTHS above).
+// Was: ['Owners Contribution', 5051, ['Jul 2027', 'Sep 2027']].
+const PINNED_LEVERS: [string, number, string[]][] = [];
