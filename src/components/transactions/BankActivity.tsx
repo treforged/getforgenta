@@ -41,6 +41,7 @@
 // ledger". So the entry point is now the DECISION QUEUE across all months, and the month select is
 // what it always should have been: a filter, not the door.
 
+import MoreInfo from '@/components/shared/MoreInfo';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { useAppliedActions } from '@/hooks/useAppliedActions';
@@ -1027,14 +1028,18 @@ export default function BankActivity() {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        {view === 'needs'
-          ? 'Undecided bank charges, newest first, recognized ones on top. Most never need a decision.'
-          : 'Everything your connected accounts reported.'}
-        {' '}
-        Linking a charge only labels it and changes no projection. A category or "Add to my ledger"
-        records it, only if nothing you track covers it. Every choice can be undone from its row.
-      </p>
+      {/* Ask 52898f88: what the list IS stays on screen; what each choice does sits behind one tap. */}
+      <div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {view === 'needs'
+            ? 'Undecided bank charges, newest first, recognized ones on top. Most never need a decision.'
+            : 'Everything your connected accounts reported.'}
+        </p>
+        <MoreInfo label="What each choice does" className="mt-1" testId="bank-activity-choices-note">
+          Linking a charge only labels it and changes no projection. A category or "Add to my ledger"
+          records it, only if nothing you track covers it. Every choice can be undone from its row.
+        </MoreInfo>
+      </div>
 
       <div className="card-forged divide-y divide-border overflow-hidden">
         {visible.length === 0 ? (
