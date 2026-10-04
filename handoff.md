@@ -44,6 +44,8 @@ R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
        TARGETS by unused width at 1440: /dashboard Goal Progress 1111px; /debt?tab=use Your cards 1101px; goals empty
        state 898px; auto/student loan stat tiles ~460-515px each (label+figure centred in 641px tiles, same fix as
        SavingsGoals Total Saved: label left, figure right from sm); Forecast Next milestone 362px; Avalanche order 252px.
+       [x] SHIPPED: loan tiles (all tabs), Goal Progress empty row, Which Card rows -> probe 57 -> 51. LEFT: goals-tab
+       empty state 898px, Forecast Next milestone 362px, Avalanche order 252px, demo goal-row svgs, Budget Allocation 244px.
     2. [x] R-NOW59 item 1 (decision 2d104bc7) SHIPPED: cardPayHint takes the EFFECTIVE plan (rec.isMinimumOnly); goal-order
        copy on ranking header + Recommended This Month. Verified localhost:8080 as Tre: Discover rec "Minimum payment
        $150.40", hint "The plan pays the minimum too for now". c013318d CLOSED. Engine needed NO change: Tre's cards
