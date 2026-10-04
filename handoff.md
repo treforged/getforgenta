@@ -29,7 +29,11 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
     1. [x] R-NOW59 item 2 SHIPPED, pushed 0/0: 862cf137 debt, fa24b72a dashboard, a7453934 settings, 38c9c082 budget.
        Gates: tsc 0, lint 0 err, test:tz 5889 x3, check:debt-layout/payoff-today/card-advisor/consolidation PASS.
-       NOT YET: `npm run inventory:fill` rerun vs a184fa4a ranking; scripts/_tmp-* were already gone.
+       inventory:fill RERUN (test-results/inventory-fill-r60.log): 214 flagged boxes vs 215 at a184fa4a. The count
+       barely moved, so EITHER the probe's metric (fill<35% AND empty height>=24px) is blind to these layout fixes OR
+       the fixes did not fix what Tre sees. Top 14 are still /budget Per Paycheck 11%, Income Rules 17%, /debt Recommended
+       12%, Strategy 18%, Avalanche order 11%, Forecast Next milestone 19%, Settings Support 15%. NEXT: open the
+       1440 frames for the top 5 and decide whether the probe or the page is wrong before more fill work.
     2. [x] R-NOW59 item 1 (decision 2d104bc7) SHIPPED: cardPayHint takes the EFFECTIVE plan (rec.isMinimumOnly); goal-order
        copy on ranking header + Recommended This Month. Verified localhost:8080 as Tre: Discover rec "Minimum payment
        $150.40", hint "The plan pays the minimum too for now". c013318d CLOSED. Engine needed NO change: Tre's cards
@@ -12895,27 +12899,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 19:52 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 20:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (16 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M src/components/dashboard/DashboardHero.tsx
- M src/components/dashboard/DebtRecommendationsWidget.tsx
- M src/components/debt/CreditCardEngine.tsx
- M src/components/debt/DebtHero.tsx
- M src/components/savings/SurplusRankingSection.tsx
- M src/components/settings/AccountVisibilityToggle.tsx
- M src/components/settings/FollowersPanel.tsx
- M src/pages/BudgetControl.tsx
- M src/pages/SavingsGoals.tsx
- M src/pages/Settings.tsx
- M src/pages/Vehicles.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -12925,14 +12918,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+cbf5960b [handoff]: R-NOW60 - fill areas + goal-order shipped, Plaid match table
+3fbb892f [debt]: goal order is stated to users; a min-paid Full Balance card is not a pay mismatch
+38c9c082 [budget]: Per Paycheck and Allocation share a row at lg; rule rows one line; tab headers do not wrap mid-phrase
+a7453934 [settings]: Profile two columns, Followers|Following side by side, vehicles as tiles
+fa24b72a [dashboard]: empty hero is one row at lg; goal tiles and ranking rows share a line
+862cf137 [debt]: summary sits under the payoff order at lg; hero note fills its middle; recs 2x2 beside payments
 cb963c18 [handoff]: R-NOW59 - Tre's Discover/goal-order answer, four fill areas to review
 7bec152a [forecast]: milestone and short months share a row; CTA and retirement rows fill
-895439d5 [handoff]: R-NOW58 - Plaid match table state + probe command; fill executors fallback
-a6d35427 [handoff]: R-NOW58 - Debt layout, budget tiles, card-pay hint shipped; 5 fill executors running
-72304049 [debt]: each card row says how the bank actually pays it
-4998a1f9 [dashboard]: budget tiles fill their boxes on one even grid
-a184fa4a [tooling]: inventory:fill ranks boxes whose content leaves them empty
-956c0f5c [debt]: one stat grid, aligned controls, themed Pay From
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
