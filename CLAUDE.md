@@ -296,9 +296,10 @@ section states reasoning, not measurement, and says so.
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.
-- `npm run check:goal-grid` - the Dashboard Goal Progress card at 1440, signed in: the savings_goals read is answered
-  in-browser with 1, 2 and 3 goals (nothing written) and the tiles must span the card. Proven red on the fixed
-  `md:grid-cols-3` (848px unused at 1 goal, 424px at 2). Does NOT cover phone widths or the empty state.
+- `npm run check:goal-grid` - the Dashboard Goal Progress card at 390 AND 1440, signed in: the savings_goals read is
+  answered in-browser with 1, 2 and 3 goals (nothing written) and EVERY ROW of tiles must span the card. Proven red
+  at 1440 on the fixed `md:grid-cols-3` (848px unused at 1 goal, 424px at 2) and at 390 by forcing 2 columns
+  (174px at 3 goals). Does NOT cover widths in between or the empty state.
 - `npm run check:forecast-table` - at 390x844, signed in: PRESSES Forecast's "Monthly breakdown" disclosure and
   requires every Income / Out / End Cash cell to show cents (ask 4066ff23) and to fit its cell on one line. Proven red
   on the whole-dollar table (36 cells, "$2,910" had no cents). Positive control: >= 6 rows, >= 18 cells. Does NOT

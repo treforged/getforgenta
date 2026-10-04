@@ -1,14 +1,15 @@
 #!/usr/bin/env node
-// check:goal-grid - the Dashboard's Goal Progress card at 1440x900, signed in as the walk account.
+// check:goal-grid - the Dashboard's Goal Progress card at 390x844 AND 1440x900, signed in as the walk account.
 // The walk account has NO goals, so the savings_goals read is answered IN THE BROWSER (route.fulfill)
-// with 1, 2 and 3 goals in turn - nothing is written. For each count the tiles must span the card:
-// the last tile's right edge sits within 2px of the first tile's row container's right edge.
+// with 1, 2 and 3 goals in turn - nothing is written. For each count and width, EVERY ROW of tiles
+// must span the card: the row's rightmost tile ends within 2px of the grid's right edge (rows are
+// grouped by tile top, so a stacked phone layout is one tile per row and desktop is one row).
 // A fixed md:grid-cols-3 put one goal in a third of a 1296px card (red, proven before the fix).
-// Does NOT cover phone widths (one column there by design), colour, or the empty state.
+// Does NOT cover widths between 390 and 1440, colour, or the empty state.
 import { readFileSync } from 'node:fs';
 
 const BASE = 'http://localhost:8080';
-const VIEW = { width: 1440, height: 900 };
+const VIEWS = [{ width: 390, height: 844 }, { width: 1440, height: 900 }];
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 
 const env = readFileSync('.env.local', 'utf8');
@@ -66,7 +67,8 @@ const goal = (i) => ({
 });
 const browser = await chromium.launch();
 const failures = [];
-for (const n of [1, 2, 3]) {
+for (const VIEW of VIEWS) for (const n of [1, 2, 3]) {
+  const tag = `${VIEW.width} n=${n}`;
   const ctx = await browser.newContext({ viewport: VIEW });
   const page = await ctx.newPage();
   await page.route('**/rest/v1/savings_goals*', (route) => (route.request().method() === 'GET'
@@ -85,20 +87,27 @@ for (const n of [1, 2, 3]) {
   }
   const h = page.getByRole('heading', { name: 'Goal Progress' });
   await h.first().waitFor({ timeout: 25000 }).catch(() => {});
-  if (!(await h.count())) { await browser.close(); fail(2, `n=${n}: no "Goal Progress" heading on ${page.url()}.`); }
+  if (!(await h.count())) { await browser.close(); fail(2, `${tag}: no "Goal Progress" heading on ${page.url()}.`); }
   await h.first().scrollIntoViewIfNeeded();
   const r = await h.first().evaluate((el) => {
     const grid = el.nextElementSibling;
     const tiles = grid ? [...grid.children] : [];
     const g = grid?.getBoundingClientRect();
-    return { tiles: tiles.length, gridW: g?.width ?? 0, gap: g ? g.right - Math.max(...tiles.map((t) => t.getBoundingClientRect().right)) : -1 };
+    const rows = new Map();
+    for (const t of tiles) {
+      const b = t.getBoundingClientRect();
+      const top = Math.round(b.top);
+      rows.set(top, Math.max(rows.get(top) ?? -Infinity, b.right));
+    }
+    const gap = g && rows.size ? Math.max(...[...rows.values()].map((right) => g.right - right)) : -1;
+    return { tiles: tiles.length, rows: rows.size, gridW: g?.width ?? 0, gap };
   });
-  await page.screenshot({ path: `test-results/goal-grid-${n}.png` });
-  console.log(`n=${n}: tiles ${r.tiles}, grid ${r.gridW.toFixed(0)}px, unused right ${r.gap.toFixed(1)}px`);
-  if (r.tiles !== n) failures.push(`n=${n}: rendered ${r.tiles} tiles (positive control)`);
-  else if (r.gap > 2) failures.push(`n=${n}: ${r.gap.toFixed(0)}px of the card right of the last tile`);
+  await page.screenshot({ path: `test-results/goal-grid-${VIEW.width}-${n}.png` });
+  console.log(`${tag}: tiles ${r.tiles} in ${r.rows} row(s), grid ${r.gridW.toFixed(0)}px, worst row unused ${r.gap.toFixed(1)}px`);
+  if (r.tiles !== n) failures.push(`${tag}: rendered ${r.tiles} tiles (positive control)`);
+  else if (r.gap > 2) failures.push(`${tag}: ${r.gap.toFixed(0)}px of the card right of a row's last tile`);
   await ctx.close();
 }
 await browser.close();
 if (failures.length) fail(1, failures.join('; '));
-console.log('PASS - Goal Progress tiles span the card at 1, 2 and 3 goals.');
+console.log('PASS - Goal Progress tiles span the card at 1, 2 and 3 goals, at 390 and 1440.');
