@@ -101,7 +101,12 @@ const measure = () => {
   const kept = cands.filter(c => !cands.some(o => o !== c && c.el.contains(o.el) && o.b.width * o.b.height >= 0.8 * c.b.width * c.b.height));
   const out = [];
   for (const { el, b, bw } of kept) {
-    const pb = { l: b.left + bw[3], t: b.top + bw[0], r: b.right - bw[1], bt: b.bottom - bw[2] };
+    // CONTENT box, not padding box (2026-10-03): measured against the padding box, every p-5 card
+    // carried 40px of "empty" height from its own padding, so 214 of 215 findings survived four
+    // layout fixes unchanged. Padding is designed space; only unused space inside it is a finding.
+    const cs2 = getComputedStyle(el);
+    const pad = ['Top', 'Right', 'Bottom', 'Left'].map(s => parseFloat(cs2['padding' + s]) || 0);
+    const pb = { l: b.left + bw[3] + pad[3], t: b.top + bw[0] + pad[0], r: b.right - bw[1] - pad[1], bt: b.bottom - bw[2] - pad[2] };
     const pw = pb.r - pb.l;
     const ph = pb.bt - pb.t;
     if (pw <= 0 || ph <= 0) continue;
