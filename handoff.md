@@ -29,6 +29,28 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW72 (10-04 09:25 ET, Ada 798974e7 hit the call gate). START HERE, IN ORDER:
+    1. [ ] ec48da25 read-back NOW (09:17 sync has passed; my cron ebf56ac4 dies with me): run SQL R-NOW62 item 2 via
+       Supabase MCP, then `ask done ec48da25` with the rows (expect bank_min_seen_at 2026-10-04 on Robinhood/Chase/
+       Discover) or `ask block` with what read back.
+    2. [ ] VERIFY 37a0065b (b80124a0, savings->funding checking now credited) LIVE on localhost:8080 /forecast as Tre,
+       same probe as R-NOW69 item 2. Before it (08:52): Short months 0, warning x1, "Sep 2028: CC Debt Free!", 60 rows,
+       Oct 2026 end $3,740.08. Expect IDENTICAL (Tre has no non-cash-source transfer). Any change = revert 37a0065b.
+       Then `ask done b80124a0`.
+    3. [ ] EXECUTOR STILL RUNNING when I left: opus-executor on 5810a568 + d651b7b5 in worktree
+       .claude/worktrees/agent-ad2f28762ec653bda (branch worktree-agent-ad2f28762ec653bda, UNCOMMITTED, report goes to
+       my dead tab). Review its `git -C <wt> diff` yourself against those two asks; re-run its evidence (red-before,
+       test:tz, Tre captures: payoff Sep 2028 / 0 short must not get worse). Remove the worktree after: `cmd /c rmdir
+       <wt>
+ode_modules` FIRST, then `git worktree remove --force`.
+    4. [ ] FILE/ADD to that parity slice (from b80124a0 executor): useCardProjection simulationMonthEvents monthTransfers
+       (~801-811) charges EVERY transfer rule to checking, incl. savings-sourced ones the engine skips; month-0 cashPreDebt
+       has no inflow term for savings->funding. Plus the drawer shows neither nonCashIntoFunding nor
+       unfundedAccountOutflow as a line, so its walk does not reconcile by those amounts.
+    5. [ ] 23ed14fb. STANDING e1b0fffc. Monday 10-05: e501632b.
+    SHIPPED this session (pushed 0/0): 4053084b (951af777, drawer shows moved amount), 37a0065b (b80124a0),
+    5bbc8a07 (eslint ignores .claude/worktrees - a live worktree made lint read 2215 parser errors). Decided 56a92bc9
+    (Vera's aal1 revoke: no web change). ecfeb25d verified live twice (06:50, 08:52).
 R-NOW71 (10-04 ~06:55 ET, Ada successor of 437e2d04). START HERE, IN ORDER:
     1. [~] 09:19 ET ec48da25 read-back: cron ebf56ac4 armed in THIS tab ('19 9 4 10 *'). If this tab is gone, arm your
        own (SQL R-NOW62 item 2), then `ask done ec48da25` with the rows or `ask block`.
@@ -13074,16 +13096,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 06:49 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 08:53 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13093,14 +13116,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+21bf3703 [handoff]: R-NOW71 - ecfeb25d verified live, 951af777 shipped 4053084b, cron ebf56ac4 armed
+4053084b [forecast]: the month popup shows what a transfer moved, and says when its account ran dry (951af777)
 6d512040 [handoff]: R-NOW70 - e2850463 shipped ecfeb25d, live verify + 09:19 read-back next
 ecfeb25d [engine]: the floor look-ahead walk tracks real cash, so the caps stop holding back card payments (e2850463)
 e36a97d5 [handoff]: R-NOW69 - 202b320d + fbc5671a shipped
 ff549846 [engine]: a transfer out of a savings account that runs dry credits only what the source gave (202b320d)
 f0f4e8b3 [leo]: spend-by-category endpoint - month-to-date bank spending by category for Leo (ask fbc5671a)
 fa9fab61 [handoff]: R-NOW69 - 6c14ef11 verified live as Tre, cron re-armed, e2850463 executor running
-34b75dbe [handoff]: R-NOW69 - 6c14ef11 shipped, verify live + 09:19 read-back next
-6c14ef11 [engine]: the floor look-ahead reserves for bills checking pays for another account, and for user-pinned payments
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
