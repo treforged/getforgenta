@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
+import MoreInfo from '@/components/shared/MoreInfo';
 import { AlertTriangle, CalendarDays, CheckCircle2, ArrowRight, Car, Landmark } from 'lucide-react';
 import { formatCurrency } from '@/lib/calculations';
 import { formatNextDue, NEXT_PAYMENT_UNKNOWN, NEXT_DUE_UNKNOWN } from '@/lib/next-card-payment';
@@ -260,10 +261,10 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
           </div>
 
           {(hasLoans || hasOtherDebts) && (
-            <p className="text-[9px] text-muted-foreground mt-2">
+            <MoreInfo label="Why loans are not in the card totals" className="mt-2" testId="loan-totals-note">
               Loan and other debt payments are already taken out of your cash before Safe to Pay,
               not counted in the card totals.
-            </p>
+            </MoreInfo>
           )}
 
           {/* Total — card-only, matching Safe to Pay above. */}
