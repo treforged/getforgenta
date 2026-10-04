@@ -37,6 +37,7 @@ R-NOW75 (10-04 ~10:15 ET, Ada successor of getforgenta-73). START HERE, IN ORDER
     2. [~] c2e84e6e: opus-executor in a second worktree under .claude/worktrees/ (sim credit-card-engine.ts only).
        Same review/ship/remove steps.
     3. [ ] STANDING e1b0fffc. Monday 10-05: e501632b.
+    DONE: e1b0fffc goals empty-state one-press starts SHIPPED 48647f9f (check:goal-starts, red 8/8).
     DONE: 1d5b95d3 transfer parity SHIPPED 041353dd (red 3/4 on HEAD, test:tz 5956 x3, pushed 0/0), worktree removed.
 R-NOW74 (10-04 ~10:50 ET, Ada getforgenta-73 hit the 175-call gate). START HERE, IN ORDER:
     1. [ ] ceb711fc ENGINE BUG - money (save-the-most-money + user's own rank order): a lower-ranked auto-extra (C5 car
