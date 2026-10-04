@@ -37,6 +37,10 @@ R-NOW81 (10-04 ~20:05Z, Ada getforgenta-97). START HERE, IN ORDER:
        .claude/worktrees/agent-a174767c0bdfab366 may remain - shell held it; rmdir it).
        LEFT: FULL WALK (walk:press, walk:empty w/ throwaway @forgenta.test made+deleted in SQL, check:one-banner)
        - BLOCKED until Supabase recovers (keyed requests hang). Then `ask done e618b2f0`.
+       FOLLOW-UP SHIPPED 247e4ef0: live proof on getforgenta.com (CSP 0 violations, 4 status pages 200, banner names
+       Supabase ~14 s) caught the detail line claiming "None of our providers report a problem" for ~2 s BEFORE the
+       status reads landed. Now that line needs all 4 read clean (2 tests red on a10aa5b3; test:tz 6017 x3).
+       Sam is now tre-forged-84: on recovery, walk with the REVIEWER RESET TO ONBOARDING, then message him.
     2. [~] da91e541: Monitor bgzifx3u9 polls keyed /auth/v1/health every 2 min (30 min, re-arm on expiry). Still
        hanging at 19:51Z. On 200: tell Sam the time, ask take + done da91e541, then run the walk in item 1.
     3. [x] 853aba70 CronCreate 04d35a7e armed for 06:23 ET 10-05 (session-only; dies with this tab).
