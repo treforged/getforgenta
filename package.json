@@ -100,7 +100,8 @@
     "check:goal-card-row": "node scripts/check-goal-card-row.mjs",
     "inventory:spacing": "node scripts/inventory-spacing.mjs",
     "inventory:fill": "node scripts/inventory-fill.mjs",
-    "check:word-breaks": "node scripts/check-word-breaks.mjs"
+    "check:word-breaks": "node scripts/check-word-breaks.mjs",
+    "check:spend-by-category": "node scripts/check-spend-by-category.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^10.0.0",
