@@ -29,6 +29,24 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW76 (10-04 ~10:55 ET, Ada getforgenta-30 hit the 175-call gate). START HERE, IN ORDER:
+    0. [ ] TELL SAM (tre-forged-00, SendMessage) - I could not, the gate blocked ToolSearch: "Ada: 853aba70 pipeline
+       fix shipped a019bf3b. Pushes build only; Play ships once a day at 10:00 UTC (and on dispatch) when main holds
+       a commit the last successful DEPLOY STEP did not. Undo: git revert a019bf3b. Verifying the 10-05 10:00Z run."
+    1. [~] ceb711fc: opus-executor still running in .claude/worktrees/agent-a91aa0f0424b2fa78; its report goes to MY
+       dead tab. Review `git -C <wt> diff` yourself (engine only, forecast-engine.ts ~2556 affordableReserve hold of
+       card residue from below-cards auto-extras). Rerun red-before + test:tz WITH .env.local + *.real*.json copied.
+       Payoff may only move EARLIER / interest only FALL. Patch -> `git apply --3way` on main, test:tz, ship,
+       rmdir node_modules junction, `git worktree unlock`, `remove --force`, delete branch. Tell Sam if Tre's LIVE
+       payoff moves.
+    2. [ ] 853aba70 VERIFY 2026-10-05 after 10:00 UTC: `gh run list --workflow android-build.yml --event schedule
+       --limit 1`, then read the DEPLOY step's own conclusion = success (not the run's). Expect the shipped sha =
+       current main, note range starting 041353dd. Then `ask done 853aba70`. If no schedule run fired, dispatch:
+       `gh workflow run "Android Build & Upload to Play Store" --ref main`. Also check one PUSH run reads deploy
+       `skipped` with run success, and android-promote-rollout reads the deploy-step clock.
+    3. [ ] STANDING e1b0fffc (next fill targets: Forecast Next milestone 362px, Avalanche order 252px).
+       Monday 10-05: e501632b.
+    DONE: c2e84e6e shipped 807f8b07. Goals one-press starts shipped (check:goal-starts). 1d5b95d3 shipped 041353dd.
 R-NOW75 (10-04 ~10:15 ET, Ada successor of getforgenta-73). START HERE, IN ORDER:
     1. [~] ceb711fc: opus-executor in .claude/worktrees/agent-a91aa0f0424b2fa78 (engine only, candidate fix + tests +
        before/after capture table). If my tab is gone: review `git -C <wt> diff`, rerun its red/green WITH .env.local +
