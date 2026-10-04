@@ -1164,6 +1164,47 @@ export interface SimResult {
    * which both look-aheads already reserve through their cycling-payment term.
    */
   monthlyUnconditionalPin: Map<string, number[]>;
+  /**
+   * Per-card per-month Step-5 dollars a USER PIN (`paymentOverridesByMonth`) commits this card to -
+   * the `step5Share` the pin registers below, 0 in every month the card is not user-pinned.
+   *
+   * ⚠️ SAME OBLIGATION AS `monthlyUnconditionalPin`, ONE MONTH AT A TIME (ask f077f9bb). The sim
+   * pays a user pin outside the save-up cap, exactly as it pays the always-pay pin, so a look-ahead
+   * that models the card at its contract minimum lets the months before spend the pin's cash.
+   * Measured on the synthetic persona (floor-protection.userPin.test.ts): $1,500 pinned to a tight
+   * December left it $1,287.54 under its floor. Both look-aheads read it through
+   * `mandatoryPinStep5` below, the same as the always-pay pin.
+   *
+   * ⚠️ IT ALSO RECORDS THE HOOK'S MONTH-0 FLOOR PINS, because they arrive through the same
+   * parameter and the sim cannot tell them apart. Month 0 is live-anchored, so the consumers read
+   * this array from month 1 on (see `mandatoryPinStep5`).
+   *
+   * Excludes the mandatory cycling share of a cycling card's pin, for the same reason as
+   * `monthlyUnconditionalPin`, and the synthetic due-month ISB pins, which both look-aheads
+   * already reserve through `manualIsbPins` / `isbPinByCard`.
+   */
+  monthlyUserPin: Map<string, number[]>;
+}
+
+/**
+ * The Step-5 dollars the sim is COMMITTED to pay this card in month m outside the save-up cap:
+ * the "always pay this" pin or a user pin, whichever the sim registered (a user pin wins, so at
+ * most one is non-zero). THE ONE RULE both floor look-aheads use - useCardProjection's
+ * `ccMinByMonth` reads it from the sim, forecast-engine's PASS 2 from the CardProjectionResult
+ * that carries the same arrays - so the two can never reserve different dollars for one pin.
+ *
+ * Month 0 reads the always-pay pin only. A month-0 user pin and the hook's month-0 floor pin are
+ * the same parameter, and month 0's payment is decided by the live month-0 chain, never by a
+ * look-ahead banking for it, so nothing here may treat the month-0 recommendation as a new bill.
+ */
+export function mandatoryPinStep5(
+  pins: { monthlyUnconditionalPin?: Map<string, number[]>; monthlyUserPin?: Map<string, number[]> },
+  cardId: string,
+  m: number,
+): number {
+  const always = pins.monthlyUnconditionalPin?.get(cardId)?.[m] ?? 0;
+  const user = m > 0 ? (pins.monthlyUserPin?.get(cardId)?.[m] ?? 0) : 0;
+  return Math.max(always, user);
 }
 
 export interface PaymentLedgerCardEntry {
@@ -1376,6 +1417,7 @@ export function simulateVariablePayoff(
       warningMessages: [],
       monthlyUnconditionalShortfall: new Map(),
       monthlyUnconditionalPin: new Map(),
+      monthlyUserPin: new Map(),
     };
   }
 
@@ -1402,6 +1444,8 @@ export function simulateVariablePayoff(
   // Filled by index, not pushed: a card is pinned only in some months, and every other month must
   // read 0 rather than be missing. See the SimResult field's JSDoc.
   const monthlyUnconditionalPin = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(months).fill(0)]));
+  // Same shape, same reason: a user pin covers only the months it names.
+  const monthlyUserPin = new Map<string, number[]>(cards.map(c => [c.id, Array<number>(months).fill(0)]));
   // A cycling card's accumulated backlog, end-of-month, post-payment — the unambiguous signal
   // for "does this card need avalanche priority / a reserved minimum in the floor," kept separate
   // from monthlyRevolvingBalances (which must stay a one-way 0-once-cycling signal — see the
@@ -1734,10 +1778,14 @@ export function simulateVariablePayoff(
           const backlog = cyclingBacklog.get(card.id) ?? 0; // already post-Step-1b interest
           const pin = Math.round(Math.min(pinFloor, owedCycle + backlog) * 100) / 100;
           const mandatoryShare = Math.round(Math.min(pin, owedCycle) * 100) / 100;
-          pinnedThisMonth.set(card.id, {
-            mandatoryShare,
-            step5Share: Math.round((pin - mandatoryShare) * 100) / 100,
-          });
+          const step5Share = Math.round((pin - mandatoryShare) * 100) / 100;
+          pinnedThisMonth.set(card.id, { mandatoryShare, step5Share });
+          // A USER pin is a commitment the look-aheads must reserve for (`monthlyUserPin`). A
+          // synthetic ISB pin is not recorded: both look-aheads already reserve it on their own.
+          if (userRaw !== undefined) {
+            const arr = monthlyUserPin.get(card.id);
+            if (arr) arr[m] = step5Share;
+          }
         } else {
           const bal = balances.get(card.id) ?? 0;
           const instBal = installmentBals.get(card.id) ?? 0;
@@ -1757,6 +1805,10 @@ export function simulateVariablePayoff(
             isbTargetThisMonth.set(card.id, step5Share);
           } else {
             pinnedThisMonth.set(card.id, { mandatoryShare: 0, step5Share });
+            if (userRaw !== undefined) {
+              const arr = monthlyUserPin.get(card.id);
+              if (arr) arr[m] = step5Share;
+            }
           }
         }
       }
@@ -2751,6 +2803,7 @@ export function simulateVariablePayoff(
     monthlyDebtCashPayment,
     monthlyUnconditionalShortfall,
     monthlyUnconditionalPin,
+    monthlyUserPin,
     monthlyCyclingBacklog,
     projectedPayoffMonths,
     cashFloorBreaches,

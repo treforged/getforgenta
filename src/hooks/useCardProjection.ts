@@ -4,6 +4,7 @@ import { attachSimDebug } from '@/lib/simDebug';
 import {
   buildCardData, simulateVariablePayoff, projectCardVariable, buildPaymentLedger,
   CC_DEFAULT_CATEGORIES, CardData, PROJECTION_MONTHS, revolvingMinDue, m0MinDueSettled, cardPaymentSettledThisCycle,
+  mandatoryPinStep5,
 } from '@/lib/credit-card-engine';
 import { buildResimOverrides } from './cardProjectionResim';
 import type { PaymentLedgerEntry } from '@/lib/credit-card-engine';
@@ -1350,7 +1351,12 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
             // pin above, for the same reason (the contract minimum is already this card's term).
             // ONE SOURCE: the sim's own `monthlyUnconditionalPin`, which forecast-engine's PASS 2
             // reads as well (via CardProjectionResult), so both look-aheads hold the same dollars.
-            due = Math.max(due, sim.monthlyUnconditionalPin.get(c.id)?.[m] ?? 0);
+            // A USER PIN (`monthlyUserPin`, ask f077f9bb) is the same obligation for one month, and
+            // `mandatoryPinStep5` is the one rule both look-aheads read the two through. ⚠️ HERE
+            // IT IS INERT FOR USER PINS: this refinement loop never passes `paymentOverridesByMonth`,
+            // and `withPaymentOverrides` replays the active sim without re-running this loop, so
+            // only forecast-engine's PASS 2 (which governs months 1+ during convergence) sees them.
+            due = Math.max(due, mandatoryPinStep5(sim, c.id, m));
             return s + due;
           }, 0) + installmentCostByMonth[m],
         );
@@ -2606,6 +2612,7 @@ export function useCardProjection(params: UseCardProjectionParams): CardProjecti
         monthlyCyclingBacklog: activeSim.monthlyCyclingBacklog,
         monthlyMandatoryCyclingPayment: activeSim.monthlyMandatoryCyclingPayment,
         monthlyUnconditionalPin: activeSim.monthlyUnconditionalPin,
+        monthlyUserPin: activeSim.monthlyUserPin,
         // Month 0: overwrite ledger[0] with the augmented-floor-capped entry (see month0PaymentLedger
         // above). The engine consumes the RESIM ledger, not this base one, so the same override is
         // also threaded through the two buildResimOverrides ctx objects; this base override keeps the

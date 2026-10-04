@@ -38,9 +38,9 @@ describe('rankBreachLevers on the 2026-09-29 capture', () => {
     // Positive control: the base run is the one Sam was sent, month by month.
     expect(r.months.map(m => [m.month, Math.round(m.shortfall)])).toEqual(PINNED_MONTHS);
     expect(r.levers.map(l => [l.name, Math.round(l.coveredDollars), l.monthsCleared])).toEqual(PINNED_LEVERS);
-    // e2f7101f: the Owners transfer is what pays General Operations' bills, so pausing it no longer
-    // frees its whole $210 a month - see the re-pin note under PINNED_LEVERS.
-    expect(r.excluded).toEqual(expect.arrayContaining([{ name: 'Owners Contribution', reason: 'delays_debt_payoff' }]));
+    // e2f7101f excluded the Owners transfer as delays_debt_payoff; b520a4e7 brought it back as a
+    // lever - see the re-pin note under PINNED_LEVERS.
+    expect(r.excluded.map(e => e.name)).not.toContain('Owners Contribution');
 
     const offered = r.levers.map(l => l.name);
     expect(offered).not.toContain('401K Roth');
@@ -90,4 +90,16 @@ const PINNED_MONTHS: [string, number][] = [
 // diagnosed: neither floor look-ahead models an unfunded account-paid outflow yet.)
 // The base run is unchanged to the dollar (PINNED_MONTHS above).
 // Was: ['Owners Contribution', 5051, ['Jul 2027', 'Sep 2027']].
-const PINNED_LEVERS: [string, number, string[]][] = [];
+// RE-PINNED 2026-10-04 (b520a4e7): PASS 2's floor look-ahead now reserves for the checking-paid
+// part of an account-paid bill. The base run's months short are unchanged to the dollar (PINNED_MONTHS
+// above; Jul/Aug/Sep 2027 move by cents: 343.36/1,571.68/1,043.97 -> 343.41/1,571.73/1,044.02), but
+// the reserve for the move fund's Jul 2027 shortfall ($1,630.35 paid from checking) now moves the
+// BASE payoff Aug 2029 -> Sep 2029 (interest 7,001.31 -> 7,158.85). The Owners-paused arm also pays
+// off Sep 2029, so it no longer "delays" payoff and comes back as a lever: 315 covered, no month
+// cleared. Fidelity ($25/mo) comes back the same way: it used to read delays_debt_payoff (arm Sep
+// 2029 against the Aug 2029 base), and now covers 879. Both arms keep their months short; the
+// reserve cannot be banked because every month before Jul 2027 already pays only its minimums.
+// Was: [] with Owners and Fidelity excluded as delays_debt_payoff.
+const PINNED_LEVERS: [string, number, string[]][] = [
+  ['Fidelity', 879, []], ['Owners Contribution', 315, []],
+];

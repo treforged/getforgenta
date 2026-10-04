@@ -12,7 +12,7 @@
 import { formatCurrency } from '@/lib/calculations';
 import { floorBreachSaveUp, formatSaveUpSuffix } from '@/lib/floor-breach-save-up';
 import { aggregateByMonth, countWeekdayInMonth, countRuleOccurrencesInMonth } from '@/lib/scheduling';
-import { buildCardData, getMonthlyDebtBreakdown, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
+import { buildCardData, getMonthlyDebtBreakdown, mandatoryPinStep5, PROJECTION_MONTHS } from '@/lib/credit-card-engine';
 import { getMonthlyPlanCashExpenses, type PaymentPlan } from '@/lib/payment-plan-generator';
 import { getDebtPaymentsByMonth, getDebtBalancesByMonth } from '@/lib/debt-transaction-generator';
 import { getMonthNetIncome, getPaychecksInMonth, getAugmentedMinSafeCash, getRuleOccurrenceDatesInMonth, type PayScheduleConfig } from '@/lib/pay-schedule';
@@ -240,6 +240,23 @@ export interface ForecastInputs {
    * engine↔resim loop into a limit cycle — see floor-min-latch.ts. Omitted by every direct
    * caller: without it the floor is byte-identical to before the latch existed. */
   floorMinLatch?: FloorMinLatch;
+  /**
+   * Ask b520a4e7. Per month, the part of an account-paid bill its own account could not cover and
+   * checking paid instead - THIS ENGINE'S OWN `unfundedAccountOutflow` (step 4b-iii), read off the
+   * previous engine run of the same plan. PASS 2's floor look-ahead adds it to each month's outflow,
+   * so the reserve plans for money that really leaves checking.
+   *
+   * ⚠️ WHY IT IS FED BACK RATHER THAN COMPUTED HERE: 4b-iii runs inside PASS 3, after PASS 2, and
+   * the account balances it reads depend on PASS 3's own decisions (a goal contribution the
+   * affordability back-off cut, an automatic extra credited to the account). A second model of
+   * those balances ahead of PASS 2 would be a second source that drifts from the one that charges
+   * the cash. runDebtCashConvergence threads each run's realised figure into the next, so at the
+   * fixed point the look-ahead reserves exactly what PASS 3 charges.
+   *
+   * Omitted by every direct caller (and by the loop's first run): PASS 2 then models no account
+   * shortfall, which is the old behaviour.
+   */
+  unfundedAccountOutflowByMonth?: readonly number[];
 }
 
 export interface ForecastResult {
@@ -1736,9 +1753,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
     // ⚠️ `minPayment` includes any installment portion while the pin excludes it, so for a pinned
     // card that ALSO carries an installment plan this reserves up to that card's installment less
     // than the sim pays. No such card exists in the captures this was measured on.
+    // A USER PIN IS THE SAME OBLIGATION (ask f077f9bb): the sim pays it outside the cap in the month
+    // it names. `mandatoryPinStep5` reads both pins by the one rule useCardProjection's look-ahead
+    // uses too. Measured on the synthetic persona: $1,500 pinned to a tight December ended it
+    // $1,287.54 under its floor before this (floor-protection.userPin.test.ts).
     const unconditionalPinExcess = (m: number): number =>
       (cardProjectionData?.simCards ?? []).reduce((s, c) => {
-        const pin = cardProjectionData?.monthlyUnconditionalPin?.get(c.id)?.[m] ?? 0;
+        const pin = cardProjectionData ? mandatoryPinStep5(cardProjectionData, c.id, m) : 0;
         return s + Math.max(0, pin - Number(c.minPayment || 0));
       }, 0);
     const ccMinByMonth = Array.from({ length: PROJECTION_MONTHS }, (_, m) =>
@@ -1774,7 +1795,14 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
           + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + otherDebtPaymentByMonth[i]
           + b.monthTransfers + lumpTransferByMonth[i].total + cyclingByMonth[i]
-          + installmentCostByMonth[i]),
+          + installmentCostByMonth[i]
+          // b520a4e7: a bill another account cannot pay is paid from checking (4b-iii), so it is
+          // an outflow here too. Before this the look-ahead counted those dollars as free, an
+          // earlier month sent them to the cards, and the tight month ended short by about the
+          // charge: Tre's 2026-10-04 capture with the Owners transfers paused had a month exactly
+          // $60.90 (General Operations' monthly bills) under its floor. See the input's JSDoc for
+          // why this is the previous run's own figure rather than a second model of the accounts.
+          + Math.max(0, inputs.unfundedAccountOutflowByMonth?.[i] ?? 0)),
       oneTimeNetByMonth: baseData.map(b => b.oneTimeNet),
       carDownPaymentByMonth: Array.from({ length: PROJECTION_MONTHS }, (_, i) => getMonthEffectiveDP(i)),
       floorByMonth: baseData.map(b => b.monthMinSafe),

@@ -230,6 +230,11 @@ export interface CardProjectionResult {
    * read it as a mandatory outflow, so the reserve plans for the pin. Optional for fixture
    * compatibility: absent means no card is pinned that way, which is the old behaviour. */
   monthlyUnconditionalPin?: Map<string, number[]>;
+  /** Per-card per-month Step-5 dollars a USER pin commits the card to (SimResult's
+   * `monthlyUserPin`). Read beside `monthlyUnconditionalPin` through `mandatoryPinStep5`, so both
+   * look-aheads reserve for a pinned month. Optional for fixture compatibility: absent means no
+   * user pin, which is the old behaviour. */
+  monthlyUserPin?: Map<string, number[]>;
   /** Per-month cap on Step-5 debt payments from the look-ahead floor-protection pass.
    * Infinity = uncapped; finite = save-up month. Exposed for debugging interest-accrual causes. */
   maxDebtPaymentByMonth: number[];

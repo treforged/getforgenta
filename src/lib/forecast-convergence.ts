@@ -237,7 +237,13 @@ export function runDebtCashConvergence(
       : rawCap;
     prevCap = cap;
     const resim = base.resimulateWithDebtCash(target, cap);
-    const resimProj = engine({ ...engineInputs, cardProjectionData: resim, floorMinLatch });
+    // b520a4e7: the current run's own checking-paid account shortfall, so the next run's PASS 2
+    // reserves for it. One source - 4b-iii's realised figure - fed forward like the cap above; see
+    // ForecastInputs.unfundedAccountOutflowByMonth for why it is not modelled a second time.
+    const unfundedAccountOutflowByMonth = currentProj.data.map(r => r.unfundedAccountOutflow ?? 0);
+    const resimProj = engine({
+      ...engineInputs, cardProjectionData: resim, floorMinLatch, unfundedAccountOutflowByMonth,
+    });
 
     const maxGap = maxDebtPaymentGap(resim, resimProj, currentProj);
 
