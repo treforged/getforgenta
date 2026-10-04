@@ -59,20 +59,26 @@ function isInterestRising(interestThisMonth: number, interestAtPlan: number | nu
 }
 
 export default function DebtHero({ interestThisMonth, interestAtPlan, unconditionalShortfall }: Props) {
+  const rising = isInterestRising(interestThisMonth, interestAtPlan);
+  const note = interestAtPlan === null
+    ? (unconditionalShortfall ? DEBT_HERO_AT_PLAN_UNCONDITIONAL : DEBT_HERO_AT_PLAN_ABSENT)
+    : rising ? DEBT_HERO_AT_PLAN_RISING : null;
   return (
     <div className="card-forged p-4 sm:p-6">
       {/* The plan figure shares the big number's row (aaafa7ee: the card was a full-width box
-          holding one short figure, 158px of empty width at 390). The explanations for an absent
-          reading stay full-width below, never trimmed. */}
-      <div className="flex items-end justify-between gap-4">
-        <div className="min-w-0">
+          holding one short figure, 158px of empty width at 390). The explanation sits under both
+          on a phone, and from lg up it moves INTO the gap between them (Tre, 2026-10-03, ask
+          1be673ad: a 1296px card held its figure at the left edge, the plan figure at the right
+          and an empty middle - 14.6% filled). Same sentence, never trimmed; only its cell moves. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-2 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-x-10">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Interest this month</p>
           <p className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-foreground leading-none mt-1.5">
             {formatCurrency(interestThisMonth, true)}
           </p>
         </div>
         {interestAtPlan !== null && (
-          <p className="text-xs text-muted-foreground text-right shrink-0 max-w-[45%]">
+          <p className="text-xs text-muted-foreground text-right whitespace-nowrap lg:col-start-3 lg:row-start-1">
             at plan:{' '}
             <span className="block text-lg font-display font-semibold text-foreground leading-tight">
               {formatCurrency(interestAtPlan, true)}
@@ -80,15 +86,12 @@ export default function DebtHero({ interestThisMonth, interestAtPlan, unconditio
             next month
           </p>
         )}
+        {note !== null && (
+          <p className="col-span-2 text-xs text-muted-foreground lg:col-span-1 lg:col-start-2 lg:row-start-1">
+            {note}
+          </p>
+        )}
       </div>
-      {isInterestRising(interestThisMonth, interestAtPlan) && (
-        <p className="text-xs text-muted-foreground mt-2">{DEBT_HERO_AT_PLAN_RISING}</p>
-      )}
-      {interestAtPlan === null && (
-        <p className="text-xs text-muted-foreground mt-2">
-          {unconditionalShortfall ? DEBT_HERO_AT_PLAN_UNCONDITIONAL : DEBT_HERO_AT_PLAN_ABSENT}
-        </p>
-      )}
     </div>
   );
 }
