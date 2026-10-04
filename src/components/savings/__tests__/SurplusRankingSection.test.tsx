@@ -214,6 +214,27 @@ describe('SurplusRankingSection — the section is there before the list is wort
   });
 });
 
+// ── GOAL ORDER IS STATED, ON SCREEN (decision 2d104bc7) ──────────────────────
+//
+// Tre, 2026-10-03: "thats what the goal order is for. that also needs to be clear to users." The
+// rule must be in the VISIBLE subtitle, never only behind "How the order works": 029e1266 moved
+// the method behind a tap and kept this line on purpose. Nothing pinned it until now.
+describe('SurplusRankingSection — the goal order rule is on screen, not behind a tap', () => {
+  const subtitle = () => screen.getByText('Where the extra money goes').nextElementSibling?.textContent ?? '';
+
+  it('says the list is paid in order, and that a lower card gets only its minimum', () => {
+    setup(THREE);
+    expect(subtitle()).toMatch(/one at a time, in order/);
+    expect(subtitle()).toMatch(/A card ranked lower gets only its minimum until the goals above it/);
+  });
+
+  it('drops the card sentence when there is no card to rank, and keeps the order sentence', () => {
+    setup([row('g1', 'Savings', 0), row('g2', 'Roth IRA', 1)]);
+    expect(subtitle()).toMatch(/one at a time, in order/);
+    expect(subtitle()).not.toMatch(/card ranked lower/);
+  });
+});
+
 // ── NON-CC LIABILITIES ───────────────────────────────────────────────────────
 //
 // Tre, 2026-08-24: "other debts like student loans should operate like credit cards. they should
