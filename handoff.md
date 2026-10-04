@@ -29,6 +29,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW66 (10-04 ~04:50 ET, Ada getforgenta-b7). e943755b RE-TESTED: app shows ONE short month (Nov26 -$109.25); the
+    Owners Contribution pause is Tre's 10-03 decision (line ~354). Sam asked for keep-vs-resume numbers: offline recapture
+    (harness REPAIRED, commit 'recapture harness runs again': useFloorBufferedRules passthrough, so NO bill buffer - reads
+    Nov -$83 where the app reads -$109). Paused: Nov -$83, Oct cards $2,025. Resume $65 from 11-01: no short month, Oct
+    cards $1,635 (floor +65 -> card pay -390). General Operations $134 vs $161/mo bills. Line + rec (resume) sent to Sam.
+    OPEN f077f9bb: why +$65 floor moves -$390 of Oct card pay, and why paused lets Nov breach by $83 (floor-protection
+    save-up gating). Captures: scratchpad fx/fi-{paused,resume65}.json (session-local; re-dump per
+    docs/forecast-fixture-recapture.md, ONE combined A+B query so it spills - a lone Query A came back INLINE 10-04).
+    Golden fixtures restored, sha256 verified (77b5340f / 137e372b).
 R-NOW65 (10-04 ~02:15 ET, Ada getforgenta-b7). R-NOW64 items 2-3 DONE. Also: iOS upload 1 FAILED (altool 90062/90186:
     6.8.1 approved, train closed) -> VERSION 6.8.2 pushed -> run 37181331724 UPLOAD SUCCEEDED, build 1283 (carries bgtask).
     STANDING e1b0fffc: Goal Progress grid follows goal count (848px unused at 1 goal before), new gate check:goal-grid,
