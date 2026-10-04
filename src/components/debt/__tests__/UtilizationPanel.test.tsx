@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import UtilizationPanel from '../UtilizationPanel';
 import type { OverallUtilization } from '@/lib/credit-utilization';
 
@@ -28,6 +28,9 @@ describe('UtilizationPanel', () => {
 
   it('explains 0% plans only when a 0% balance exists', () => {
     render(<UtilizationPanel summary={{ ...base, utilizationOnlyBalance: 2417, interestBearingBalance: 1783 }} />);
+    // Behind one tap since 2026-10-04 (ask 52898f88): hidden at first, one press shows the words.
+    expect(screen.queryByText(/0% plans lower utilization/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /0% plans and utilization/ }));
     expect(screen.getByText(/0% plans lower utilization/)).toBeTruthy();
     expect(screen.queryByText(/Not counted yet/)).toBeNull();
   });
@@ -39,6 +42,6 @@ describe('UtilizationPanel', () => {
     }} />);
     const note = screen.getByText(/Not counted yet/);
     expect(note.textContent).toBe('Not counted yet: Venture X ($10,000.00 limit, opens in 3 mo)');
-    expect(screen.queryByText(/0% plans lower utilization/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /0% plans and utilization/ })).toBeNull();
   });
 });

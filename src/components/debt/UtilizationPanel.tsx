@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import MoreInfo from '@/components/shared/MoreInfo';
 import { formatCurrency } from '@/lib/calculations';
 import type { OverallUtilization } from '@/lib/credit-utilization';
 
@@ -30,10 +31,10 @@ export default function UtilizationPanel({ summary }: Props) {
   return (
     <div className="mt-4 pt-3 border-t border-border/50 space-y-1.5" data-testid="utilization-breakdown">
       {hasPlanNote && (
-        <p className="text-[10px] sm:text-[11px] text-muted-foreground">
+        <MoreInfo label="0% plans and utilization" testId="zero-plan-note">
           0% plans lower utilization when paid down but save no interest. Paying interest-bearing
           balance does both.
-        </p>
+        </MoreInfo>
       )}
 
       {hasFutureNote && (

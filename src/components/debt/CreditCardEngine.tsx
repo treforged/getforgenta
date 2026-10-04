@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { ToggleSwitch } from '@/components/shared/ToggleSwitch';
+import MoreInfo from '@/components/shared/MoreInfo';
 import { StatementImport } from './StatementImport';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
 import {
@@ -242,7 +243,6 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
   const [editingMonth, setEditingMonth] = useState<{ cardId: string; month: number } | null>(null);
   const [monthPayInput, setMonthPayInput] = useState('');
   const [liquidCashOpen, setLiquidCashOpen] = useState(false);
-  const [recNoteOpen, setRecNoteOpen] = useState(false);
   const [safeToPayOpen, setSafeToPayOpen] = useState(false);
 
   // Auto-save cash floor to profile on change
@@ -1789,13 +1789,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 </p>
               )}
               {!manualFloor && (
-                <p className="text-[10px] text-muted-foreground flex items-start gap-1">
-                  <Info size={10} className="shrink-0 mt-[2px]" />
-                  <span>
-                    Set from the bills due before your next paycheck. Turn on &ldquo;set
-                    manually&rdquo; to hold your own floor on top.
-                  </span>
-                </p>
+                <MoreInfo label="How the floor is set" testId="cash-floor-note">
+                  Set from the bills due before your next paycheck. Turn on &ldquo;set
+                  manually&rdquo; to hold your own floor on top.
+                </MoreInfo>
               )}
               {manualFloor && prePaycheckBills.total > cashFloor && (
                 <p className="text-[10px] text-primary flex items-start gap-1">
@@ -1869,20 +1866,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           {/* BEHIND A TAP, NOT DELETED (Tre, 2026-10-02, ask 52898f88: "the overload of information,
               it's too complicated for a new user"). These three sentences sat above every figure for
               every user; they explain the method, which a user wants once, not on every visit. */}
-          <button type="button" onClick={() => setRecNoteOpen(v => !v)} aria-expanded={recNoteOpen}
-            aria-controls="rec-method-note"
-            className="inline-flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground mb-3 sm:mb-4">
-            <Info size={11} aria-hidden="true" /> How this is worked out
-            {recNoteOpen ? <ChevronUp size={11} aria-hidden="true" /> : <ChevronDown size={11} aria-hidden="true" />}
-          </button>
-          {recNoteOpen && (
-            <p id="rec-method-note" className="text-[10px] sm:text-xs text-muted-foreground -mt-2 mb-3 sm:mb-4">
-              Recommended from this month's cash flow. Later bills are not counted. If a due date has
-              passed, the card shows next month's payment, with what you still owe this month underneath.
-              Your goal order decides who is paid first: a card ranked below a goal gets only its minimum
-              until that goal has this month's share, even on Full Balance.
-            </p>
-          )}
+          <MoreInfo label="How this is worked out" className="mb-3 sm:mb-4" testId="rec-method-note">
+            Recommended from this month's cash flow. Later bills are not counted. If a due date has
+            passed, the card shows next month's payment, with what you still owe this month underneath.
+            Your goal order decides who is paid first: a card ranked below a goal gets only its minimum
+            until that goal has this month's share, even on Full Balance.
+          </MoreInfo>
 
           {month0Recs.cashWarningText && (
             <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/30 px-3 py-2 mb-3 sm:mb-4 text-[10px] sm:text-xs text-destructive-text" style={{ borderRadius: 'var(--radius)' }}>
@@ -2185,10 +2174,10 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
 
           {(loanRecs.length > 0 || otherDebtRecs.length > 0) && (
-            <p className="text-[9px] sm:text-[10px] text-muted-foreground mt-2">
+            <MoreInfo label="Why loans are not in the card totals" className="mt-2" testId="loan-totals-note">
               Loan and other debt payments are already taken out of your cash before Safe to Pay,
               so they are not part of the card totals.
-            </p>
+            </MoreInfo>
           )}
 
           {utilizationMilestones.length > 0 && (
