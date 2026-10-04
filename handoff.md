@@ -29,6 +29,9 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW79 (10-04 ~19:40Z, Ada). e618b2f0 (Tre via Sam: in-app notice naming the outage cause) - opus-executor
+    building in a .claude/worktrees/ worktree (OVERDRIVE). Status APIs for Supabase/Cloudflare/Vercel/Plaid measured CORS *.
+    If this tab is gone: review its uncommitted diff, rerun check:connection-banner + test:tz, ship on green, remove wt.
 R-NOW78 (10-04 19:25Z, Ada). OUTAGE da91e541 (Sam/Vera): every request carrying the publishable (or legacy anon) key
     to /auth/v1 and /rest/v1 HANGS since ~19:00Z, for ALL users (confirmed from a non-home network via WebFetch: keyed
     hangs >60 s, garbage key 401 at once). /functions/v1 is fine. Cause: Supabase eastern-US API gateway incident
@@ -13175,17 +13178,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 14:51 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 15:18 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13195,6 +13197,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+de1347d4 [handoff]: R-NOW78 - da91e541 Supabase gateway outage confirmed all users, recovery monitor armed
 8198fd3a [ui]: an inactive payment plan reads "(not counted)", not "(off)"
 007293c0 [handoff]: R-NOW77 - full walk after 3af8e182 clean (empty 10/10, first-run 8/8, press 168/168)
 3b54003a [handoff]: R-NOW77 - 853aba70 push half verified (37211685319 deploy skipped)
@@ -13202,7 +13205,6 @@ fbcf3ee5 [handoff]: R-NOW77 - ceb711fc shipped 3af8e182
 3af8e182 [engine]: a card that still owes outranks every target ranked below it, and a paid-off loan is not charged (ceb711fc)
 bf6d794c [handoff]: R-NOW77 - Sam told, ceb711fc executor still writing, two fill targets dropped as not defects
 18496976 [handoff]: R-NOW76 - 853aba70 shipped a019bf3b, verify 10-05 10:00Z, ceb711fc executor running
-a019bf3b [ci]: Play deploys once a day, not per push, so a busy day cannot spend Play's edit quota (853aba70)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
