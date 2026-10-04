@@ -31,9 +31,9 @@ CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagg
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
 R-NOW77 (10-04 ~10:45 ET, Ada getforgenta-1e, successor of -30). R-NOW76 progress:
     0. [x] Sam told (tre-forged-00, msg de213451).
-    1. [~] ceb711fc executor STILL WRITING at 10:43 (forecast-engine.ts + src/lib/card-residue-hold.ts + zz-* scratch
-       tests; its synthetic test forecast-engine.cardResidueHold.test.ts not yet written). Waiting for it to go quiet,
-       then review + regate on main. Do NOT ship the zz-* scratch tests.
+    1. [x] ceb711fc SHIPPED 3af8e182 (pushed 0/0). Executor died before its tests; Ada reviewed, added
+       card-residue-hold.test.ts (10, 3 red under mutation), re-pinned realData Nov->Oct 2028. All 32 capture/arm pairs:
+       payoff earlier/same, interest down/same; Tre's live (10-04 default) unchanged. Both worktrees + branch removed.
     2. [ ] 853aba70 verify: session cron armed for 10-05 06:23 ET (dies with this tab - redo if successor).
     3. e1b0fffc fill list: Forecast Next milestone 362px and Avalanche order 252px DROPPED as not defects (hero headline
        card matches its neighbour's height; Avalanche card is names-and-order-only by Tre's ask, ecde4f9a). The width
