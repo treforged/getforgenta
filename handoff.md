@@ -34,6 +34,9 @@ R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
        the fixes did not fix what Tre sees. Top 14 are still /budget Per Paycheck 11%, Income Rules 17%, /debt Recommended
        12%, Strategy 18%, Avalanche order 11%, Forecast Next milestone 19%, Settings Support 15%. NEXT: open the
        1440 frames for the top 5 and decide whether the probe or the page is wrong before more fill work.
+       [x] DECIDED: the PROBE was wrong (padding counted as empty). Fixed in scripts/inventory-fill.mjs: 15 findings,
+       all inputs/icon. Its blind spot is WIDTH: a wide card with one short line is not flagged. Next fill work needs a
+       horizontal-empty measure, not more height fixes.
     2. [x] R-NOW59 item 1 (decision 2d104bc7) SHIPPED: cardPayHint takes the EFFECTIVE plan (rec.isMinimumOnly); goal-order
        copy on ranking header + Recommended This Month. Verified localhost:8080 as Tre: Discover rec "Minimum payment
        $150.40", hint "The plan pays the minimum too for now". c013318d CLOSED. Engine needed NO change: Tre's cards
