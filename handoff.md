@@ -29,6 +29,26 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW64 (10-04 ~01:55 ET, Ada getforgenta-4c hit the 180-call gate). START HERE, IN ORDER:
+    1. [ ] ec48da25 read-back at/after 09:17 ET (SQL R-NOW62 item 2) - my cron died with me: ARM YOUR OWN one-shot for 09:19
+       (CronCreate '19 9 4 10 *'). Sam has a 09:27 backstop. Then `ask done ec48da25`.
+    2. [ ] UNCOMMITTED in the tree - e74da89c 'bgtask' label (iOS BG-task refresh told apart from an app close):
+       src/lib/widget-refresh-log.ts (BG_TASK_FLAG, consumeBgTaskFlag, logBackgroundRefresh 3rd arg),
+       src/lib/__tests__/widget-refresh-log.test.ts (+3 tests, 17/17 green), ios/App/App/AppDelegate.swift (sets
+       CapacitorStorage.forged:bg_task_reload in handleWidgetRefresh), supabase/migrations/20261004b_widget_refresh_bgtask.sql.
+       ORDER: (a) read the live CHECK name: select conname, pg_get_constraintdef(oid) from pg_constraint where
+       conrelid='public.widget_refresh_events'::regclass and contype='c' - fix the migration's name if it differs;
+       (b) apply the migration (apply_migration) and read the constraint back; (c) prove red (mutate 'bgtask'->'hidden' in
+       logBackgroundRefresh, 1 test fails, restore); (d) tsc, lint, test:tz; (e) commit, push, verify 0/0; (f) iOS compiles on
+       push (ios-build.yml) - a TestFlight upload needs `gh workflow run "iOS Build & Upload to App Store" --ref main` and only
+       then can rows read 'bgtask'. Backups backups/2026-10-04_01*.
+       Re-test that motivated it: 3 ios rows in 2.5 days, all 'hidden', ~midnight ET (recorded on the ask).
+    3. [ ] UNCOMMITTED - scripts/walk-press-every-control.mjs: waits for .skeleton-shimmer to clear (cap 20s) before looking
+       for a control (fix for the "Connect a bank" not-found whose frame was all skeletons). My background run died with me:
+       rerun `npm run walk:press`; commit ONLY if not-found 0 and enumerated ~386; else restore from $TEMP copy or git checkout
+       that ONE file. Original also in git HEAD.
+    4. STANDING e1b0fffc. Blocked items re-tested this session: b573d720 still holds (0 of 5 active subs have an RC id);
+       e74da89c see item 2. 9fa0eb4c / e943755b wait on Tre via Sam.
 R-NOW63 (10-04 ~00:40 ET, Ada successor of f1). START HERE, IN ORDER:
     1. [x] R-NOW62 item 1 VERIFIED on localhost:8080 /debt as Tre: label x5, "never shrinks to fit" x0, "Treated as a
        fixed obligation" x1 (Robinhood is the only card ON). No revert.
