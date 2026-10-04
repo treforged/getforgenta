@@ -1241,11 +1241,18 @@ export default function Dashboard() {
           <ChartSkeleton key="goal_progress" height={120} />
         ) : (
           <div key="goal_progress" className="card-forged p-4 sm:p-5 card-clickable" onClick={() => navigate('/goals')}>
-            <h3 className={`text-xs font-semibold text-muted-foreground uppercase tracking-wider ${goals.length === 0 ? 'mb-2' : 'mb-5'}`}>Goal Progress</h3>
             {goals.length === 0 ? (
-              // One line under the heading: inside the 3-column grid with py-4 it sat 40px below it.
-              <p className="text-xs text-muted-foreground">No savings goals yet.</p>
+              // EMPTY: one row, heading, sentence and the way forward (ask 1be673ad). Stacked, the
+              // card was 1296px wide at 1440 with 1111px of it unused. The whole card already opens
+              // /goals; the right-hand label just says so. Wraps naturally on a phone.
+              <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Goal Progress</h3>
+                <p className="text-xs text-muted-foreground flex-1 min-w-0">No savings goals yet.</p>
+                <span className="text-xs font-medium text-primary shrink-0">Set a goal →</span>
+              </div>
             ) : (
+            <>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
             <div className="grid md:grid-cols-3 gap-5">
               {(() => {
                 // Savings goals ONLY. Vehicles are deliberately not savings goals any more — the
@@ -1280,6 +1287,7 @@ export default function Dashboard() {
                 );
               })}
             </div>
+            </>
             )}
           </div>
         );

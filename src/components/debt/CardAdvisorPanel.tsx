@@ -164,8 +164,11 @@ export default function CardAdvisorPanel() {
           const out = result.excluded.find(e => e.id === a.id);
           return (
             <div key={a.id} className="py-2 border-b border-border last:border-0">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium min-w-0 truncate">
+              {/* One line per card from sm: name, the answer for this amount, then the rewards link
+                  (ask 1be673ad: stacked, the row left 1101px of a 1296px card unused at 1440). On a
+                  phone the link wraps under the name as before. */}
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <span className="text-sm font-medium min-w-0 truncate flex-1">
                   {a.name}
                   {DEBIT_ACCOUNT_TYPES.includes(a.account_type) && <span className="text-[11px] text-muted-foreground font-normal"> · Debit</span>}
                 </span>
@@ -175,11 +178,11 @@ export default function CardAdvisorPanel() {
                       : out?.why === 'not-enough-cash' ? 'Not enough cash'
                       : opt && amount > 0 ? `Net ${formatCurrency(opt.netValue)}` : ''}
                 </span>
+                <button type="button" className="text-[11px] text-primary hover:underline shrink-0 basis-full sm:basis-auto text-left"
+                  onClick={() => setEditing(editing === a.id ? null : a.id)} aria-expanded={editing === a.id}>
+                  {editing === a.id ? 'Close' : 'Rewards & welcome offer'}
+                </button>
               </div>
-              <button type="button" className="text-[11px] text-primary hover:underline mt-1"
-                onClick={() => setEditing(editing === a.id ? null : a.id)} aria-expanded={editing === a.id}>
-                {editing === a.id ? 'Close' : 'Rewards & welcome offer'}
-              </button>
               {editing === a.id && (
                 <RewardsEditor card={a} onSave={patch => { update.mutate({ id: a.id, ...patch }); setEditing(null); }} />
               )}

@@ -35,6 +35,11 @@ const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_paym
 // "with extra payments" pairing below can only land on an account the engine actually projected.
 const NON_CC_LIABILITY_TYPES = ['mortgage', 'student_loan', 'auto_loan', 'other_liability'];
 
+// Loan summary tiles: label left, figure right at EVERY width (ask 1be673ad). Centred and stacked,
+// each 641px tile at 1440 held a ~120px label and figure in its middle (inventory:fill, ~480px
+// unused), and on a phone the grid is one 363px column, which fits both on one line too.
+const STAT_TILE = 'card-forged p-3 px-4 flex items-baseline justify-between gap-3';
+
 export default function DebtPayoff() {
   const { data: debts, update, remove, loading: debtsLoading } = useDebts();
   const { add: addReconciliation } = useAccountReconciliations();
@@ -513,11 +518,11 @@ export default function DebtPayoff() {
         <div className="space-y-4">
           {activeAutoLoans.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="card-forged p-4 text-center">
+              <div className={STAT_TILE}>
                 <p className="text-xs text-muted-foreground uppercase">Monthly Payments</p>
                 <p className="text-lg font-display font-bold text-primary">{formatCurrency(activeAutoLoans.reduce((s, l) => s + l.payment, 0), false)}</p>
               </div>
-              <div className="card-forged p-4 text-center">
+              <div className={STAT_TILE}>
                 <p className="text-xs text-muted-foreground uppercase">Total Remaining</p>
                 <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(activeAutoLoans.reduce((s, l) => s + l.remainingBalance, 0), false)}</p>
               </div>
@@ -585,9 +590,9 @@ export default function DebtPayoff() {
         <>
           {nonCcDebtExplainer}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(totalBalance)}</p></div>
-            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment)}</p></div>
-            <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment)}</p></div>
+            <div className={STAT_TILE}><p className="text-xs text-muted-foreground uppercase">Total Owed</p><p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(totalBalance)}</p></div>
+            <div className={STAT_TILE}><p className="text-xs text-muted-foreground uppercase">Monthly Min</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalMinPayment)}</p></div>
+            <div className={STAT_TILE}><p className="text-xs text-muted-foreground uppercase">Target Payment</p><p className="text-lg font-display font-bold text-primary">{formatCurrency(totalTargetPayment)}</p></div>
           </div>
           <ErrorBoundary variant="widget" label="Other Debt Trajectory">
             <LiabilityTrajectoryChart
@@ -691,11 +696,11 @@ export default function DebtPayoff() {
           {nonCcDebtExplainer}
           {mortgageDebts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="card-forged p-4 text-center">
+              <div className={STAT_TILE}>
                 <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
                 <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(mortgageDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
               </div>
-              <div className="card-forged p-4 text-center">
+              <div className={STAT_TILE}>
                 <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
                 <p className="text-lg font-display font-bold text-primary">{formatCurrency(mortgageDebts.reduce((s, d) => s + Number(d.target_payment), 0), false)}</p>
               </div>
@@ -764,11 +769,11 @@ export default function DebtPayoff() {
           {nonCcDebtExplainer}
           {studentDebts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="card-forged p-4 text-center">
+              <div className={STAT_TILE}>
                 <p className="text-xs text-muted-foreground uppercase">Total Owed</p>
                 <p className="text-lg font-display font-bold text-destructive-text">{formatCurrency(studentDebts.reduce((s, d) => s + liabilityBalance(d), 0), false)}</p>
               </div>
-              <div className="card-forged p-4 text-center">
+              <div className={STAT_TILE}>
                 <p className="text-xs text-muted-foreground uppercase">Monthly Payment</p>
                 <p className="text-lg font-display font-bold text-primary">{formatCurrency(studentDebts.reduce((s, d) => s + Number(d.target_payment), 0), false)}</p>
               </div>
