@@ -3,8 +3,8 @@ name: Promote Android Staged Rollout
 # The upload action only creates/uploads releases - it has no "bump an existing release's
 # rollout %" mode. Google Play's staged rollout has no native auto-advance-after-N-hours
 # setting either, so this does it: every 6 hours, check how long the current production
-# release has been sitting at its initial 10% (using the last successful android-build.yml
-# run's completion time as the soak-start clock - a new push always creates a fresh release at
+# release has been sitting at its initial 10% (using the completion time of the last
+# android-build.yml DEPLOY STEP that succeeded as the soak-start clock - a new push always creates a fresh release at
 # 10%, which correctly resets this timer), and promote to 100% once 24 hours have passed.
 
 on:
@@ -26,20 +26,32 @@ jobs:
       id-token: write
 
     steps:
-      - name: Find latest successful Android Build run on main
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Find the last Android Build run that DEPLOYED to Play
         id: lastrun
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RUN_JSON=$(gh api "repos/${{ github.repository }}/actions/workflows/android-build.yml/runs?branch=main&status=success&per_page=1")
-          COMPLETED_AT=$(echo "$RUN_JSON" | jq -r '.workflow_runs[0].updated_at // empty')
-          if [ -z "$COMPLETED_AT" ]; then
-            echo "No successful android-build.yml run found yet."
+          # Since 2026-10-04 a push run goes green WITHOUT deploying (android-build.yml ships once a
+          # day). "Last successful run" would restart the 24 h soak on every push and never promote,
+          # so the clock is the completion time of the last DEPLOY STEP that succeeded.
+          set +e
+          LAST=$(node scripts/last-shipped-run.mjs android-build.yml "Deploy to Google Play (Production, staged 10%)")
+          CODE=$?
+          set -e
+          if [ "$CODE" = "3" ]; then
+            echo "No android-build.yml run has deployed to Play in the window."
             echo "found=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          if [ "$CODE" != "0" ]; then
+            echo "::error::Could not read which run deployed (helper exit $CODE)."
+            exit 1
+          fi
           echo "found=true" >> "$GITHUB_OUTPUT"
-          echo "completed_at=$COMPLETED_AT" >> "$GITHUB_OUTPUT"
+          echo "completed_at=${LAST#* }" >> "$GITHUB_OUTPUT"
 
       - name: Check soak time elapsed
         id: elapsed

@@ -166,6 +166,9 @@ jobs:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
           RELEASE_RANGE_SINCE: ${{ inputs.since }}
           RELEASE_RANGE_WORKFLOW: ios-build.yml
+          # A green push run here uploads nothing (the upload step is `skipped`), so the range must
+          # start at the last run whose UPLOAD succeeded - scripts/last-shipped-run.mjs (2026-10-04).
+          RELEASE_RANGE_SHIPPED_STEP: Upload to App Store Connect
         run: |
           # THE RANGE IS RESOLVED, NOT GUESSED. See the same block in android-build.yml for
           # the measurement: RANGE="-6" on a dispatch is an arbitrary window, and it produced

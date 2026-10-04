@@ -8,6 +8,15 @@ on:
       - 'android/**'
       - 'capacitor.config.ts'
       - 'package.json'
+  # PLAY DEPLOYS ONCE A DAY, NOT ON EVERY PUSH (2026-10-04, Sam's ask after run 37208860959 died
+  # with "Daily save quota exceeded" at the production step). Every push to main used to open a
+  # Play edit, so a busy day of pushes spent Play's daily edit quota and the next deploy went red.
+  # Now a push BUILDS (the compile gate, the AAB artifact) and ships nothing; this schedule ships
+  # whatever main holds that Play does not, once a day, after midnight Pacific when the quota
+  # resets. workflow_dispatch still ships on demand. Undo: delete this schedule and the
+  # `ship` gate below (git revert of the commit that added them).
+  schedule:
+    - cron: '0 10 * * *'
   workflow_dispatch:
     inputs:
       since:
@@ -38,7 +47,9 @@ on:
 # on main is the only one worth releasing. Queueing would serialise the edits
 # and remove the error, and still push an intermediate build to production.
 concurrency:
-  group: store-deploy-${{ github.workflow }}-${{ github.ref }}
+  # A push only builds, so it gets its own group: a push landing mid-upload must never cancel
+  # the scheduled or dispatched run that is holding a Play edit open.
+  group: store-deploy-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'push' && 'build' || 'ship' }}
   cancel-in-progress: true
 
 env:
@@ -70,6 +81,31 @@ jobs:
           # than print a smaller number confidently. Depth stays at 50: a store deploy should not
           # pay for a full 121 MB history clone to sharpen an advisory count.
           fetch-depth: 50
+
+      - name: Decide whether this run ships to Play
+        id: ship
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # A push never ships (see `schedule:` above). A scheduled or dispatched run ships only
+          # when main holds a commit Play has not had - "had" read from the last run whose DEPLOY
+          # step succeeded, not the last green run, because a green push run uploaded nothing.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "ship=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Push build only. Play receives main on the daily scheduled run (10:00 UTC) or a manual dispatch."
+            exit 0
+          fi
+          set +e
+          LAST=$(node scripts/last-shipped-run.mjs android-build.yml "Deploy to Google Play (Production, staged 10%)")
+          CODE=$?
+          set -e
+          if [ "$CODE" = "0" ] && [ "${LAST%% *}" = "$GITHUB_SHA" ]; then
+            echo "ship=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Play already has ${GITHUB_SHA:0:8}; nothing new to ship."
+          else
+            echo "ship=true" >> "$GITHUB_OUTPUT"
+            echo "Shipping ${GITHUB_SHA:0:8} (last shipped: ${LAST:-unknown, helper exit $CODE})."
+          fi
 
       - name: Authenticate to Google Cloud (Workload Identity Federation)
         id: auth
@@ -230,11 +266,15 @@ jobs:
           retention-days: 14
 
       - name: Generate release notes from this push's commits
+        if: steps.ship.outputs.ship == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
           RELEASE_RANGE_SINCE: ${{ inputs.since }}
           RELEASE_RANGE_WORKFLOW: android-build.yml
+          # The range starts at the last run that REACHED Play, so a daily deploy's note covers
+          # every push since, not just the last one.
+          RELEASE_RANGE_SHIPPED_STEP: Deploy to Google Play (Production, staged 10%)
         run: |
           mkdir -p whatsnew
           # THE RANGE IS RESOLVED, NOT GUESSED, AND A REFUSAL STOPS THE DEPLOY.
@@ -283,6 +323,7 @@ jobs:
           fi
 
       - name: Deploy to Google Play (Production, staged 10%)
+        if: steps.ship.outputs.ship == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           packageName: com.treforged.forged

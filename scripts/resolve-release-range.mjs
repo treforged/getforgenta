@@ -41,6 +41,7 @@
 //
 // EXITS: 0 prints the range on stdout . 2 could not resolve, reason on stderr.
 import { execFileSync } from 'node:child_process';
+import { lastShippedRun } from './last-shipped-run.mjs';
 
 const say = (m) => process.stderr.write(`${m}\n`);
 
@@ -83,7 +84,18 @@ if (resolves(before)) {
 // 3. The last build that actually shipped from this branch.
 if (workflow) {
   let last = '';
-  try {
+  // RELEASE_RANGE_SHIPPED_STEP: "last successful run" is not "last shipped run" once a push run
+  // can go green without uploading (android-build.yml since 2026-10-04, ios-build.yml always).
+  // With the store step named, ask which run's UPLOAD succeeded instead - scripts/last-shipped-run.mjs.
+  const shippedStep = (process.env.RELEASE_RANGE_SHIPPED_STEP || '').trim();
+  if (shippedStep) {
+    try {
+      last = lastShippedRun({ workflow, step: shippedStep, branch })?.sha ?? '';
+      if (!last) say(`no run of ${workflow} on ${branch} has "${shippedStep}" = success in the window.`);
+    } catch (err) {
+      say(`gh could not be asked which ${workflow} run shipped: ${String(err.message).split('\n')[0]}`);
+    }
+  } else try {
     last = execFileSync(
       'gh',
       ['run', 'list', '--workflow', workflow, '--branch', branch, '--status', 'success',
@@ -96,7 +108,7 @@ if (workflow) {
   }
   if (last && last !== head) {
     if (resolves(last)) {
-      say(`range source: last successful ${workflow} run on ${branch} (${last.slice(0, 8)})`);
+      say(`range source: last ${shippedStep ? 'SHIPPED' : 'successful'} ${workflow} run on ${branch} (${last.slice(0, 8)})`);
       process.stdout.write(`${last}..${head}\n`);
       process.exit(0);
     }
