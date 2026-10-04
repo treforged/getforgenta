@@ -29,10 +29,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW68 (10-04 04:50 ET, Ada getforgenta-7b). R-NOW67 items 2-3 DONE:
+    [x] c879c73f VERIFIED on localhost /forecast as Tre: no "Short months ahead" card, all 60 breakdown rows, Nov 2026
+        end $3,200.75. shortfallByMonth uses each month's OWN floor (monthMinSafe), so Mar-May 2027 under $2,335 is NOT short.
+    [x] Offline re-measure on the fixed engine (predecessor's fx/fi-*.json): paused 0 short (Nov $3,096 / floor $2,460),
+        resume65 0 short. 74b080fc DROPPED with evidence; Sam (tre-forged-24) told 'no question needed'.
+    [~] e2f7101f: told Sam I take it (funding checking pays a non-funding checking overdraft) unless he objects. Building.
+    [ ] ec48da25: cron 4ec19f73 armed in getforgenta-7b for 09:19. If this tab is gone, run R-NOW62 item 2 SQL by hand.
 R-NOW67 (10-04 ~06:00 ET, Ada getforgenta-b7 hit the call gate). START HERE, IN ORDER:
-    1. [ ] 09:19 ET: ec48da25 read-back. MY CRON DIES WITH ME - arm your own CronCreate '19 9 4 10 *' (SQL R-NOW62 item 2),
+    1. [~] 09:19 ET: ec48da25 read-back. MY CRON DIES WITH ME - arm your own CronCreate '19 9 4 10 *' (SQL R-NOW62 item 2),
        then ask done ec48da25.
-    2. [ ] VERIFY c879c73f (always-pay pin reserved in both look-aheads) on localhost:8080 /forecast as Tre, read-only:
+    2. [x] VERIFY c879c73f (always-pay pin reserved in both look-aheads) on localhost:8080 /forecast as Tre, read-only:
        'Short months ahead' should now read no short month (it read 1, Nov $109.25, before). Revert if the app disagrees.
     3. [ ] Then send Sam the corrected 74b080fc answer (he is HOLDING it): re-measure paused vs resume65 with the
        offline pipeline (R-NOW66) on the fixed engine. If both read 0 short months, tell Sam 'no question needed - the
@@ -13015,7 +13022,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 04:11 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 04:41 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13034,14 +13041,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+0470a09c [handoff]: R-NOW67 - always-pay reserve shipped, verify + 09:19 read-back next
+c879c73f [engine]: an "always pay this" card is reserved for in both floor look-aheads
 dad2f02a [handoff]: R-NOW66 - f077f9bb cause corrected (always-pay pin), fix building
 da9b2c9e [handoff]: R-NOW66 - e943755b re-measured, owners resume line to Sam, f077f9bb open
 5a94c06f [test]: the fixture recapture harness runs again (useFloorBufferedRules passthrough)
 6f301d4d [handoff]: R-NOW65 - fill residue content-driven, goal-grid gate 390+1440
 d8b3a471 [gate]: check:goal-grid measures 390 as well as 1440, row by row
 83768b52 [handoff]: R-NOW65 - upcoming-week columns shipped
-7d8ede82 [dashboard]: Upcoming This Week lays out in columns on desktop, so each amount sits by its bill
-2aae52e7 [handoff]: R-NOW65 - bgtask on TestFlight 1283, walk:press not-found 0, goal grid shipped
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
