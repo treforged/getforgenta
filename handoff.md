@@ -30,7 +30,7 @@ CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagg
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
 R-NOW80 (10-04 ~19:55Z, Ada getforgenta-1e hit the 175-call gate). START HERE, IN ORDER:
-    1. [~] e618b2f0 outage notice: opus-executor running in the .claude/worktrees/ worktree listed by `git worktree list`
+    1. [~] e618b2f0 outage notice: opus-executor running in .claude/worktrees/agent-a174767c0bdfab366
        (not ceb-regate, already removed). Its report goes to MY dead tab. When its files go quiet: review `git -C <wt>
        diff` + new files (src/lib/backend-health.ts, banner component, scripts/check-connection-banner.mjs) against the
        brief in R-NOW79/Sam's message (hang>10s or 5xx = failure, 4xx never, clear on first success, offline via
