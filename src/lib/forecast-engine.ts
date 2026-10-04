@@ -114,6 +114,11 @@ export interface ForecastMonthRow {
    *  f3c0cdf5 they are paid from checking: already subtracted from `endingCash` and from the cash the
    *  sim pays cards with. Kept on the row for the warning milestone and the breakdown. */
   unfundedAccountOutflow?: number;
+  /** b80124a0: dollars a savings / investment / retirement account actually moved INTO the funding
+   *  checking account this month (4b-ii's `nonCashGiven`, so a source that ran dry gives less than
+   *  its rule asks). Already added to `endingCash` and to the cash the sim pays cards with. Kept on
+   *  the row so the next convergence run's PASS 2 can model it, and for the breakdown. */
+  nonCashIntoFunding?: number;
   /** True when this month ends below its OWN floor (rawEndingCash < rawMonthMinSafe), at cent
    * resolution. The single source of truth for "below safe minimum": the milestone above the
    * table and the red row in MonthlyBreakdownTable both read this, so they cannot disagree. */
@@ -257,6 +262,17 @@ export interface ForecastInputs {
    * shortfall, which is the old behaviour.
    */
   unfundedAccountOutflowByMonth?: readonly number[];
+  /**
+   * Ask b80124a0. Per month, what a non-cash transfer really moved INTO the funding checking account
+   * - THIS ENGINE'S OWN `nonCashIntoFunding` (step 4b-ii), read off the previous engine run of the
+   * same plan, exactly like `unfundedAccountOutflowByMonth` above and for the same reason: the source
+   * balance it depends on is only known inside PASS 3. PASS 2's floor look-ahead adds it to each
+   * month's income, so its walk holds the same cash PASS 3 does.
+   *
+   * Omitted by every direct caller (and by the loop's first run): PASS 2 then models no such inflow,
+   * which under-counts cash and so can only over-reserve, never leave a month short.
+   */
+  nonCashIntoFundingByMonth?: readonly number[];
 }
 
 export interface ForecastResult {
@@ -1836,7 +1852,9 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         })
       : undefined;
     const { maxDebtPaymentByMonth, strictSaveUpMonths, requiredEndByMonth, walkEndByMonth: lookAheadWalkEndByMonth } = computeFloorProtection({
-      incomeByMonth: baseData.map(b => b.netIncome),
+      // b80124a0: a savings / investment / retirement transfer into the funding account is cash in.
+      // The previous run's realised figure - see the input's JSDoc.
+      incomeByMonth: baseData.map((b, i) => b.netIncome + Math.max(0, inputs.nonCashIntoFundingByMonth?.[i] ?? 0)),
       expenseByMonth: baseData.map((b, i) =>
         b.baseExpenses + b.monthlySavingsContrib + getMonthCarContrib(i) + activeCarLoanByMonth[i]
           + getMonthVehicleInsurance(i) + getMonthProjLoan(i) + otherDebtPaymentByMonth[i]
@@ -2207,6 +2225,16 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
           moved = true;
         });
       }
+      // b80124a0: A TRANSFER INTO THE FUNDING CHECKING ACCOUNT IS CASH IN. That account has no tracker
+      // - its balance IS this walk's cash - so 4b and the loop above find no destination, and 4b-iii
+      // skips it (it tracks only the OTHER checking accounts). Until 2026-10-04 the source was debited
+      // and nothing was credited anywhere, so the forecast destroyed the money. It is added to this
+      // month's cash below, beside `unfundedAccountOutflow`, at what the source GAVE: the source's
+      // loss equals checking's gain, to the cent, including a month the source runs dry.
+      const fundingAcctId = (fundingAcct?.id as string | undefined) ?? null;
+      const nonCashIntoFunding = fundingAcctId
+        ? b.nonCashTransferItems.reduce((s, item, k) => (item.toAcctId === fundingAcctId ? s + nonCashGiven[k] : s), 0)
+        : 0;
 
       // ── 4b-iii. MONEY SPENT OUT OF AN ACCOUNT THAT IS NOT CHECKING ────────────
       //
@@ -2279,7 +2307,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       const endingCashWithoutGoalContrib = finalLiquid + b.netIncome - b.baseExpenses
         - carContribThisMonth - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth
         - projLoanThisMonth - otherDebtPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet
-        - plannedDebtPayment + cumulativeCarReserveHeld - unfundedAccountOutflow;
+        - plannedDebtPayment + cumulativeCarReserveHeld - unfundedAccountOutflow + nonCashIntoFunding;
       const goalContribApplied = i === 0 ? b.monthlySavingsContrib : Math.max(0, Math.min(
         b.monthlySavingsContrib,
         endingCashWithoutGoalContrib + debtHeadroom - b.monthMinSafe,
@@ -2324,7 +2352,8 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       // step 3's surplus branch feeds a correspondingly smaller revolving target back through
       // convergence and the sim stops paying down cards with money the user diverted.
       const cashPreDebtBeforeAutoExtra = finalLiquid + b.netIncome - b.baseExpenses - savingsOut - carLoanThisMonth - effectiveDPThisMonth - vehicleInsuranceThisMonth - projLoanThisMonth - otherDebtPayment - transfersOut - lumpTransferThisMonth + b.oneTimeNet
-        - unfundedAccountOutflow; // f3c0cdf5: paid from checking, see the note above steps 4a-4b-iii
+        - unfundedAccountOutflow // f3c0cdf5: paid from checking, see the note above steps 4a-4b-iii
+        + nonCashIntoFunding; // b80124a0: savings/investment/retirement money moved into checking, see 4b-ii
       // A target's own monthly contribution fills the same need the reserve would, and it is
       // subtracted BEFORE this month's reserve is decided: decide the reserve against a need the
       // contribution has already met and the target ends the month over-funded by exactly one
@@ -3005,6 +3034,7 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
         debtBalance: Math.round((adjCCLiab + closingBalanceAt(nonCCDebtBalanceByMonth, i)) * 100) / 100,
         savingsBalance: Math.round(savingsBal * 100) / 100, investmentBalance: Math.round(investBal * 100) / 100,
         unfundedAccountOutflow: Math.round(unfundedAccountOutflow * 100) / 100,
+        nonCashIntoFunding,
         retirementBalance: Math.round(retireBal * 100) / 100, liquidCash: Math.round(finalLiquid * 100) / 100,
         endingCash,
         startingCash,

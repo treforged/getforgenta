@@ -241,8 +241,12 @@ export function runDebtCashConvergence(
     // reserves for it. One source - 4b-iii's realised figure - fed forward like the cap above; see
     // ForecastInputs.unfundedAccountOutflowByMonth for why it is not modelled a second time.
     const unfundedAccountOutflowByMonth = currentProj.data.map(r => r.unfundedAccountOutflow ?? 0);
+    // b80124a0: the inflow twin of the line above - what a non-cash transfer really moved into the
+    // funding checking account this run, fed forward the same way.
+    const nonCashIntoFundingByMonth = currentProj.data.map(r => r.nonCashIntoFunding ?? 0);
     const resimProj = engine({
       ...engineInputs, cardProjectionData: resim, floorMinLatch, unfundedAccountOutflowByMonth,
+      nonCashIntoFundingByMonth,
     });
 
     const maxGap = maxDebtPaymentGap(resim, resimProj, currentProj);

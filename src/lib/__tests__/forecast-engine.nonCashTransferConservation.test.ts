@@ -133,3 +133,41 @@ describe('forecast-engine - a non-cash transfer conserves money when its source 
     expect(bal(out.data[11], 'sav-1')).toBeCloseTo(10000 - 65 * 12, 2);
   });
 });
+
+// A TRANSFER INTO THE FUNDING CHECKING ACCOUNT LANDS IN THE CASH WALK (ask b80124a0). The funding
+// account has no per-account tracker - its balance IS the forecast's cash - so 4b and 4b-ii found no
+// destination to credit and 4b-iii skips it (it tracks only the OTHER checking accounts). The source
+// was debited and nothing was credited anywhere: the forecast destroyed the money every month.
+//
+// Would-fail check: drop the funding credit and month 0 ends at the opening $3,000, savings $65 lighter.
+describe('forecast-engine - a non-cash transfer into the funding checking account reaches cash', () => {
+  afterEach(() => vi.useRealTimers());
+
+  const cash = (row: { rawEndingCash: number }) => row.rawEndingCash;
+
+  it('funded: checking gains exactly what savings loses, every month', () => {
+    const SAV = acct({ id: 'sav-1', name: 'Savings', account_type: 'savings', balance: 10000 });
+    const out = run([FUNDING, SAV], [transfer('t1', 'sav-1', 'chk-1', 65)] as unknown as ForecastInputs['rules']);
+    expect(cash(out.data[0])).toBeCloseTo(3000 + 65, 2);
+    expect(cash(out.data[11])).toBeCloseTo(3000 + 65 * 12, 2);
+    expect(bal(out.data[11], 'sav-1')).toBeCloseTo(10000 - 65 * 12, 2);
+    out.data.forEach((row, i) => {
+      expect(cash(row) + bal(row, 'sav-1')).toBeCloseTo(13000, 2);
+      expect(row.nonCashIntoFunding).toBeCloseTo(65, 2);
+      // The next month opens on the cash this month ended with.
+      if (i > 0) expect(row.startingCash).toBeCloseTo(cash(out.data[i - 1]), 2);
+    });
+  });
+
+  it('running dry: checking gains only what savings had, then nothing', () => {
+    const SAV = acct({ id: 'sav-1', name: 'Savings', account_type: 'savings', balance: 100 });
+    const out = run([FUNDING, SAV], [transfer('t1', 'sav-1', 'chk-1', 65)] as unknown as ForecastInputs['rules']);
+    // Month 0: savings 100 -> 35, cash 3000 -> 3065. Month 1: savings gives its last 35, not 65.
+    expect(cash(out.data[0])).toBeCloseTo(3065, 2);
+    expect(cash(out.data[1])).toBeCloseTo(3100, 2);
+    expect(out.data[1].nonCashIntoFunding).toBeCloseTo(35, 2);
+    expect(out.data[2].nonCashIntoFunding).toBeCloseTo(0, 2);
+    expect(cash(out.data[11])).toBeCloseTo(3100, 2);
+    for (const row of out.data) expect(cash(row) + bal(row, 'sav-1')).toBeCloseTo(3100, 2);
+  });
+});
