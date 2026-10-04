@@ -48,7 +48,11 @@ R-NOW81 (10-04 ~20:05Z, Ada getforgenta-97). START HERE, IN ORDER:
        and 8b6ac319 (banner Dismiss 27px -> 44px; check:connection-banner now measures it, red on old markup).
     5. [ ] d5c183b3 (needs Tre): local Supabase stack with his rows for outage-proof testing. Docker NOT installed;
        npx supabase 2.115.0 works. Recommended yes; build only on his yes AND after recovery.
-    Supabase still hanging 21:05Z (execute_sql times out too). Watch: Monitor b2eijjjrf (re-arm on expiry).
+    ⚠️ 22:55Z DIAGNOSIS CORRECTED (da91e541 row): OUR DB is I/O-starved, not just Supabase's regional incident (that
+       one's last update was 10-02). Evidence is in postgres_logs: checkpoints of 4-5 buffers taking 35-97 s, trivial
+       queries 10-171 s, 41 statement timeouts since 19:02Z. Only a VALID key hangs; garbage key 401 in 0.1 s. Likely
+       the free disk-I/O budget is exhausted. Options sent to Sam: wait, dashboard restart, or a compute upgrade (money).
+       Our session_watch_9bbd81a4 cron adds load; unschedule it once SQL connects (backup schema, our job).
 R-NOW80 (10-04 ~19:55Z, Ada getforgenta-1e hit the 175-call gate). START HERE, IN ORDER:
     1. [~] e618b2f0 outage notice: opus-executor running in .claude/worktrees/agent-a174767c0bdfab366
        (not ceb-regate, already removed). Its report goes to MY dead tab. When its files go quiet: review `git -C <wt>
@@ -13210,7 +13214,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 17:06 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 18:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13230,6 +13234,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+d74efa8a [handoff]: R-NOW81 - 7353acbf, 8b6ac319, d5c183b3 local stack ask, outage still on 21:05Z
 8b6ac319 [ui]: the outage notice's Dismiss button is a 44px tap target
 7353acbf test: pin the visible goal-order rule on the ranking list (decision 2d104bc7)
 d01ce9b3 [handoff]: R-NOW81 - 247e4ef0 detail-line fix, walk on recovery for Sam tre-forged-84
@@ -13237,7 +13242,6 @@ d01ce9b3 [handoff]: R-NOW81 - 247e4ef0 detail-line fix, walk on recovery for Sam
 29df0c95 [handoff]: R-NOW81 - e618b2f0 shipped a10aa5b3, walk waits on da91e541 recovery
 a10aa5b3 [ui]: name the cause when Forgenta cannot reach its back end (e618b2f0)
 08da0a35 [handoff]: R-NOW80 - name the executor worktree
-b4deceaf [handoff]: R-NOW80 - call gate; e618b2f0 executor running, outage watch, 853aba70 date check
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
