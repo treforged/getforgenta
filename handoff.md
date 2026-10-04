@@ -34,7 +34,10 @@ R-NOW66 (10-04 ~04:50 ET, Ada getforgenta-b7). e943755b RE-TESTED: app shows ONE
     (harness REPAIRED, commit 'recapture harness runs again': useFloorBufferedRules passthrough, so NO bill buffer - reads
     Nov -$83 where the app reads -$109). Paused: Nov -$83, Oct cards $2,025. Resume $65 from 11-01: no short month, Oct
     cards $1,635 (floor +65 -> card pay -390). General Operations $134 vs $161/mo bills. Line + rec (resume) sent to Sam.
-    OPEN f077f9bb: why +$65 floor moves -$390 of Oct card pay, and why paused lets Nov breach by $83 (floor-protection
+    CORRECTED ~05:40: real cause = Robinhood 'always pay' pin, which the look-aheads model at its $25 minimum (executor-
+    measured; unfunded outflow is $0 every month). Fix building (executor, pin totals into ccMinByMonth at both call sites).
+    Sam told to HOLD 74b080fc. New product call e2f7101f (checking account overdraft paid by nobody).
+    WAS: OPEN f077f9bb: why +$65 floor moves -$390 of Oct card pay, and why paused lets Nov breach by $83 (floor-protection
     save-up gating). Captures: scratchpad fx/fi-{paused,resume65}.json (session-local; re-dump per
     docs/forecast-fixture-recapture.md, ONE combined A+B query so it spills - a lone Query A came back INLINE 10-04).
     Golden fixtures restored, sha256 verified (77b5340f / 137e372b).
