@@ -29,7 +29,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
-R-NOW69 (10-04 ~05:50 ET, Ada getforgenta-7b hit the call gate). START HERE, IN ORDER:
+R-NOW70 (10-04 ~06:50 ET, Ada 437e2d04 hit the call gate). START HERE, IN ORDER:
+    1. [ ] 09:19 ET ec48da25 read-back. MY CRON a31752aa DIES WITH ME - arm your own CronCreate '19 9 4 10 *'
+       (SQL R-NOW62 item 2), then `ask done ec48da25` with the rows or `ask block` with what read back.
+    2. [ ] VERIFY ecfeb25d (e2850463, walk tracks real cash) LIVE on localhost:8080 /forecast as Tre (uid a72f416e;
+       /forecast lands on /transactions). Same probe as R-NOW69 item 2. Before it: Short months 0, warning x1,
+       "Sep 2028: CC Debt Free!", 60 rows. Expect Short months 0 and payoff Sep 2028 or EARLIER. A short month
+       appearing = revert ecfeb25d. If payoff moves, tell Sam (it is Tre's number).
+    3. [ ] 5810a568 (month-0 hook site; also the +$129/+$215 month-0 walk gap from ecfeb25d), then d651b7b5.
+    4. [ ] New asks from this session: 23ed14fb (revolvingMinDue keeps subtracting the installment after the plan
+       ends - possible sim bug), b80124a0 (transfer INTO funding checking credits nothing), 951af777 (drawer shows
+       requested not moved amount). STANDING e1b0fffc. Monday 10-05: e501632b.
+    SHIPPED this session (all pushed 0/0): f0f4e8b3 spend-by-category endpoint (fbc5671a; Vera wired it into Leo
+    e202926; check:spend-by-category), ff549846 (202b320d), ecfeb25d (e2850463). vitest now EXCLUDES
+    .claude/worktrees/** (the worktree trap below is fixed for tests; the node_modules junction rule still holds).
+    Executor scratch with real aggregates: scratchpad 437e2d04.../e2850463-exec and .../fx (session-local).
+R-NOW69 (10-04 ~05:50 ET, Ada getforgenta-7b hit the call gate). SUPERSEDED by R-NOW70:
     1. [~] 09:19 ET: ec48da25 read-back. Successor (437e2d04) armed cron a31752aa 05:52; if that tab is gone, run the SQL by hand (R-NOW62 item 2),
        then `ask done ec48da25` with the rows (or `ask block` with what read back).
     2. [x] 05:55 VERIFIED as Tre (uid a72f416e; /forecast lands on /transactions): Short months 0, warning x1,
