@@ -29,6 +29,12 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+MAC BRIEF R-NOW61 (for Mac Ada; ask 28589795, Sam 10-03): native iOS glass, 8a202850 then f22f17b1.
+    Goal: ONE background glass surface with NO web content behind it, native UIVisualEffectView, seen in the iOS 27
+    simulator; send Tre one screenshot. Context: CLAUDE.md "NATIVE iOS MATERIAL IS A FORK" (a UIVisualEffectView is a
+    SIBLING of the WKWebView, so it blurs the native background, not app content). Gates: native-glass-bridge.gate.test.ts
+    (jsName, methods, pbxproj Sources membership); ios-build.yml compiles Swift on push. Do NOT dispatch a TestFlight
+    upload without a reason. Read handoff-mac.md first if it exists.
 R-NOW61 (10-03 ~23:40 ET, Ada). CLOSED this session: c013318d, 8e3d0eb7 (privacy = Plaid only), 1be673ad (fill;
     residue content-driven), d1f4970f (Tre: Prime min, nothing to set). FIRST UP: ec48da25 read-back after 09:00 ET 10-04
     (SQL in R-NOW60 item 3), then close it. Then e501632b on Monday 10-05; STANDING e1b0fffc otherwise.
