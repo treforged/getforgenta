@@ -339,6 +339,10 @@ async function pressFresh(route, c, textTrusted, plant, plantWith, stub = null) 
     await page.waitForTimeout(SETTLE_MS);
     // Same cold-backend stall as enumeration: look for the control only once its data has landed.
     await quietNetwork(page);
+    // ⚠️ A QUIET NETWORK IS NOT A RENDERED PAGE. 2026-10-04: "Connect a bank" read not-found with the
+    // frame still all skeletons - the reads had landed but the page had not painted them. Wait for
+    // the skeletons to go (walk:empty's settle signal), capped, before looking for the control.
+    for (let i = 0; i < 40 && (await page.locator('.skeleton-shimmer').count()); i++) await page.waitForTimeout(500);
     if (plantWith) await plantWith(page);
     else if (plant) await page.evaluate(plant);
     // Poll: a fresh page under parallel load can take longer than SETTLE_MS to render its data-backed
