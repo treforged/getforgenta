@@ -34,8 +34,7 @@ R-NOW75 (10-04 ~10:15 ET, Ada successor of getforgenta-73). START HERE, IN ORDER
        before/after capture table). If my tab is gone: review `git -C <wt> diff`, rerun its red/green WITH .env.local +
        *.real*.json copied in, payoff may only move EARLIER / interest only FALL, apply to main, test:tz, ship, remove wt.
        Tell Sam if Tre's LIVE payoff moves.
-    2. [~] c2e84e6e: opus-executor in a second worktree under .claude/worktrees/ (sim credit-card-engine.ts only).
-       Same review/ship/remove steps.
+    2. [x] c2e84e6e SHIPPED 807f8b07 (transitionOnce red 2/4 on main, test:tz 5960 x3, captures unchanged), worktree removed.
     3. [ ] STANDING e1b0fffc. Monday 10-05: e501632b.
     DONE: e1b0fffc goals empty-state one-press starts SHIPPED 48647f9f (check:goal-starts, red 8/8).
     DONE: 1d5b95d3 transfer parity SHIPPED 041353dd (red 3/4 on HEAD, test:tz 5956 x3, pushed 0/0), worktree removed.
@@ -13139,7 +13138,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 10:03 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 10:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13158,14 +13157,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+eabb29e5 [handoff]: R-NOW75 - goal starts shipped 48647f9f
+48647f9f [goals]: the empty Goals tab offers one-press starts per goal type (e1b0fffc)
+ce2c6b0f [handoff]: R-NOW75 - 1d5b95d3 shipped 041353dd, ceb711fc + c2e84e6e executors running
+041353dd [sim]: transfer parity - months 1+ skip non-cash transfer sources, month 0 credits money moved into checking (1d5b95d3)
 3e11f2d2 [handoff]: R-NOW74 - ceb711fc engine bug filed, parity executor running, call gate hit
 6f6ad9bd [handoff]: R-NOW73 - 5810a568/d651b7b5 shipped 85a59232, ec48da25 + b80124a0 + 23ed14fb closed, parity executor running
 85a59232 [engine]: month 0 pays other accounts' unfunded bills, and a pin re-runs the look-ahead (5810a568, d651b7b5)
 1bf7a44a [handoff]: R-NOW72 - b80124a0 shipped 37a0065b, read-back + live verify + executor worktree review next
-37a0065b [lint]: ignore .claude/worktrees, so an executor's live worktree cannot fail lint with 2215 parser errors
-5bbc8a07 [engine]: money moved from savings into checking now lands in checking (b80124a0)
-21bf3703 [handoff]: R-NOW71 - ecfeb25d verified live, 951af777 shipped 4053084b, cron ebf56ac4 armed
-4053084b [forecast]: the month popup shows what a transfer moved, and says when its account ran dry (951af777)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
