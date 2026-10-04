@@ -26,6 +26,9 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
+    install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
+    engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
 R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
     1. [x] R-NOW59 item 2 SHIPPED, pushed 0/0: 862cf137 debt, fa24b72a dashboard, a7453934 settings, 38c9c082 budget.
        Gates: tsc 0, lint 0 err, test:tz 5889 x3, check:debt-layout/payoff-today/card-advisor/consolidation PASS.
