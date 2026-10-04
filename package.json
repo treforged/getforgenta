@@ -28,6 +28,7 @@
     "check:card-advisor": "node scripts/check-card-advisor.mjs",
     "check:boot-failure": "node scripts/check-boot-failure.mjs",
     "check:budget-tiles": "node scripts/check-budget-tiles.mjs",
+    "check:goal-grid": "node scripts/check-goal-grid.mjs",
     "check:forecast-table": "node scripts/check-forecast-table.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",
     "check:share-card": "node scripts/check-share-card.mjs",

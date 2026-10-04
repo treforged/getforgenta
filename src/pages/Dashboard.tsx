@@ -129,6 +129,9 @@ interface DashboardGoalEntry {
   target_amount: number;
 }
 
+/** Static class names so Tailwind keeps them; index = goals shown (the card shows at most 3). */
+const GOAL_GRID_COLS = ['', 'md:grid-cols-1', 'md:grid-cols-2', 'md:grid-cols-3'] as const;
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { isDemo, showDemoGuides } = useDemo();
@@ -1253,7 +1256,9 @@ export default function Dashboard() {
             ) : (
             <>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-5">Goal Progress</h3>
-            <div className="grid md:grid-cols-3 gap-5">
+            {/* Columns follow the goal count (at most 3 tiles): a fixed 3 left one or two empty
+                columns beside a lone goal, and 6 of 8 users with goals have one or two. */}
+            <div className={`grid ${GOAL_GRID_COLS[Math.min(goals.length, 3)]} gap-5`}>
               {(() => {
                 // Savings goals ONLY. Vehicles are deliberately not savings goals any more — the
                 // Goals page this card links to says "car funds have moved to Vehicles" and lists
