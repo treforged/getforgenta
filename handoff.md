@@ -26,6 +26,22 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
     dispatch 'scroll', press buttons by aria-label with .click(), and VERIFY EVERY SAVE BY SQL READ-BACK.
     Rule groups are pills: aria-label "Variable, 8 rules" etc. Rent and Electricity are under Variable.
     [x] FINDING rule notes 300-char cut: FIXED c1ff690d (live n/300 counter, FormModal.maxLength.test.tsx 3/3).
+R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
+    1. [x] R-NOW59 item 2 SHIPPED, pushed 0/0: 862cf137 debt, fa24b72a dashboard, a7453934 settings, 38c9c082 budget.
+       Gates: tsc 0, lint 0 err, test:tz 5889 x3, check:debt-layout/payoff-today/card-advisor/consolidation PASS.
+       NOT YET: `npm run inventory:fill` rerun vs a184fa4a ranking; scripts/_tmp-* were already gone.
+    2. [x] R-NOW59 item 1 (decision 2d104bc7) SHIPPED: cardPayHint takes the EFFECTIVE plan (rec.isMinimumOnly); goal-order
+       copy on ranking header + Recommended This Month. Verified localhost:8080 as Tre: Discover rec "Minimum payment
+       $150.40", hint "The plan pays the minimum too for now". c013318d CLOSED. Engine needed NO change: Tre's cards
+       block is sort 3 under "Move fund" (sort 1, auto_extra, $1,793.56 to go).
+       RESIDUE to check: Discover's sim shows Oct 2026 -$350.28 (the "+$350.28 optional after payday") while the goal
+       above is unmet. Is optional extra skipping the goal reserve? Read computeAutoExtraReserve vs the optional path.
+    3. [x] Plaid probe (req 4220, 10-04): Robinhood stmt 334.26/min 25/due 12 = stored. Chase 5630 (Prime) stmt
+       7,991.16, min 773.05 = stored min. Discover stmt 10,413.92 (09-04), min 0 (paid 198.17 on 10-01, due 11-01),
+       probe would NOT store its statement; stored min 150.40 is MANUAL and stale. Amex/Alliant/Empower
+       ADDITIONAL_CONSENT_REQUIRED (no cards). NEXT for ec48da25: show "bank says $X" beside a manual minimum
+       (sync-handler.ts:221 never overwrites a manual min). Then close ec48da25.
+    4. [ ] Monday 10-05: e501632b; d1f4970f waits on Tre (Prime minimum on 10-07, this month only?).
 R-NOW59 (10-03 ~20:00 ET, Ada getforgenta-b4 at the call gate). START HERE, IN ORDER:
     1. [ ] TRE ANSWERED ec48da25 / decision 2d104bc7 (via Sam): "discovers goal is full balance but there are
        priorities. thats what the goal order is for. that also needs to be clear to users. for now it should be paying
@@ -12879,36 +12895,44 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 19:29 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 19:52 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (8 file(s)):**
+- **Uncommitted (16 file(s)):**
 
 ```
 M deno.lock
+ M src/components/dashboard/DashboardHero.tsx
+ M src/components/dashboard/DebtRecommendationsWidget.tsx
+ M src/components/debt/CreditCardEngine.tsx
+ M src/components/debt/DebtHero.tsx
+ M src/components/savings/SurplusRankingSection.tsx
+ M src/components/settings/AccountVisibilityToggle.tsx
+ M src/components/settings/FollowersPanel.tsx
+ M src/pages/BudgetControl.tsx
+ M src/pages/SavingsGoals.tsx
+ M src/pages/Settings.tsx
+ M src/pages/Vehicles.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
-?? scripts/_tmp-budget-fill.mjs
-?? scripts/_tmp-debt-measure.mjs
-?? scripts/_tmp-forecast-fill.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+cb963c18 [handoff]: R-NOW59 - Tre's Discover/goal-order answer, four fill areas to review
+7bec152a [forecast]: milestone and short months share a row; CTA and retirement rows fill
+895439d5 [handoff]: R-NOW58 - Plaid match table state + probe command; fill executors fallback
 a6d35427 [handoff]: R-NOW58 - Debt layout, budget tiles, card-pay hint shipped; 5 fill executors running
 72304049 [debt]: each card row says how the bank actually pays it
 4998a1f9 [dashboard]: budget tiles fill their boxes on one even grid
 a184fa4a [tooling]: inventory:fill ranks boxes whose content leaves them empty
 956c0f5c [debt]: one stat grid, aligned controls, themed Pay From
-7d9fae97 [handoff]: R-NOW57 - Debt layout review, box-fill briefs, card-pay wiring
-a8eaa91a [handoff]: R-NOW56 - layout 10/11 shipped, cents closed, Debt agent pending
-06295e9d [cards]: read how each card is paid from its payment history
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
