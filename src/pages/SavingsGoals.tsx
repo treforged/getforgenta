@@ -1173,7 +1173,27 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       {allGoals.length === 0 && (
         // p-5, not p-12 (ask 1be673ad): the two lines sat in a 155px box with 111px of it empty.
         // From `sm` they share one line. Same words.
-        <div className="card-forged p-5 text-center sm:flex sm:items-baseline sm:justify-center sm:gap-2"><p className="text-sm text-muted-foreground">No savings goals yet.</p><p className="text-xs text-muted-foreground mt-1 sm:mt-0">Set a target. Build discipline.</p></div>
+        // e1b0fffc: a new user also gets one-press starts, one per goal type, so the empty card is a
+        // way in rather than a dead end (it read 898px of unused width at 1440).
+        <div className="card-forged p-5 text-center flex flex-col items-center gap-3">
+          <div className="sm:flex sm:items-baseline sm:justify-center sm:gap-2">
+            <p className="text-sm text-muted-foreground">No savings goals yet.</p>
+            <p className="text-xs text-muted-foreground mt-1 sm:mt-0">Set a target. Build discipline.</p>
+          </div>
+          <div role="group" aria-label="Start a goal from a template" className="flex flex-wrap justify-center gap-2">
+            {GOAL_TYPES.filter(type => type !== 'Custom').map(type => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => openAdd(type)}
+                className="text-xs px-3 py-1.5 border border-border bg-secondary text-foreground hover:bg-secondary/70 btn-press"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
       )}
 
       {showForm && (
