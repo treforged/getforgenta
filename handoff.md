@@ -53,6 +53,11 @@ R-NOW81 (10-04 ~20:05Z, Ada getforgenta-97). START HERE, IN ORDER:
        queries 10-171 s, 41 statement timeouts since 19:02Z. Only a VALID key hangs; garbage key 401 in 0.1 s. Likely
        the free disk-I/O budget is exhausted. Options sent to Sam: wait, dashboard restart, or a compute upgrade (money).
        Our session_watch_9bbd81a4 cron adds load; unschedule it once SQL connects (backup schema, our job).
+    ⚠️ 23:10Z: Postgres SILENT since 22:39:10Z. Sam chose a project RESTART; the classifier REFUSED the agent driving
+       the dashboard (Production Deploy), so it is Tre's one click: ask b570bd5f (needs-tre). Do NOT use pause/restore.
+       After the restart: prove keyed /auth/v1/health 200, tell Sam, run walk e222e48e, unschedule session_watch cron.
+       If the DB stalls again within 24 h: send Sam the evidence for a compute upgrade (re-opens decision d9e5961c).
+       SHIPPED 8d0cddfd: banner says "<Provider> reports a problem", not "is having an outage" (7 tests red on the old).
 R-NOW80 (10-04 ~19:55Z, Ada getforgenta-1e hit the 175-call gate). START HERE, IN ORDER:
     1. [~] e618b2f0 outage notice: opus-executor running in .claude/worktrees/agent-a174767c0bdfab366
        (not ceb-regate, already removed). Its report goes to MY dead tab. When its files go quiet: review `git -C <wt>
@@ -13214,17 +13219,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 18:05 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 19:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13234,14 +13238,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8d0cddfd [ui]: the outage notice says a provider "reports a problem", not that it caused the outage
+fff6d26f [handoff]: da91e541 diagnosis corrected - our DB is I/O-starved, not only the regional incident
 d74efa8a [handoff]: R-NOW81 - 7353acbf, 8b6ac319, d5c183b3 local stack ask, outage still on 21:05Z
 8b6ac319 [ui]: the outage notice's Dismiss button is a 44px tap target
 7353acbf test: pin the visible goal-order rule on the ranking list (decision 2d104bc7)
 d01ce9b3 [handoff]: R-NOW81 - 247e4ef0 detail-line fix, walk on recovery for Sam tre-forged-84
 247e4ef0 [ui]: the outage notice never says "no provider reports a problem" before it has read them
 29df0c95 [handoff]: R-NOW81 - e618b2f0 shipped a10aa5b3, walk waits on da91e541 recovery
-a10aa5b3 [ui]: name the cause when Forgenta cannot reach its back end (e618b2f0)
-08da0a35 [handoff]: R-NOW80 - name the executor worktree
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
