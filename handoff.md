@@ -29,6 +29,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW75 (10-04 ~10:15 ET, Ada successor of getforgenta-73). START HERE, IN ORDER:
+    1. [~] ceb711fc: opus-executor in .claude/worktrees/agent-a91aa0f0424b2fa78 (engine only, candidate fix + tests +
+       before/after capture table). If my tab is gone: review `git -C <wt> diff`, rerun its red/green WITH .env.local +
+       *.real*.json copied in, payoff may only move EARLIER / interest only FALL, apply to main, test:tz, ship, remove wt.
+       Tell Sam if Tre's LIVE payoff moves.
+    2. [~] c2e84e6e: opus-executor in a second worktree under .claude/worktrees/ (sim credit-card-engine.ts only).
+       Same review/ship/remove steps.
+    3. [ ] STANDING e1b0fffc. Monday 10-05: e501632b.
+    DONE: 1d5b95d3 transfer parity SHIPPED 041353dd (red 3/4 on HEAD, test:tz 5956 x3, pushed 0/0), worktree removed.
 R-NOW74 (10-04 ~10:50 ET, Ada getforgenta-73 hit the 175-call gate). START HERE, IN ORDER:
     1. [ ] ceb711fc ENGINE BUG - money (save-the-most-money + user's own rank order): a lower-ranked auto-extra (C5 car
        loan 10.18%, rank 4) takes money while Discover (16.6%, rank 3) still owes >$1 -> payoff 1 month late
@@ -13129,7 +13138,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 09:46 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 10:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13148,6 +13157,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+3e11f2d2 [handoff]: R-NOW74 - ceb711fc engine bug filed, parity executor running, call gate hit
 6f6ad9bd [handoff]: R-NOW73 - 5810a568/d651b7b5 shipped 85a59232, ec48da25 + b80124a0 + 23ed14fb closed, parity executor running
 85a59232 [engine]: month 0 pays other accounts' unfunded bills, and a pin re-runs the look-ahead (5810a568, d651b7b5)
 1bf7a44a [handoff]: R-NOW72 - b80124a0 shipped 37a0065b, read-back + live verify + executor worktree review next
@@ -13155,7 +13165,6 @@ M deno.lock
 5bbc8a07 [engine]: money moved from savings into checking now lands in checking (b80124a0)
 21bf3703 [handoff]: R-NOW71 - ecfeb25d verified live, 951af777 shipped 4053084b, cron ebf56ac4 armed
 4053084b [forecast]: the month popup shows what a transfer moved, and says when its account ran dry (951af777)
-6d512040 [handoff]: R-NOW70 - e2850463 shipped ecfeb25d, live verify + 09:19 read-back next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
