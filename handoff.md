@@ -29,6 +29,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW71 (10-04 ~06:55 ET, Ada successor of 437e2d04). START HERE, IN ORDER:
+    1. [~] 09:19 ET ec48da25 read-back: cron ebf56ac4 armed in THIS tab ('19 9 4 10 *'). If this tab is gone, arm your
+       own (SQL R-NOW62 item 2), then `ask done ec48da25` with the rows or `ask block`.
+    2. [x] ecfeb25d VERIFIED LIVE 06:50 as Tre (localhost:8080 /forecast -> /transactions): Short months 0, warning x1,
+       "Sep 2028: CC Debt Free!", 60 rows (Oct 2026 end $3,740.08). Payoff unchanged, so Sam not told.
+    3. [x] 951af777 SHIPPED 4053084b (pushed 0/0): popup shows moved amount + "(asked $X, account ran dry)".
+    4. [ ] 5810a568 (month-0 hook site; +$129/+$215 month-0 walk gap from ecfeb25d), then d651b7b5. Engine-sized:
+       give it to an executor in a worktree (OVERDRIVE allows opus-executor) once the 5h window resets 08:40.
+    5. [ ] 23ed14fb, b80124a0. STANDING e1b0fffc. Monday 10-05: e501632b.
 R-NOW70 (10-04 ~06:50 ET, Ada 437e2d04 hit the call gate). START HERE, IN ORDER:
     1. [ ] 09:19 ET ec48da25 read-back. MY CRON a31752aa DIES WITH ME - arm your own CronCreate '19 9 4 10 *'
        (SQL R-NOW62 item 2), then `ask done ec48da25` with the rows or `ask block` with what read back.
@@ -13065,17 +13074,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 06:13 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 06:49 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13085,14 +13093,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+6d512040 [handoff]: R-NOW70 - e2850463 shipped ecfeb25d, live verify + 09:19 read-back next
+ecfeb25d [engine]: the floor look-ahead walk tracks real cash, so the caps stop holding back card payments (e2850463)
+e36a97d5 [handoff]: R-NOW69 - 202b320d + fbc5671a shipped
 ff549846 [engine]: a transfer out of a savings account that runs dry credits only what the source gave (202b320d)
 f0f4e8b3 [leo]: spend-by-category endpoint - month-to-date bank spending by category for Leo (ask fbc5671a)
 fa9fab61 [handoff]: R-NOW69 - 6c14ef11 verified live as Tre, cron re-armed, e2850463 executor running
 34b75dbe [handoff]: R-NOW69 - 6c14ef11 shipped, verify live + 09:19 read-back next
 6c14ef11 [engine]: the floor look-ahead reserves for bills checking pays for another account, and for user-pinned payments
-a6abcf03 [handoff]: R-NOW68 - e2f7101f shipped 973b88b4, look-ahead executor running
-973b88b4 [engine]: a second checking account that runs short is paid from checking, not left negative
-f37c1218 [handoff]: R-NOW68 - 9fa0eb4c closed (0/60 below floor), e2f7101f building
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
