@@ -34,7 +34,9 @@ R-NOW65 (10-04 ~02:15 ET, Ada getforgenta-b7). R-NOW64 items 2-3 DONE. Also: iOS
     STANDING e1b0fffc: Goal Progress grid follows goal count (848px unused at 1 goal before), new gate check:goal-grid,
     red/green proven, pushed 0/0. FIRST UP: ec48da25 read-back at 09:19 (cron c6374ac7 in getforgenta-b7; if that tab
     is gone run R-NOW62 item 2 SQL by hand). Upcoming This Week columns SHIPPED too (1000px name-to-amount -> ~200px).
-    Then STANDING: pick the next measured improvement (inventory:fill flagged boxes is the list).
+    goal-grid gate widened to 390+1440 (red both arms). inventory:fill rerun 10-04 03:50 (test-results/inventory-fill-r65.log):
+    residue is content-driven (form inputs read as empty, full-width phone buttons, the 70px Goals empty state) - no fill
+    slice left. f33b0f88 news item dropped. NEXT STANDING idea needs a fresh scan (not fill).
 R-NOW64 (10-04 ~01:55 ET, Ada getforgenta-4c hit the 180-call gate). START HERE, IN ORDER:
     1. [~] cron c6374ac7 armed by successor 01:31; ec48da25 read-back at/after 09:17 ET (SQL R-NOW62 item 2) - my cron died with me: ARM YOUR OWN one-shot for 09:19
        (CronCreate '19 9 4 10 *'). Sam has a 09:27 backstop. Then `ask done ec48da25`.
@@ -12990,18 +12992,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 01:57 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 03:49 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
  M handoff.md
- M scripts/walk-press-every-control.mjs
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13011,14 +13012,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+d8b3a471 [gate]: check:goal-grid measures 390 as well as 1440, row by row
+83768b52 [handoff]: R-NOW65 - upcoming-week columns shipped
+7d8ede82 [dashboard]: Upcoming This Week lays out in columns on desktop, so each amount sits by its bill
+2aae52e7 [handoff]: R-NOW65 - bgtask on TestFlight 1283, walk:press not-found 0, goal grid shipped
+b394afdc [dashboard]: Goal Progress columns follow the goal count, so one goal is not a third of the card
+813b21c1 [walk]: walk:press waits for skeletons to clear before looking for a control
 a288b225 [release]: VERSION 6.8.1 -> 6.8.2 - Apple approved 6.8.1, so its train is closed
 cf22e0dd [widget]: log iOS background-task refreshes as 'bgtask', apart from an app close
-b6032741 [handoff]: R-NOW64 - call gate; bgtask slice and walk-press wait uncommitted, ec48da25 09:19
-5895ad52 [handoff]: walk:press not-found was a skeleton-timing miss
-ff96e872 [handoff]: 52898f88 closed
-6d49d42e [goals]: the card goal-order sentence shows only when a card shares the list
-bd2440d5 [handoff]: R-NOW63 - walk:press 386/163/163, pgss check closed, empty-account scan next
-ef65f17b [handoff]: R-NOW63 - paycheck prompt fixed b297f418
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
