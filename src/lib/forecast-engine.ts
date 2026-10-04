@@ -2101,23 +2101,61 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       }
 
       // 4b. Transfer rule contributions → exact account via perAccountTransferContribs
+      // 202b320d: ONLY the cash-sourced part is credited here. `perAccountTransferContribs` also holds
+      // every non-cash transfer at its REQUESTED amount, and 4b-ii below credits those with what the
+      // source actually gave instead.
+      const nonCashInByDest = new Map<string, number>();
+      for (const item of b.nonCashTransferItems) {
+        if (item.toAcctId) nonCashInByDest.set(item.toAcctId, (nonCashInByDest.get(item.toAcctId) ?? 0) + item.amount);
+      }
       for (const [acctId, amt] of b.perAccountTransferContribs) {
+        const cashAmt = amt - (nonCashInByDest.get(acctId) ?? 0);
         const retA = perAcctRetire.get(acctId);
         const invA = perAcctInvest.get(acctId);
         const savA = perAcctSavings.get(acctId);
-        if (retA) retA.balance += amt;
-        else if (invA) invA.balance += amt;
-        else if (savA) savA.balance += amt;
+        if (retA) retA.balance += cashAmt;
+        else if (invA) invA.balance += cashAmt;
+        else if (savA) savA.balance += cashAmt;
       }
 
-      // 4b-ii. Non-cash transfers — debit the source account
-      for (const item of b.nonCashTransferItems) {
-        const srcSav = perAcctSavings.get(item.fromAcctId);
-        const srcInv = perAcctInvest.get(item.fromAcctId);
-        const srcRet = perAcctRetire.get(item.fromAcctId);
-        if (srcSav) srcSav.balance = Math.max(0, srcSav.balance - item.amount);
-        else if (srcInv) srcInv.balance = Math.max(0, srcInv.balance - item.amount);
-        else if (srcRet) srcRet.balance = Math.max(0, srcRet.balance - item.amount);
+      // 4b-ii. Non-cash transfers — debit the source account, credit the destination what it GAVE
+      //
+      // 202b320d: the source is clamped at zero (unchanged), and until 2026-10-04 the destination was
+      // still credited the full requested amount - in 4b above for a savings / investment / retirement
+      // destination, in 4b-iii for a second checking account. Once a source ran dry the forecast
+      // created the difference every month. `nonCashGiven[k]` is what item k's source really paid, and
+      // it is the only figure any destination is credited with.
+      //
+      // Settled in passes so a chain (A -> B -> C, B empty) does not depend on rule order: a pass that
+      // asks B before A has paid it gives nothing, and the next pass moves what has since arrived. The
+      // same money cannot move twice because each item only ever asks for its unpaid remainder. A pass
+      // that moves nothing ends it; a chain of n items settles in at most n passes, and the bound stops
+      // a cycle that keeps moving money in a circle. With every source funded, pass 1 moves the full
+      // amounts and the numbers are what they were before this change.
+      const nonCashTracked = (id: string | null) => id
+        ? perAcctSavings.get(id) ?? perAcctInvest.get(id) ?? perAcctRetire.get(id)
+        : undefined;
+      const nonCashGiven = b.nonCashTransferItems.map(() => 0);
+      for (let pass = 0, moved = true; moved && pass <= b.nonCashTransferItems.length; pass++) {
+        moved = false;
+        b.nonCashTransferItems.forEach((item, k) => {
+          const remaining = item.amount - nonCashGiven[k];
+          if (remaining <= 1e-9) return;
+          const src = nonCashTracked(item.fromAcctId);
+          // An untracked source (not an active savings, investment or retirement account) has no
+          // balance to clamp against, so it pays in full - what the destination received before.
+          let given = remaining;
+          if (src) {
+            const before = src.balance;
+            src.balance = Math.max(0, before - remaining);
+            given = Math.max(0, before - src.balance);
+          }
+          if (given <= 1e-9) return;
+          nonCashGiven[k] += given;
+          const dest = nonCashTracked(item.toAcctId);
+          if (dest) dest.balance += given;
+          moved = true;
+        });
       }
 
       // ── 4b-iii. MONEY SPENT OUT OF AN ACCOUNT THAT IS NOT CHECKING ────────────
@@ -2149,12 +2187,13 @@ export function calculateForecast(inputs: ForecastInputs): ForecastResult {
       //   - from savings (nonCashTransferItems): the receiving half of 4b-ii. A non-cash transfer's
       //     source is always savings, investment or retirement, so the `from` side never matches here.
       //   - from the funding account (cashTransferInItems): the 2026-10-01 refill fix, see below.
-      for (const t of b.nonCashTransferItems ?? []) {
+      //     202b320d: credited with what the source GAVE in 4b-ii (`nonCashGiven`), never more.
+      (b.nonCashTransferItems ?? []).forEach((t, k) => {
         const from = t.fromAcctId ? perAcctOtherLiquid.get(t.fromAcctId) : undefined;
         if (from) from.balance -= t.amount;
         const to = t.toAcctId ? perAcctOtherLiquid.get(t.toAcctId) : undefined;
-        if (to) to.balance += t.amount;
-      }
+        if (to) to.balance += nonCashGiven[k];
+      });
       // ⚠️ AND THE MONEY THAT REACHES THEM FROM THE FUNDING ACCOUNT. Before 2026-10-01 only the
       // debits were applied, so a checking account refilled by a transfer from checking paid its
       // bills and never got the refill: Tre's General Operations (~$60.90/mo of bills, a $65

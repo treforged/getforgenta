@@ -5,7 +5,7 @@ import path from "path";
 
 export default defineConfig(({ mode }) => ({
   test: {
-    exclude: [...configDefaults.exclude, "backups/**"],
+    exclude: [...configDefaults.exclude, "backups/**", ".claude/worktrees/**"],
     // Unmounts what the tests mount. Without it nothing ever calls RTL's cleanup()
     // (it self-registers only under `globals: true`), mounted trees outlive their
     // file, and React's scheduler can fire after jsdom teardown — "window is not
