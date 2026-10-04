@@ -1168,8 +1168,11 @@ export default function Transactions() {
                                   {plan.provider}
                                 </span>
                               )}
+                              {/* "(not counted)", not "(off)": an inactive plan is usually still being PAID, just
+                                  not added to the forecast because a card already carries it. "(off)" read as a
+                                  dead plan twice (Tre, 2026-10-02 and 2026-10-04). */}
                               {!plan.active
-                                ? <span className="text-[10px] text-muted-foreground">(off)</span>
+                                ? <span className="text-[10px] text-muted-foreground" data-testid="plan-off-label">(not counted)</span>
                                 : remaining === 0 && <span className="text-[10px] text-muted-foreground">(complete)</span>}
                             </div>
                             {/* An off plan says WHY when a note carries it (8eeff53d, Tre 2026-10-02: two plans
