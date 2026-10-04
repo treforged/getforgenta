@@ -38,7 +38,9 @@ R-NOW69 (10-04 ~05:50 ET, Ada getforgenta-7b hit the call gate). START HERE, IN 
        ahead" card, "more than its account holds" x1, "Sep 2028: CC Debt Free". Revert 6c14ef11 if the app disagrees.
     3. [~] opus-executor building in a WORKTREE (uncommitted; captures copied to scratchpad 437e2d04.../fx). e2850463 (PASS 2 forward walk pessimistic, up to $5,688 below real cash; static $25 min in ccMinTotal) -
        this is what makes 6c14ef11 cost interest. Executor slice; measure LEVERS + fi-paused interest before/after.
-    4. [ ] 5810a568 (month-0 hook site of both look-ahead fixes), then 202b320d, d651b7b5.
+    4. [ ] 5810a568 (month-0 hook site of both look-ahead fixes), then d651b7b5. [x] 202b320d SHIPPED ff549846 (latent on
+       real data; follow-ups b80124a0, 951af777). [x] fbc5671a SHIPPED f0f4e8b3: spend-by-category endpoint, wired into
+       Leo by Vera (forged-glass e202926). vitest now excludes .claude/worktrees/**.
     5. STANDING e1b0fffc. Monday 10-05: e501632b.
     EXECUTOR WORKTREE FACTS (cost a red test:tz twice): vitest COLLECTS .claude/worktrees/** - remove a finished
     worktree before gating main. Its node_modules is a JUNCTION to main's: `cmd /c rmdir` it first, never rm -rf.
@@ -13048,16 +13050,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 05:20 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 06:13 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13067,14 +13070,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ff549846 [engine]: a transfer out of a savings account that runs dry credits only what the source gave (202b320d)
+f0f4e8b3 [leo]: spend-by-category endpoint - month-to-date bank spending by category for Leo (ask fbc5671a)
+fa9fab61 [handoff]: R-NOW69 - 6c14ef11 verified live as Tre, cron re-armed, e2850463 executor running
+34b75dbe [handoff]: R-NOW69 - 6c14ef11 shipped, verify live + 09:19 read-back next
+6c14ef11 [engine]: the floor look-ahead reserves for bills checking pays for another account, and for user-pinned payments
 a6abcf03 [handoff]: R-NOW68 - e2f7101f shipped 973b88b4, look-ahead executor running
 973b88b4 [engine]: a second checking account that runs short is paid from checking, not left negative
 f37c1218 [handoff]: R-NOW68 - 9fa0eb4c closed (0/60 below floor), e2f7101f building
-bbfde726 [handoff]: R-NOW68 - c879c73f verified on localhost, 74b080fc dropped (no question), e2f7101f taken
-0470a09c [handoff]: R-NOW67 - always-pay reserve shipped, verify + 09:19 read-back next
-c879c73f [engine]: an "always pay this" card is reserved for in both floor look-aheads
-dad2f02a [handoff]: R-NOW66 - f077f9bb cause corrected (always-pay pin), fix building
-da9b2c9e [handoff]: R-NOW66 - e943755b re-measured, owners resume line to Sam, f077f9bb open
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
