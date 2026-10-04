@@ -33,8 +33,8 @@ R-NOW65 (10-04 ~02:15 ET, Ada getforgenta-b7). R-NOW64 items 2-3 DONE. Also: iOS
     6.8.1 approved, train closed) -> VERSION 6.8.2 pushed -> run 37181331724 UPLOAD SUCCEEDED, build 1283 (carries bgtask).
     STANDING e1b0fffc: Goal Progress grid follows goal count (848px unused at 1 goal before), new gate check:goal-grid,
     red/green proven, pushed 0/0. FIRST UP: ec48da25 read-back at 09:19 (cron c6374ac7 in getforgenta-b7; if that tab
-    is gone run R-NOW62 item 2 SQL by hand). Then STANDING: next fill candidate = Dashboard Upcoming This Week at 1440
-    (rows span 1249px, name left / amount far right) - measure before changing.
+    is gone run R-NOW62 item 2 SQL by hand). Upcoming This Week columns SHIPPED too (1000px name-to-amount -> ~200px).
+    Then STANDING: pick the next measured improvement (inventory:fill flagged boxes is the list).
 R-NOW64 (10-04 ~01:55 ET, Ada getforgenta-4c hit the 180-call gate). START HERE, IN ORDER:
     1. [~] cron c6374ac7 armed by successor 01:31; ec48da25 read-back at/after 09:17 ET (SQL R-NOW62 item 2) - my cron died with me: ARM YOUR OWN one-shot for 09:19
        (CronCreate '19 9 4 10 *'). Sam has a 09:27 backstop. Then `ask done ec48da25`.
