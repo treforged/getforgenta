@@ -29,10 +29,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW65 (10-04 ~02:15 ET, Ada getforgenta-b7). R-NOW64 items 2-3 DONE. Also: iOS upload 1 FAILED (altool 90062/90186:
+    6.8.1 approved, train closed) -> VERSION 6.8.2 pushed -> run 37181331724 UPLOAD SUCCEEDED, build 1283 (carries bgtask).
+    STANDING e1b0fffc: Goal Progress grid follows goal count (848px unused at 1 goal before), new gate check:goal-grid,
+    red/green proven, pushed 0/0. FIRST UP: ec48da25 read-back at 09:19 (cron c6374ac7 in getforgenta-b7; if that tab
+    is gone run R-NOW62 item 2 SQL by hand). Then STANDING: next fill candidate = Dashboard Upcoming This Week at 1440
+    (rows span 1249px, name left / amount far right) - measure before changing.
 R-NOW64 (10-04 ~01:55 ET, Ada getforgenta-4c hit the 180-call gate). START HERE, IN ORDER:
-    1. [ ] ec48da25 read-back at/after 09:17 ET (SQL R-NOW62 item 2) - my cron died with me: ARM YOUR OWN one-shot for 09:19
+    1. [~] cron c6374ac7 armed by successor 01:31; ec48da25 read-back at/after 09:17 ET (SQL R-NOW62 item 2) - my cron died with me: ARM YOUR OWN one-shot for 09:19
        (CronCreate '19 9 4 10 *'). Sam has a 09:27 backstop. Then `ask done ec48da25`.
-    2. [ ] UNCOMMITTED in the tree - e74da89c 'bgtask' label (iOS BG-task refresh told apart from an app close):
+    2. [x] SHIPPED cf22e0dd (pushed 0/0, migration applied + read back, red 1/9, test:tz 5910 x3); iOS upload run
+       37180590067 dispatched. Ask e74da89c blocked on Tre installing that build. WAS: e74da89c 'bgtask' label (iOS BG-task refresh told apart from an app close):
        src/lib/widget-refresh-log.ts (BG_TASK_FLAG, consumeBgTaskFlag, logBackgroundRefresh 3rd arg),
        src/lib/__tests__/widget-refresh-log.test.ts (+3 tests, 17/17 green), ios/App/App/AppDelegate.swift (sets
        CapacitorStorage.forged:bg_task_reload in handleWidgetRefresh), supabase/migrations/20261004b_widget_refresh_bgtask.sql.
@@ -43,7 +50,7 @@ R-NOW64 (10-04 ~01:55 ET, Ada getforgenta-4c hit the 180-call gate). START HERE,
        push (ios-build.yml) - a TestFlight upload needs `gh workflow run "iOS Build & Upload to App Store" --ref main` and only
        then can rows read 'bgtask'. Backups backups/2026-10-04_01*.
        Re-test that motivated it: 3 ios rows in 2.5 days, all 'hidden', ~midnight ET (recorded on the ask).
-    3. [ ] UNCOMMITTED - scripts/walk-press-every-control.mjs: waits for .skeleton-shimmer to clear (cap 20s) before looking
+    3. [x] COMMITTED + pushed (walk:press 386/163/163, not-found 0, stub 12/12, EXIT 0). WAS: scripts/walk-press-every-control.mjs: waits for .skeleton-shimmer to clear (cap 20s) before looking
        for a control (fix for the "Connect a bank" not-found whose frame was all skeletons). My background run died with me:
        rerun `npm run walk:press`; commit ONLY if not-found 0 and enumerated ~386; else restore from $TEMP copy or git checkout
        that ONE file. Original also in git HEAD.
@@ -12983,16 +12990,18 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 01:15 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 01:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
+ M scripts/walk-press-every-control.mjs
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13002,14 +13011,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+a288b225 [release]: VERSION 6.8.1 -> 6.8.2 - Apple approved 6.8.1, so its train is closed
+cf22e0dd [widget]: log iOS background-task refreshes as 'bgtask', apart from an app close
+b6032741 [handoff]: R-NOW64 - call gate; bgtask slice and walk-press wait uncommitted, ec48da25 09:19
+5895ad52 [handoff]: walk:press not-found was a skeleton-timing miss
+ff96e872 [handoff]: 52898f88 closed
+6d49d42e [goals]: the card goal-order sentence shows only when a card shares the list
+bd2440d5 [handoff]: R-NOW63 - walk:press 386/163/163, pgss check closed, empty-account scan next
 ef65f17b [handoff]: R-NOW63 - paycheck prompt fixed b297f418
-b297f418 [bank]: a paycheck the matcher AND link memory both name is auto-linked, not asked every week
-0c303e81 [transactions]: Bank Activity keeps what the list is; what each choice does goes behind one tap
-db12739e [handoff]: R-NOW63 - always-pay verified, overload taps on /debt, dashboard, goals
-029e1266 [goals]: Goals tab method notes behind one tap; the per-row Add-is-off sentence no longer repeats
-a457316f [dashboard]: the loan-totals note on Recommended This Month goes behind the same tap as /debt
-4001692a [debt]: three more method notes go behind one tap, through one shared MoreInfo control
-03b28e26 [handoff]: R-NOW62 - verify always-pay render, ec48da25 read-back, overload next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
