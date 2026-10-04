@@ -48,7 +48,7 @@ R-NOW63 (10-04 ~00:40 ET, Ada successor of f1). START HERE, IN ORDER:
        walk:press after all of it: 386 enumerated (+3 = the new taps) / 163 pressed / 163 changed / 0 no-change /
        1 not-found ("Connect a bank" on /dashboard - a dismissable notice, check its frame before chasing), stub 12/12.
     6. [x] 17e959d3 pgss date check CLOSED: 394 kB text, temp_files still 199100. Next check filed for 2026-11-01.
-    7. 52898f88 NEXT: the empty-account scan (create a throwaway @forgenta.test in SQL, scan `main p` > 110 chars per
+    7. [x] 52898f88 CLOSED after the empty-account scan (6d49d42e; throwaway 7bda58ef deleted, read back 0). Was: the empty-account scan (create a throwaway @forgenta.test in SQL, scan `main p` > 110 chars per
        route, DELETE it after - the delete asks for a confirm). Screens already scanned as Tre + /demo signed-out:
        /debt, /dashboard (Overview, Goals), /transactions (Plan, Bank Activity), /forecast, /settings.
 R-NOW62 (10-04 ~00:45 ET, Ada getforgenta-f1, handoff gate). START HERE, IN ORDER:
