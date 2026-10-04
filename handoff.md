@@ -29,6 +29,18 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW80 (10-04 ~19:55Z, Ada getforgenta-1e hit the 175-call gate). START HERE, IN ORDER:
+    1. [~] e618b2f0 outage notice: opus-executor running in the .claude/worktrees/ worktree listed by `git worktree list`
+       (not ceb-regate, already removed). Its report goes to MY dead tab. When its files go quiet: review `git -C <wt>
+       diff` + new files (src/lib/backend-health.ts, banner component, scripts/check-connection-banner.mjs) against the
+       brief in R-NOW79/Sam's message (hang>10s or 5xx = failure, 4xx never, clear on first success, offline via
+       navigator.onLine or no status host answering, Plaid only on failed plaid fn call, status reads NOT via Supabase).
+       Rerun: unit tests + red proofs, npm run check:connection-banner (dev server :8080), test:tz, tsc, lint. Full walk
+       (walk:press, walk:empty with a throwaway @forgenta.test made in SQL then deleted). Ship on green, remove worktree.
+    2. [ ] da91e541 Supabase gateway outage (blocked, ours to watch): re-arm a Monitor on keyed /auth/v1/health (curl -H
+       apikey from .env.local, poll 2 min). On first 200: tell Sam the recovery time, `ask take` + `ask done da91e541`.
+    3. [ ] 853aba70 DATE CHECK after 2026-10-05 10:00Z (see its ask row). Arm a CronCreate for 06:23 ET 10-05.
+    DONE this session: ceb711fc 3af8e182; full walk clean; plan label '(not counted)'; Tre's 2 plan questions answered.
 R-NOW79 (10-04 ~19:40Z, Ada). e618b2f0 (Tre via Sam: in-app notice naming the outage cause) - opus-executor
     building in a .claude/worktrees/ worktree (OVERDRIVE). Status APIs for Supabase/Cloudflare/Vercel/Plaid measured CORS *.
     If this tab is gone: review its uncommitted diff, rerun check:connection-banner + test:tz, ship on green, remove wt.
