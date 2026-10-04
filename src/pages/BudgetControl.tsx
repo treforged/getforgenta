@@ -861,8 +861,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
 
   const RuleRow = ({ r, color = 'text-destructive-text' }: { r: BudgetRule; color?: string }) => (
-  <div className={`flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between ${!r.active ? 'opacity-40' : ''}`}>
-    <div className="min-w-0 flex-1">
+  <div className={`flex flex-col gap-2 py-3 border-b border-border/50 last:border-0 sm:flex-row sm:items-center sm:justify-between lg:gap-4 ${!r.active ? 'opacity-40' : ''}`}>
+    {/* ONE LINE PER RULE ON A DESKTOP (Tre, 2026-10-03, ask 1be673ad: "fill in their boxes more or
+        reduce the box sizes"). At 1440 each row was two lines on the left (name, then schedule) and
+        two on the right (amount, then the four icons), with ~600px of nothing between them. From
+        `lg` the amount sits beside its icons; from `xl` the name and its schedule also share a
+        baseline. The name/schedule join waits for `xl` because at 1024 a long schedule wrapped
+        under its name on some rows and not others, which read as misaligned. */}
+    <div className="min-w-0 flex-1 xl:flex xl:flex-wrap xl:items-baseline xl:gap-x-3">
       <div className="flex items-center gap-1.5 flex-wrap">
       <p className="text-sm sm:text-base font-medium wrap-break-word">{r.name}</p>
       {isUneditedSampleRule(r) && (
@@ -919,7 +925,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         unbounded length, and making those unbreakable would trade a mid-token wrap for horizontal
         overflow - a worse defect, and one this page's narrow column would hit often. They keep the
         paragraph's `wrap-break-word`. */}
-    <p className="mt-1 text-xs sm:text-sm text-muted-foreground wrap-break-word">
+    <p className="mt-1 xl:mt-0 min-w-0 text-xs sm:text-sm text-muted-foreground wrap-break-word">
       <span className="whitespace-nowrap">{customIntervalLabel(r) ?? freqLabel(r.frequency)}</span>
       {r.due_day != null ? <> · <span className="whitespace-nowrap">{`Day ${r.due_day}`}</span></> : ''}
       {r.due_month ? <> / <span className="whitespace-nowrap">{`Month ${r.due_month}`}</span></> : ''}
@@ -930,7 +936,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
     </p>
   </div>
 
-  <div className="flex flex-col gap-2 sm:items-end shrink-0">
+  <div className="flex flex-col gap-2 sm:items-end shrink-0 lg:flex-row lg:items-center lg:gap-3">
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
       <span className={`text-sm sm:text-base font-display font-bold ${color}`}>
         {formatCurrency(Number(r.amount))}
@@ -1366,8 +1372,18 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         </div>
 
       </div>
+      </>}
 
+      {/* PER PAYCHECK AND BUDGET ALLOCATION SIT SIDE BY SIDE FROM `lg` UP (Tre, 2026-10-03, ask
+          1be673ad: "fill in their boxes more or reduce the box sizes"). Each was a full-width card at
+          1440 holding a small cluster in one corner: five short figures three-across with an empty
+          sixth slot, and a 128px donut with a one-line legend and ~450px of nothing to its right.
+          Halving their width lets each fill its box and removes a whole card's height from the page.
+          Below `lg` they stack exactly as before. When Income & Taxes is folded, Per Paycheck is not
+          rendered and the allocation card takes both columns rather than leaving one empty. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* WHAT EACH PAYCHECK IS WORTH — the second half of the same split. */}
+      {!incomeSectionCollapsed && (
       <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Per Paycheck</h3>
         {/*
@@ -1389,12 +1405,13 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           pack tighter (p-2.5, gap-2), the headline Per Paycheck (Net) tile takes the whole first row
           with its figure on the right so no row is left half empty, and every figure sits at the
           BOTTOM of its tile (`mt-auto`) so a label that wraps ("Monthly Take-Home") cannot push its
-          figure out of line with its neighbour's. From `lg` up the grid is three across as before.
+          figure out of line with its neighbour's. The same layout holds from `lg` up, where this card
+          is half the page wide (see the grid above) instead of three-across with an empty sixth slot.
         */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
-          <div className="card-forged p-2.5 text-left col-span-2 lg:col-span-1 flex flex-col max-lg:flex-row max-lg:items-baseline max-lg:justify-between">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="card-forged p-2.5 text-left col-span-2 flex flex-row items-baseline justify-between">
             <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
-            <p className="mt-auto max-lg:mt-0 pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
+            <p className="pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
               {formatCurrency(paycheckNet)}
             </p>
           </div>
@@ -1428,12 +1445,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           </div>
         </div>
       </div>
-      </>}
-
-      {/* The rules the bank history implies, for a user who has linked something since setting up.
-          Renders NOTHING when there is nothing to offer — never a "0 patterns" card, and never a
-          badge: it is an offer that sits on the page the rules live on, not a nag. */}
-      <RulesFoundCard />
+      )}
 
       {/* The seven KPI tiles that stood here MOVED TO THE DASHBOARD on 2026-08-27 (Tre: "i
           wanted these moved to dashboard") and are `BudgetTotalsCard`, which reads the same
@@ -1443,7 +1455,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
 
       {/* Budget Allocation Bar — current month only, distinct colors */}
-      <div className="card-forged p-4 sm:p-5">
+      <div className={`card-forged p-4 sm:p-5 flex flex-col ${incomeSectionCollapsed ? 'lg:col-span-2' : ''}`}>
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider mb-1">Budget Allocation</h3>
         <p className="text-sm text-muted-foreground mb-4">{now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} — current month only</p>
         {(() => {
@@ -1470,8 +1482,11 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             ) : null;
           };
           return (
-            <div className="flex flex-col sm:flex-row items-center gap-6">
-              <svg viewBox="0 0 36 36" className="w-32 h-32 shrink-0 -rotate-90">
+            // The legend is a COLUMN beside the donut at every width (it used to sit under the donut on a
+            // phone and run along one line beside it on desktop, leaving the card's right side empty).
+            // `flex-1` + `items-center` centre the pair when the card is stretched to its neighbour's height.
+            <div className="flex-1 flex flex-row items-center gap-4 sm:gap-6">
+              <svg viewBox="0 0 36 36" className="w-32 h-32 lg:w-40 lg:h-40 shrink-0 -rotate-90">
                 <circle cx="18" cy="18" r={R} fill="transparent" stroke="hsl(var(--secondary))" strokeWidth="3.5" />
                 {seg(fixedPct,    0,                                          'hsl(0, 65%, 45%)'  )}
                 {seg(variablePct, fixedPct,                                   'hsl(35, 85%, 50%)' )}
@@ -1480,7 +1495,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                 {seg(remPct,      fixedPct + variablePct + debtPct + xferPct, 'hsl(142, 50%, 40%)')}
               </svg>
               <div className="min-w-0">
-                <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs sm:text-sm text-muted-foreground">
+                <div className="flex flex-col gap-2 text-xs sm:text-sm text-muted-foreground">
                   {[
                     { label: 'Fixed',     pct: fixedPct,    color: 'hsl(0, 65%, 45%)'   },
                     { label: 'Variable',  pct: variablePct, color: 'hsl(35, 85%, 50%)'  },
@@ -1504,6 +1519,13 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           );
         })()}
       </div>
+      </div>
+
+      {/* The rules the bank history implies, for a user who has linked something since setting up.
+          Renders NOTHING when there is nothing to offer — never a "0 patterns" card, and never a
+          badge: it is an offer that sits on the page the rules live on, not a nag. It sits directly
+          above the rule tabs it feeds since Per Paycheck and Budget Allocation became one row. */}
+      <RulesFoundCard />
 
       {/* Tabbed Rule Management */}
       {/* ⚠️ ON `PanelBar` SINCE 2026-09-22, and this was the LAST selector bar in the app that was
@@ -1562,10 +1584,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
         {ruleTab === 'income' && (
           <div className="card-forged p-4 sm:p-5 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Income Rules</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Income Rules</h3>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('income')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
               </div>
             </div>
@@ -1576,10 +1598,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
         {ruleTab === 'fixed' && (
           <div className="card-forged p-4 sm:p-5 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Fixed Expenses</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fixed Expenses</h3>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Bills')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
               </div>
             </div>
@@ -1590,10 +1612,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
         {ruleTab === 'subscriptions' && (
           <div className="card-forged p-4 sm:p-5 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Subscriptions</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Subscriptions</h3>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Subscriptions')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
               </div>
             </div>
@@ -1604,10 +1626,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
         {ruleTab === 'variable' && (
           <div className="card-forged p-4 sm:p-5 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Variable Expenses</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses)} {CURRENT_MONTH_LABEL}</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Variable Expenses</h3>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('expense', 'Other')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Variable</button>
               </div>
             </div>
@@ -1618,10 +1640,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
         {ruleTab === 'debt' && (
           <div className="card-forged p-4 sm:p-5 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(totalDebtPayments)} {CURRENT_MONTH_LABEL}</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(totalDebtPayments)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('debt_payment', 'Debt Payments')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Payment</button>
               </div>
             </div>
@@ -1638,10 +1660,10 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
         {ruleTab === 'transfers' && (
           <div className="card-forged p-4 sm:p-5 space-y-2">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers)} {CURRENT_MONTH_LABEL}</span>
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
+              <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
+              <div className="ml-auto flex items-center gap-3">
+                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('investment')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Transfer</button>
               </div>
             </div>
