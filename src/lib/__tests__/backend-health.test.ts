@@ -131,6 +131,21 @@ describe('diagnose', () => {
     expect(diagnose({ online: true, statuses: {}, failure: failed })?.headline).toBe(UNKNOWN_HEADLINE);
   });
 
+  // ⚠️ Measured live on getforgenta.com, 2026-10-04 20:10Z: for ~2 s after the hang was detected the
+  // banner said "None of our providers report a problem" while status.supabase.com was reporting the
+  // very incident - nothing had been READ yet. "None report a problem" needs all four pages read clean.
+  it('before any status page answers, it never claims the providers are fine', () => {
+    const d = diagnose({ online: true, statuses: {}, failure: failed });
+    expect(d?.detail).not.toMatch(/None of our providers/);
+    expect(d?.detail).toMatch(/Checking/);
+  });
+
+  it('only when all four pages were read clean does it say none report a problem', () => {
+    expect(diagnose({ online: true, statuses: allNone, failure: failed })?.detail).toMatch(/None of our providers report a problem/);
+    const partial = diagnose({ online: true, statuses: { ...allNone, supabase: { ok: false } }, failure: failed });
+    expect(partial?.detail).not.toMatch(/None of our providers/);
+  });
+
   it('a failed status read is never an incident', () => {
     const d = diagnose({ online: true, statuses: { ...allNone, supabase: { ok: false } }, failure: failed });
     expect(d?.headline).toBe(UNKNOWN_HEADLINE);

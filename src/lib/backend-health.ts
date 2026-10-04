@@ -265,10 +265,20 @@ export function diagnose({ online, statuses, failure }: DiagnoseInput): Diagnosi
     if (cloudflare) return providerDiagnosis('cloudflare', cloudflare);
     const vercel = activeReport(statuses.vercel, 'major');
     if (vercel) return providerDiagnosis('vercel', vercel);
+    // ⚠️ "None report a problem" is a claim about four pages, so it needs all four READ and clean.
+    // Before the reads land, or with any page unreadable, saying it would be the confident-wrong
+    // answer: measured live 2026-10-04, it showed for ~2 s while Supabase was reporting the incident.
+    const allReadClean = ids.every(id => statuses[id]?.ok);
+    const anyUnread = ids.some(id => statuses[id] === undefined);
+    const why = allReadClean
+      ? 'None of our providers report a problem.'
+      : anyUnread
+        ? 'Checking whether one of our providers reports a problem.'
+        : "We couldn't read every provider's status page, so the cause is not confirmed.";
     return {
       kind: 'unknown',
       headline: UNKNOWN_HEADLINE,
-      detail: 'None of our providers report a problem. Nothing has been lost, and this clears the moment a request gets through.',
+      detail: `${why} Nothing has been lost, and this clears the moment a request gets through.`,
     };
   }
 
