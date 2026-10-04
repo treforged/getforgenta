@@ -40,3 +40,21 @@ describe('logBackgroundRefresh writes native rows only (ask e74da89c)', () => {
     expect(insert).toHaveBeenCalledWith({ platform: 'android', via: 'host' });
   });
 });
+
+describe('a background-TASK refresh is told apart from an app close (ask e74da89c, 2026-10-04)', () => {
+  beforeEach(() => insert.mockClear());
+  it('logs "bgtask" when the iOS task flag was set', async () => {
+    await logBackgroundRefresh('hidden', 'ios', async () => true);
+    expect(insert).toHaveBeenCalledWith({ platform: 'ios', via: 'bgtask' });
+  });
+  it('keeps "hidden" for an ordinary close with no flag', async () => {
+    await logBackgroundRefresh('hidden', 'ios', async () => false);
+    expect(insert).toHaveBeenCalledWith({ platform: 'ios', via: 'hidden' });
+  });
+  it('never relabels the Android host, and never reads the flag for it', async () => {
+    const read = vi.fn(async () => true);
+    await logBackgroundRefresh('host', 'android', read);
+    expect(insert).toHaveBeenCalledWith({ platform: 'android', via: 'host' });
+    expect(read).not.toHaveBeenCalled();
+  });
+});

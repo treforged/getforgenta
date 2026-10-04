@@ -156,6 +156,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                 forName: WidgetRefresh.published, object: nil, queue: .main) { _ in finish(true) }
             // Same flag every background reload sets, so JS init() skips the lock check.
             UserDefaults.standard.set("1", forKey: "CapacitorStorage.forged:bg_reload")
+            // Set ONLY here, so the logged row can say "the OS ran the background task" rather than
+            // "the app was hidden" (widget-refresh-log.ts BG_TASK_FLAG, ask e74da89c).
+            UserDefaults.standard.set("1", forKey: "CapacitorStorage.forged:bg_task_reload")
             webView.reload()
             DispatchQueue.main.asyncAfter(deadline: .now() + WidgetRefresh.timeout) { finish(false) }
         }

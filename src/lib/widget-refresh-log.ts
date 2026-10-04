@@ -8,7 +8,28 @@ import { isWidgetHost } from '@/lib/widget-host';
  * look at a home screen. Table: public.widget_refresh_events (migration 20261001b) - insert-own and
  * select-own only, and it stores the event, never a figure.
  */
-export type RefreshVia = 'host' | 'hidden';
+export type RefreshVia = 'host' | 'hidden' | 'bgtask';
+
+/**
+ * The flag ONLY the iOS BGAppRefreshTask handler sets (AppDelegate.handleWidgetRefresh) before it
+ * reloads the WebView. Without it a background-task refresh and an ordinary app close both publish
+ * while hidden and both read 'hidden', so SQL could not say whether the OS ran the 6-hour task at all
+ * (re-test 2026-10-04: 3 ios rows, all 'hidden'). Consumed by the first hidden publish after it.
+ */
+export const BG_TASK_FLAG = 'forged:bg_task_reload';
+
+/** Reads and clears the background-task flag. Any failure reads as "not a background task". */
+export async function consumeBgTaskFlag(): Promise<boolean> {
+  try {
+    const { Preferences } = await import('@capacitor/preferences');
+    const { value } = await Preferences.get({ key: BG_TASK_FLAG });
+    if (value === null) return false;
+    await Preferences.remove({ key: BG_TASK_FLAG });
+    return value === '1';
+  } catch {
+    return false;
+  }
+}
 
 /** How this publish happened in the background, or null for an ordinary foreground publish. */
 export function backgroundVia(win: Window = window, doc: Document = document): RefreshVia | null {
@@ -31,10 +52,12 @@ export function platformFor(via: RefreshVia): 'ios' | 'android' | 'web' | '' {
 export async function logBackgroundRefresh(
   via: RefreshVia,
   platform: ReturnType<typeof platformFor> = platformFor(via),
+  readBgTaskFlag: () => Promise<boolean> = consumeBgTaskFlag,
 ): Promise<void> {
   if (platform !== 'ios' && platform !== 'android') return;
+  const logged: RefreshVia = platform === 'ios' && via === 'hidden' && (await readBgTaskFlag()) ? 'bgtask' : via;
   try {
-    const { error } = await supabase.from('widget_refresh_events').insert({ platform, via });
+    const { error } = await supabase.from('widget_refresh_events').insert({ platform, via: logged });
     if (error) console.warn('[widget-refresh-log] insert refused:', error.message);
   } catch (err) {
     console.warn('[widget-refresh-log] insert threw:', err);
