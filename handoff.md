@@ -29,6 +29,15 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW77 (10-04 ~10:45 ET, Ada getforgenta-1e, successor of -30). R-NOW76 progress:
+    0. [x] Sam told (tre-forged-00, msg de213451).
+    1. [~] ceb711fc executor STILL WRITING at 10:43 (forecast-engine.ts + src/lib/card-residue-hold.ts + zz-* scratch
+       tests; its synthetic test forecast-engine.cardResidueHold.test.ts not yet written). Waiting for it to go quiet,
+       then review + regate on main. Do NOT ship the zz-* scratch tests.
+    2. [ ] 853aba70 verify: session cron armed for 10-05 06:23 ET (dies with this tab - redo if successor).
+    3. e1b0fffc fill list: Forecast Next milestone 362px and Avalanche order 252px DROPPED as not defects (hero headline
+       card matches its neighbour's height; Avalanche card is names-and-order-only by Tre's ask, ecde4f9a). The width
+       probe over-flags short headline cards.
 R-NOW76 (10-04 ~10:55 ET, Ada getforgenta-30 hit the 175-call gate). START HERE, IN ORDER:
     0. [ ] TELL SAM (tre-forged-00, SendMessage) - I could not, the gate blocked ToolSearch: "Ada: 853aba70 pipeline
        fix shipped a019bf3b. Pushes build only; Play ships once a day at 10:00 UTC (and on dispatch) when main holds
@@ -13156,7 +13165,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 10:20 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 10:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13175,14 +13184,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+18496976 [handoff]: R-NOW76 - 853aba70 shipped a019bf3b, verify 10-05 10:00Z, ceb711fc executor running
+a019bf3b [ci]: Play deploys once a day, not per push, so a busy day cannot spend Play's edit quota (853aba70)
+fcfb148e [handoff]: R-NOW75 - c2e84e6e shipped 807f8b07
+807f8b07 [sim]: a card's revolving->cycling month reports its interest once, and a pin's purchases are not billed twice (c2e84e6e)
 eabb29e5 [handoff]: R-NOW75 - goal starts shipped 48647f9f
 48647f9f [goals]: the empty Goals tab offers one-press starts per goal type (e1b0fffc)
 ce2c6b0f [handoff]: R-NOW75 - 1d5b95d3 shipped 041353dd, ceb711fc + c2e84e6e executors running
 041353dd [sim]: transfer parity - months 1+ skip non-cash transfer sources, month 0 credits money moved into checking (1d5b95d3)
-3e11f2d2 [handoff]: R-NOW74 - ceb711fc engine bug filed, parity executor running, call gate hit
-6f6ad9bd [handoff]: R-NOW73 - 5810a568/d651b7b5 shipped 85a59232, ec48da25 + b80124a0 + 23ed14fb closed, parity executor running
-85a59232 [engine]: month 0 pays other accounts' unfunded bills, and a pin re-runs the look-ahead (5810a568, d651b7b5)
-1bf7a44a [handoff]: R-NOW72 - b80124a0 shipped 37a0065b, read-back + live verify + executor worktree review next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
