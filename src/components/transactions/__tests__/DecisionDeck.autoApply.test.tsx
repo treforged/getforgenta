@@ -135,6 +135,30 @@ describe('DecisionDeck — a merchant answered the same way 22 times is not aske
   });
 });
 
+// Tre, 2026-10-04, on his 10-02 payroll card: "why was i prompted for my paycheck. that is an issue."
+// Measured on his account: the payroll merchant carries 14+ links to Weekly Paycheck, and since he set
+// the rule to his real net pay ($816.10, 2026-09-13) the MATCHER also names that rule for every
+// deposit. `linkSuggestionFor` returned null whenever the matcher said anything, so the memory - the
+// only path that may act without asking - was switched off by evidence that AGREED with it. He
+// answered the same card by hand every week (deck_decision 2026-09-29).
+describe('DecisionDeck — a matcher answer that AGREES with the memory does not switch it off', () => {
+  it('auto-applies when the matcher names the SAME rule the merchant is always linked to', async () => {
+    const { save } = setup([{ charge: charge('c1', 2000, '2026-08-05'), suggestion: { rule: payRule } }]);
+    await waitFor(() => expect(save.mutateAsync).toHaveBeenCalledTimes(1));
+    expect(save.mutateAsync.mock.calls[0][0])
+      .toEqual(acceptRuleInput(charge('c1', 2000, '2026-08-05'), payRule));
+    expect(await screen.findByText(/applied without asking/i)).toBeTruthy();
+  });
+
+  it('still ASKS when the matcher names a DIFFERENT rule - the two answers disagree', async () => {
+    const other = { ...payRule, id: 'rule-rent', name: 'Rent' };
+    const { save } = setup([{ charge: charge('c1', 2000, '2026-08-05'), suggestion: { rule: other } }]);
+    expect(await screen.findByText(/Is this your Rent\?/)).toBeTruthy();
+    await new Promise(r => setTimeout(r, 50));
+    expect(save.mutateAsync).not.toHaveBeenCalled();
+  });
+});
+
 describe('DecisionDeck — every gate can still hold the write back', () => {
   /** The card must still be on screen, unanswered, with its question showing. */
   async function expectAsked(save: { mutateAsync: ReturnType<typeof vi.fn> }) {

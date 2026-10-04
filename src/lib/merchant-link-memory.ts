@@ -281,8 +281,13 @@ export interface LinkSuggestion<R extends LinkableRule = LinkableRule> {
  *
  * ⚠️ EVERY GATE HERE IS A REASON TO STAY SILENT, and silence is always the safe direction.
  *
- * - `suggestion` set ⇒ null. The matcher looked at THIS charge and found an occurrence; memory is
- *   about the merchant in general and must not overrule evidence about the row in front of the user.
+ * - `suggestion` set ⇒ null, UNLESS it names the SAME rule the memory does. The matcher looked at
+ *   THIS charge and found an occurrence; memory is about the merchant in general and must not
+ *   overrule evidence about the row in front of the user. ⚠️ But a matcher answer that AGREES is not
+ *   an overrule - it is two kinds of evidence saying one thing. Vetoing on agreement switched the
+ *   auto-apply off for Tre's payroll as soon as his rule carried his real net pay (2026-09-13): the
+ *   matcher then named Weekly Paycheck for every deposit and he answered it by hand weekly (Tre,
+ *   2026-10-04: "why was i prompted for my paycheck. that is an issue.").
  * - a merchant whose links are genuinely SPLIT ⇒ null. Two competing answers is not a remembered
  *   answer, and picking the more popular one silently is the coin flip §1A refused
  *   (`matchCharge`'s one-candidate rule). A settled habit with one stray link is NOT split - see
@@ -290,6 +295,15 @@ export interface LinkSuggestion<R extends LinkableRule = LinkableRule> {
  * - a rule that is gone or inactive ⇒ null. Offering to link a charge to a rule the user retired
  *   would quietly resurrect a projection they deliberately ended.
  */
+/** The rule id a matcher suggestion names, if it names a rule at all. Anything else reads as none. */
+function suggestedRuleId(suggestion: unknown): string | undefined {
+  if (typeof suggestion !== 'object' || suggestion === null) return undefined;
+  const rule = (suggestion as { rule?: unknown }).rule;
+  if (typeof rule !== 'object' || rule === null) return undefined;
+  const id = (rule as { id?: unknown }).id;
+  return typeof id === 'string' ? id : undefined;
+}
+
 export function linkSuggestionFor<R extends LinkableRule>(
   charge: MerchantCharge,
   suggestion: unknown | null | undefined,
@@ -297,8 +311,8 @@ export function linkSuggestionFor<R extends LinkableRule>(
   rulesById: Readonly<Record<string, R>>,
   suppressed: Readonly<Record<string, true>> = {},
 ): LinkSuggestion<R> | null {
-  if (suggestion) return null;
   const memory = merchantLinkFor(charge, rules, suppressed);
+  if (suggestion && suggestedRuleId(suggestion) !== memory?.ruleId) return null;
   if (!memory || !habitIsSettled(memory.linkedCount, memory.conflictingCount)) return null;
   const rule = rulesById[memory.ruleId];
   if (!rule || rule.active === false) return null;

@@ -154,6 +154,15 @@ describe('linkSuggestionFor', () => {
     expect(linkSuggestionFor(card, matched, rules, byId)).toBeNull();
   });
 
+  it('offers it when the matcher names the SAME rule - agreement is not an overrule (Tre, 2026-10-04)', () => {
+    const agreeing = { rule: { id: PAYCHECK, name: 'Weekly Paycheck' } };
+    expect(linkSuggestionFor(card, agreeing, rules, byId)?.rule.name).toBe('Weekly Paycheck');
+  });
+
+  it('stays quiet when the matcher names a ledger row instead of a rule', () => {
+    expect(linkSuggestionFor(card, { ledgerTxn: { id: 't1' } }, rules, byId)).toBeNull();
+  });
+
   it('stays quiet when the merchant has been linked two different ways', () => {
     // 22 against 7 is a genuine split. One stray link is covered by the case below.
     const conflicted = {
