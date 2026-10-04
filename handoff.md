@@ -29,6 +29,9 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW61 (10-03 ~23:40 ET, Ada). CLOSED this session: c013318d, 8e3d0eb7 (privacy = Plaid only), 1be673ad (fill;
+    residue content-driven), d1f4970f (Tre: Prime min, nothing to set). FIRST UP: ec48da25 read-back after 09:00 ET 10-04
+    (SQL in R-NOW60 item 3), then close it. Then e501632b on Monday 10-05; STANDING e1b0fffc otherwise.
 R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
     1. [x] R-NOW59 item 2 SHIPPED, pushed 0/0: 862cf137 debt, fa24b72a dashboard, a7453934 settings, 38c9c082 budget.
        Gates: tsc 0, lint 0 err, test:tz 5889 x3, check:debt-layout/payoff-today/card-advisor/consolidation PASS.
@@ -12918,7 +12921,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-03 20:15 by handoff_hook. Everything below this heading is
+_Written 2026-10-03 23:35 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12937,14 +12940,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-cbf5960b [handoff]: R-NOW60 - fill areas + goal-order shipped, Plaid match table
-3fbb892f [debt]: goal order is stated to users; a min-paid Full Balance card is not a pay mismatch
-38c9c082 [budget]: Per Paycheck and Allocation share a row at lg; rule rows one line; tab headers do not wrap mid-phrase
-a7453934 [settings]: Profile two columns, Followers|Following side by side, vehicles as tiles
-fa24b72a [dashboard]: empty hero is one row at lg; goal tiles and ranking rows share a line
-862cf137 [debt]: summary sits under the payoff order at lg; hero note fills its middle; recs 2x2 beside payments
-cb963c18 [handoff]: R-NOW59 - Tre's Discover/goal-order answer, four fill areas to review
-7bec152a [forecast]: milestone and short months share a row; CTA and retirement rows fill
+e197ed4e [handoff]: fill progress 57 -> 51
+99b87f9a [layout]: loan tiles one line, Goal Progress empty state one row, Which Card rows one line
+943a064b [handoff]: width-ranked fill targets
+9a03f7b0 [scripts]: inventory:fill also reports empty WIDTH, with its own planted controls
+0572573c [handoff]: bank minimum deployed, read-back pending
+806da67e [sync]: record the bank's minimum beside a typed-in one; card row shows 'Bank's minimum: $X'
+f88360bd [handoff]: Discover Oct residue resolved
+3bb3114f [goals]: goal-order copy says 'this month's share', matching how dated goals are paced
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
