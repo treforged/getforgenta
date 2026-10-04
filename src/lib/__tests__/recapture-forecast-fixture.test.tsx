@@ -70,6 +70,15 @@ vi.mock('@/hooks/usePlaidItems', () => ({
   usePlaidItems: () => ({ items: (h.dump.tables.plaid_items ?? []) as unknown[] }),
 }));
 
+// Added 2026-10-04: the provider reaches react-query through this hook since 693e88cc, so the harness
+// threw "No QueryClient set" and could not capture at all. Passthrough = NO variable-bill floor buffer:
+// the dump does not carry the joined linked charges the buffer is sized from. A capture is therefore
+// exact only for a user with no variable bill above plan - compare its floor with the app's before
+// trusting it.
+vi.mock('@/hooks/useFloorBufferedRules', () => ({
+  useFloorBufferedRules: <T,>(rules: T) => rules,
+}));
+
 const canRun = h.present && process.env.RECAPTURE === '1';
 const maybeIt = canRun ? it : it.skip;
 
