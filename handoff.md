@@ -29,6 +29,23 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW69 (10-04 ~05:50 ET, Ada getforgenta-7b hit the call gate). START HERE, IN ORDER:
+    1. [ ] 09:19 ET: ec48da25 read-back. MY CRON DIES WITH ME - arm your own CronCreate '19 9 4 10 *' (SQL R-NOW62 item 2),
+       then `ask done ec48da25` with the rows (or `ask block` with what read back).
+    2. [ ] VERIFY 6c14ef11 on localhost:8080 /forecast as Tre, read-only (Chrome MCP; open Monthly breakdown by
+       button aria-expanded; rows = div.grid with 'grid-cols-[5rem_1fr_1fr_1fr]' + 'py-2'). Expect: no "Short months
+       ahead" card, "more than its account holds" x1, "Sep 2028: CC Debt Free". Revert 6c14ef11 if the app disagrees.
+    3. [ ] e2850463 (PASS 2 forward walk pessimistic, up to $5,688 below real cash; static $25 min in ccMinTotal) -
+       this is what makes 6c14ef11 cost interest. Executor slice; measure LEVERS + fi-paused interest before/after.
+    4. [ ] 5810a568 (month-0 hook site of both look-ahead fixes), then 202b320d, d651b7b5.
+    5. STANDING e1b0fffc. Monday 10-05: e501632b.
+    EXECUTOR WORKTREE FACTS (cost a red test:tz twice): vitest COLLECTS .claude/worktrees/** - remove a finished
+    worktree before gating main. Its node_modules is a JUNCTION to main's: `cmd /c rmdir` it first, never rm -rf.
+    Real fixtures are gitignored, so copy *.real*.json into the worktree or golden tests skip.
+    Captures for Tre 10-04: C:/Users/tvonh/AppData/Local/Temp/claude/C--Users-tvonh-Desktop-TRE-Forged-getforgenta/
+    a0744670-44d3-4b7d-88fe-96e8d06554e1/scratchpad/fx/fi-{paused,resume65}.json (session-local; may vanish).
+    SHIPPED this session: 973b88b4 (e2f7101f), 6c14ef11 (b520a4e7 + f077f9bb). Closed: 74b080fc (dropped, no question),
+    9fa0eb4c, d676a785. Sam told about the Aug -> Sep 2028 payoff move.
 R-NOW68 (10-04 04:50 ET, Ada getforgenta-7b). R-NOW67 items 2-3 DONE:
     [x] c879c73f VERIFIED on localhost /forecast as Tre: no "Short months ahead" card, all 60 breakdown rows, Nov 2026
         end $3,200.75. shortfallByMonth uses each month's OWN floor (monthMinSafe), so Mar-May 2027 under $2,335 is NOT short.
@@ -13030,7 +13047,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 04:41 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 05:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13049,14 +13066,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+a6abcf03 [handoff]: R-NOW68 - e2f7101f shipped 973b88b4, look-ahead executor running
+973b88b4 [engine]: a second checking account that runs short is paid from checking, not left negative
+f37c1218 [handoff]: R-NOW68 - 9fa0eb4c closed (0/60 below floor), e2f7101f building
+bbfde726 [handoff]: R-NOW68 - c879c73f verified on localhost, 74b080fc dropped (no question), e2f7101f taken
 0470a09c [handoff]: R-NOW67 - always-pay reserve shipped, verify + 09:19 read-back next
 c879c73f [engine]: an "always pay this" card is reserved for in both floor look-aheads
 dad2f02a [handoff]: R-NOW66 - f077f9bb cause corrected (always-pay pin), fix building
 da9b2c9e [handoff]: R-NOW66 - e943755b re-measured, owners resume line to Sam, f077f9bb open
-5a94c06f [test]: the fixture recapture harness runs again (useFloorBufferedRules passthrough)
-6f301d4d [handoff]: R-NOW65 - fill residue content-driven, goal-grid gate 390+1440
-d8b3a471 [gate]: check:goal-grid measures 390 as well as 1440, row by row
-83768b52 [handoff]: R-NOW65 - upcoming-week columns shipped
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
