@@ -97,4 +97,17 @@ describe('cardPayHint', () => {
       mismatch: false,
     });
   });
+
+  // Decision 2d104bc7 (Tre, 2026-10-03): Discover stays Full Balance, but a card ranked below an
+  // unmet goal pays only its minimum. Then a minimum autopay AGREES with the plan. The pair is the
+  // point: the same behaviour with a plan that pays in full must still be a mismatch.
+  it('a Full Balance card whose plan pays the minimum this month is not a mismatch', () => {
+    const b: PayBehavior = { autopay: true, kind: 'minimum', dayOfMonth: 1, sampleSize: 3, lastAmount: 198.17 };
+    expect(cardPayHint(b, 'full', true)).toEqual({
+      text: 'Your bank autopays the minimum on the 1st (last $198.17). The plan pays the minimum too for now: goals ranked above your cards come first.',
+      mismatch: false,
+    });
+    expect(cardPayHint(b, 'full', false)?.mismatch).toBe(true);
+    expect(cardPayHint(b, 'full')?.text).toContain('The plan assumes the full balance is paid.');
+  });
 });

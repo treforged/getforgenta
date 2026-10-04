@@ -5,6 +5,10 @@ import { formatCurrency } from '@/lib/calculations';
 export function cardPayHint(
   b: PayBehavior,
   preference: 'statement' | 'full' | null,
+  // True when THIS month's plan pays only the minimum on this card, e.g. because goals ranked
+  // above the cards come first (Tre, 2026-10-03, decision 2d104bc7: "thats what the goal order
+  // is for"). The plan then agrees with a minimum autopay, so it is not a mismatch.
+  planPaysMinimum = false,
 ): { text: string; mismatch: boolean } | null {
   if (b.sampleSize === 0) {
     return null;
@@ -23,9 +27,11 @@ export function cardPayHint(
 
   if (b.kind === 'minimum') {
     const base = `Your bank autopays the minimum${dayPart}`;
-    const mismatch = preference === 'statement' || preference === 'full';
+    const mismatch = !planPaysMinimum && (preference === 'statement' || preference === 'full');
     let text = `${base}${lastPart}.`;
-    if (mismatch) {
+    if (planPaysMinimum && (preference === 'statement' || preference === 'full')) {
+      text += ' The plan pays the minimum too for now: goals ranked above your cards come first.';
+    } else if (mismatch) {
       const plan = preference === 'full' ? 'the full balance' : 'the statement balance';
       text += ` The plan assumes ${plan} is paid.`;
     }

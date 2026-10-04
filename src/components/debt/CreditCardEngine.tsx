@@ -1456,10 +1456,13 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
     const out: Record<string, ReturnType<typeof cardPayHint>> = {};
     for (const p of projections) {
       const behavior = inferCardPayBehavior(payHistoryByCard?.[p.card.id] ?? [], { minPayment: p.card.minPayment, today });
-      out[p.card.id] = cardPayHint(behavior, p.card.paymentPreference);
+      // The EFFECTIVE plan, not the raw preference: a Full Balance card ranked below an unmet goal
+      // pays only its minimum this month, which agrees with a minimum autopay.
+      const rec = month0Recs.recs.find(r => r.cardId === p.card.id);
+      out[p.card.id] = cardPayHint(behavior, p.card.paymentPreference, rec?.isMinimumOnly === true);
     }
     return out;
-  }, [projections, payHistoryByCard]);
+  }, [projections, payHistoryByCard, month0Recs]);
 
   if (cards.length === 0) {
     return (
@@ -1864,6 +1867,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-3 sm:mb-4">
             Recommended from this month's cash flow. Later bills are not counted. If a due date has
             passed, the card shows next month's payment, with what you still owe this month underneath.
+            Your goal order decides who is paid first: a card ranked below an unmet goal pays only its
+            minimum, even on Full Balance.
           </p>
 
           {month0Recs.cashWarningText && (
