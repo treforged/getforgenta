@@ -101,12 +101,14 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
           {/* Summary tiles — card-only figures. Loan money is not in Safe to Pay: the cash floor
               already holds it, so summing loans in here would double-count. */}
           {hasRecs && (
+            // Label and figure on one line from `sm` (ask 1be673ad): centred and stacked, each tile
+            // was 641px wide at 1440 with a 90px label and figure in its middle.
             <div className="grid grid-cols-2 gap-2 mb-1.5">
-              <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+              <div className="p-2 sm:px-3 bg-muted/30 border border-border text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-2" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-[9px] text-muted-foreground uppercase">Safe to Pay</p>
                 <p className="text-xs font-display font-bold text-primary">{formatCurrency(totalAvailableCash)}</p>
               </div>
-              <div className="p-2 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+              <div className="p-2 sm:px-3 bg-muted/30 border border-border text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-2" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-[9px] text-muted-foreground uppercase">Minimums Due</p>
                 <p className="text-xs font-display font-bold text-destructive-text">{formatCurrency(totalMinimumsDue)}</p>
               </div>

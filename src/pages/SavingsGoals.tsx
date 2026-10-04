@@ -980,9 +980,12 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         capacityByMonth={surplusCapacityByMonth}
       />
 
+      {/* Label and figure share one line from `sm` (ask 1be673ad): stacked and centred, each tile
+          was 641x87 at 1440 holding a 100px label and figure in its middle. On a phone they stay
+          stacked, because a 175px tile cannot fit both on one line. */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved)}</p></div>
-        <div className="card-forged p-4 text-center"><p className="text-xs text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget)}</p></div>
+        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved)}</p></div>
+        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3"><p className="text-xs text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget)}</p></div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1161,7 +1164,9 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
       </div>
 
       {allGoals.length === 0 && (
-        <div className="card-forged p-12 text-center"><p className="text-sm text-muted-foreground">No savings goals yet.</p><p className="text-xs text-muted-foreground mt-1">Set a target. Build discipline.</p></div>
+        // p-5, not p-12 (ask 1be673ad): the two lines sat in a 155px box with 111px of it empty.
+        // From `sm` they share one line. Same words.
+        <div className="card-forged p-5 text-center sm:flex sm:items-baseline sm:justify-center sm:gap-2"><p className="text-sm text-muted-foreground">No savings goals yet.</p><p className="text-xs text-muted-foreground mt-1 sm:mt-0">Set a target. Build discipline.</p></div>
       )}
 
       {showForm && (

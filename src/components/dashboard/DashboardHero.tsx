@@ -155,20 +155,29 @@ export default function DashboardHero({ state, onFloorClick, trajectory }: Props
 
   const copy = EMPTY_COPY[state.reason];
   return (
-    <HeroShell label={copy.label}>
-      <p className="text-2xl font-display font-bold text-muted-foreground tracking-tight mt-1">
-        {copy.title}
-      </p>
-      <p className="text-sm text-muted-foreground mt-2 max-w-prose">{copy.body}</p>
-      {copy.action && (
-        <Link
-          to={copy.action.to}
-          className="inline-flex items-center gap-1.5 mt-4 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors"
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          {copy.action.label} <ArrowUpRight size={13} />
-        </Link>
-      )}
-    </HeroShell>
+    // ONE ROW ON A WIDE SCREEN (ask 1be673ad, "items fill their boxes or the boxes shrink").
+    // Stacked, this card was 1296x222 at 1440 with its four lines in the left 60%: a 9% fill.
+    // From `lg` the label and title, the reason and the action sit side by side, so the card
+    // shrinks to one row and the text runs across it. Below `lg` it stacks exactly as before.
+    <section className="card-forged p-5 sm:p-6" aria-label={copy.label}>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:gap-x-8">
+        <div className="lg:shrink-0">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">{copy.label}</p>
+          <p className="text-2xl font-display font-bold text-muted-foreground tracking-tight mt-1">
+            {copy.title}
+          </p>
+        </div>
+        <p className="text-sm text-muted-foreground mt-2 lg:mt-0 max-w-prose lg:max-w-none lg:flex-1">{copy.body}</p>
+        {copy.action && (
+          <Link
+            to={copy.action.to}
+            className="self-start lg:self-center shrink-0 inline-flex items-center gap-1.5 mt-4 lg:mt-0 bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            {copy.action.label} <ArrowUpRight size={13} />
+          </Link>
+        )}
+      </div>
+    </section>
   );
 }

@@ -414,7 +414,11 @@ export default function SurplusRankingSection({
           className={`mt-3 space-y-1.5 ${cardMode === 'mixed' ? 'border border-amber-500/40 bg-amber-500/5 p-2.5' : ''}`}
           style={cardMode === 'mixed' ? { borderRadius: 'var(--radius)' } : undefined}
         >
-          <div className="flex items-center gap-1.5 flex-wrap">
+          {/* One row from `sm` (ask 1be673ad): label, the two choices and what the choice means sit
+              side by side, so the control is one band instead of three stacked lines on a wide
+              screen. Below `sm` it stacks as before. */}
+          <div className="space-y-1.5 sm:space-y-0 sm:flex sm:items-center sm:gap-3">
+          <div className="flex items-center gap-1.5 flex-wrap sm:shrink-0">
             <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
               Rank credit cards
             </span>
@@ -424,7 +428,7 @@ export default function SurplusRankingSection({
               <span className="text-[10px] font-mono uppercase tracking-wider text-amber-500">Choose one</span>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:shrink-0">
             <button
               type="button"
               onClick={() => setCardRankMode('block')}
@@ -452,13 +456,14 @@ export default function SurplusRankingSection({
               One row each
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-[10px] text-muted-foreground sm:flex-1 sm:min-w-0">
             {cardMode === 'mixed'
               ? `Right now it is both: ${soloCardCount} on their own and ${blockedCards.length} sharing one spot. Until you pick, treat it as one group — that is the arrangement that cannot cost you extra interest.`
               : cardMode === 'individual'
                 ? 'Each card sits in the list on its own, so you can fund a goal between two of them. Which card the money actually pays is still decided by your payoff strategy.'
                 : 'All your cards share one spot in the list, ordered by your payoff strategy. That is the arrangement that cannot cost you extra interest.'}
           </p>
+          </div>
         </div>
       )}
 
@@ -508,9 +513,10 @@ export default function SurplusRankingSection({
                   narrows the pair back down because it is a VERTICAL stack and two 44px-wide cells
                   would eat a quarter of a 390px row. The row's drag path is INERT and intentionally so - see the note at
                   `dragIdRef` above; the arrows are the only reorder control, on every device. */}
-              {readOnly || !canReorder ? (
-                <span className="w-9 shrink-0" />
-              ) : (
+              {/* No arrows on ANY row (read-only, or one row): no spacer either. It held a 36px
+                  empty column at the left of every row, and every row is in the same mode, so
+                  the rank numbers still line up (ask 1be673ad). */}
+              {readOnly || !canReorder ? null : (
                 <div className="flex flex-col shrink-0">
                   <button
                     type="button"
@@ -537,6 +543,9 @@ export default function SurplusRankingSection({
               <RowIcon kind={row.kind} />
 
               <div className="flex-1 min-w-0">
+                {/* From `lg` the name and its figure share one line, so a wide row is one band
+                    rather than two short lines and an empty middle (ask 1be673ad). */}
+                <div className="lg:flex lg:flex-wrap lg:items-baseline lg:gap-x-3">
                 <p className="text-xs font-medium text-foreground wrap-break-word">
                   {row.name}
                   {/* Which stop this row is. Without it two rows carrying the same goal name read
@@ -593,6 +602,7 @@ export default function SurplusRankingSection({
                             : `${formatCurrency(row.remaining)} to go`
                           : 'Fully funded'}
                 </p>
+                </div>
                 {note && <p className={`text-[11px] ${note.tone}`}>{note.text}</p>}
               </div>
 
