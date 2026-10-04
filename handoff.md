@@ -29,6 +29,26 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW74 (10-04 ~10:50 ET, Ada getforgenta-73 hit the 175-call gate). START HERE, IN ORDER:
+    1. [ ] ceb711fc ENGINE BUG - money (save-the-most-money + user's own rank order): a lower-ranked auto-extra (C5 car
+       loan 10.18%, rank 4) takes money while Discover (16.6%, rank 3) still owes >$1 -> payoff 1 month late
+       (forecast-inputs.real.json flat arm Oct->Nov 2028; LEVERS paced Aug 2029, Discover 118.31 left). Site:
+       forecast-engine.ts ~2556-2560 affordableReserve; step-3 surplus branch ~2716 never fires. Candidate fix (ONE tz
+       only, scratch): backups/2026-10-04_briefs/ceb711fc-candidate-forecast-engine.ts. Give it to an opus-executor
+       (OVERDRIVE) with: synthetic CI test RED->GREEN, realData invariant RED on HEAD, re-pin paced-goal pin Nov->Oct
+       2028 (payoff may only move EARLIER, interest only fall, else STOP), per-card ranks / goals above cards / no-card
+       month no-op, test:tz, before/after table of every capture. Tell Sam if Tre's LIVE payoff moves (it is his number).
+    2. [~] opus-executor on 1d5b95d3 (transfer parity) still running in .claude/worktrees/agent-a6fb1a06856f9cf0b; its
+       report goes to MY dead tab. Brief: backups/2026-10-04_briefs/brief-transfer-parity.md. Review `git -C <wt> diff`
+       yourself, rerun red-before + test:tz WITH .env.local + *.real*.json copied in, `git diff > patch` (git add -N new
+       files first), `git apply --3way` on main, regate on main, ship. Then rmdir its node_modules junction,
+       `git worktree unlock`, `git worktree remove --force`, delete the branch.
+    3. [ ] c2e84e6e SIM BUG: revolving->cycling transition month double-reports interest (monthlyInterest AND
+       monthlyCyclingInterest) and a pin double-charges that month's purchases (demo d7 m7: 167.62 + 38.09 = 205.71).
+    4. [ ] STANDING e1b0fffc. Monday 10-05: e501632b.
+    DONE: 81cbb7ca diagnosed (interest fall real; later payoff = ceb711fc). 3343b814 dropped (by design: paid-in-full
+    statement reverts to null). 56a92bc9, 7a5bc74c closed. 62d70885 dropped to Sam (pricing). Sam's b80124a0 hand-back
+    triaged.
 R-NOW73 (10-04 ~10:00 ET, Ada getforgenta-73). START HERE, IN ORDER:
     1. [~] opus-executor building ask 1d5b95d3 (transfer parity: months 1+ charge every transfer to checking; month-0
        inflow for savings->funding; drawer lines for nonCashIntoFunding + unfundedAccountOutflow) in a worktree under
@@ -13109,7 +13129,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 09:24 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 09:46 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13128,14 +13148,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+6f6ad9bd [handoff]: R-NOW73 - 5810a568/d651b7b5 shipped 85a59232, ec48da25 + b80124a0 + 23ed14fb closed, parity executor running
+85a59232 [engine]: month 0 pays other accounts' unfunded bills, and a pin re-runs the look-ahead (5810a568, d651b7b5)
 1bf7a44a [handoff]: R-NOW72 - b80124a0 shipped 37a0065b, read-back + live verify + executor worktree review next
 37a0065b [lint]: ignore .claude/worktrees, so an executor's live worktree cannot fail lint with 2215 parser errors
 5bbc8a07 [engine]: money moved from savings into checking now lands in checking (b80124a0)
 21bf3703 [handoff]: R-NOW71 - ecfeb25d verified live, 951af777 shipped 4053084b, cron ebf56ac4 armed
 4053084b [forecast]: the month popup shows what a transfer moved, and says when its account ran dry (951af777)
 6d512040 [handoff]: R-NOW70 - e2850463 shipped ecfeb25d, live verify + 09:19 read-back next
-ecfeb25d [engine]: the floor look-ahead walk tracks real cash, so the caps stop holding back card payments (e2850463)
-e36a97d5 [handoff]: R-NOW69 - 202b320d + fbc5671a shipped
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
