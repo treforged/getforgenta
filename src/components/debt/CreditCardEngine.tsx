@@ -1867,8 +1867,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           <p className="text-[9px] sm:text-[10px] text-muted-foreground mb-3 sm:mb-4">
             Recommended from this month's cash flow. Later bills are not counted. If a due date has
             passed, the card shows next month's payment, with what you still owe this month underneath.
-            Your goal order decides who is paid first: a card ranked below an unmet goal pays only its
-            minimum, even on Full Balance.
+            Your goal order decides who is paid first: a card ranked below a goal gets only its minimum
+            until that goal has this month's share, even on Full Balance.
           </p>
 
           {month0Recs.cashWarningText && (

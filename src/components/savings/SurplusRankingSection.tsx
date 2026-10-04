@@ -360,8 +360,8 @@ export default function SurplusRankingSection({
           <p className="text-xs text-muted-foreground mt-0.5">
             Left-over cash after the bills goes to these one at a time, in order. Card minimums are
             always paid first; this ranks what happens to the surplus. Goals are paid in order: a
-            card ranked lower pays only its minimum until the goals above it are met, even on Full
-            Balance.
+            card ranked lower gets only its minimum until the goals above it have this month's share,
+            even on Full Balance.
           </p>
         </div>
         {saving && <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0 mt-0.5">Saving…</span>}
