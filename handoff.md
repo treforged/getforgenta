@@ -29,6 +29,17 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW67 (10-04 ~06:00 ET, Ada getforgenta-b7 hit the call gate). START HERE, IN ORDER:
+    1. [ ] 09:19 ET: ec48da25 read-back. MY CRON DIES WITH ME - arm your own CronCreate '19 9 4 10 *' (SQL R-NOW62 item 2),
+       then ask done ec48da25.
+    2. [ ] VERIFY c879c73f (always-pay pin reserved in both look-aheads) on localhost:8080 /forecast as Tre, read-only:
+       'Short months ahead' should now read no short month (it read 1, Nov $109.25, before). Revert if the app disagrees.
+    3. [ ] Then send Sam the corrected 74b080fc answer (he is HOLDING it): re-measure paused vs resume65 with the
+       offline pipeline (R-NOW66) on the fixed engine. If both read 0 short months, tell Sam 'no question needed - the
+       Nov gap was an engine bug, fixed c879c73f'; keep only the General Operations fact (e2f7101f) for Tre.
+    4. f077f9bb residue (recorded on the ask): user pins (paymentOverridesByMonth) bypass the cap the same way - fix
+       needs the override path to re-run the look-ahead; month-0 engine cap misses the always-pay statement (no breach).
+    5. STANDING e1b0fffc. e2f7101f is a product call (checking-account overdraft paid by nobody) - recommend to Sam.
 R-NOW66 (10-04 ~04:50 ET, Ada getforgenta-b7). e943755b RE-TESTED: app shows ONE short month (Nov26 -$109.25); the
     Owners Contribution pause is Tre's 10-03 decision (line ~354). Sam asked for keep-vs-resume numbers: offline recapture
     (harness REPAIRED, commit 'recapture harness runs again': useFloorBufferedRules passthrough, so NO bill buffer - reads
@@ -13004,17 +13015,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 03:49 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 04:11 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13024,14 +13034,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+dad2f02a [handoff]: R-NOW66 - f077f9bb cause corrected (always-pay pin), fix building
+da9b2c9e [handoff]: R-NOW66 - e943755b re-measured, owners resume line to Sam, f077f9bb open
+5a94c06f [test]: the fixture recapture harness runs again (useFloorBufferedRules passthrough)
+6f301d4d [handoff]: R-NOW65 - fill residue content-driven, goal-grid gate 390+1440
 d8b3a471 [gate]: check:goal-grid measures 390 as well as 1440, row by row
 83768b52 [handoff]: R-NOW65 - upcoming-week columns shipped
 7d8ede82 [dashboard]: Upcoming This Week lays out in columns on desktop, so each amount sits by its bill
 2aae52e7 [handoff]: R-NOW65 - bgtask on TestFlight 1283, walk:press not-found 0, goal grid shipped
-b394afdc [dashboard]: Goal Progress columns follow the goal count, so one goal is not a third of the card
-813b21c1 [walk]: walk:press waits for skeletons to clear before looking for a control
-a288b225 [release]: VERSION 6.8.1 -> 6.8.2 - Apple approved 6.8.1, so its train is closed
-cf22e0dd [widget]: log iOS background-task refreshes as 'bgtask', apart from an app close
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
