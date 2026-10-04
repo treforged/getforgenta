@@ -44,7 +44,8 @@ R-NOW60 (10-03 ~20:30 ET, Ada successor of b4). START HERE, IN ORDER:
        copy on ranking header + Recommended This Month. Verified localhost:8080 as Tre: Discover rec "Minimum payment
        $150.40", hint "The plan pays the minimum too for now". c013318d CLOSED. Engine needed NO change: Tre's cards
        block is sort 3 under "Move fund" (sort 1, auto_extra, $1,793.56 to go).
-       RESIDUE to check: Discover's sim shows Oct 2026 -$350.28 (the "+$350.28 optional after payday") while the goal
+       [x] RESOLVED, NOT A BUG: Move fund is a dated goal, paced at $40/mo, passing the rest down; copy corrected to
+       "this month's share". (was) RESIDUE to check: Discover's sim shows Oct 2026 -$350.28 (the "+$350.28 optional after payday") while the goal
        above is unmet. Is optional extra skipping the goal reserve? Read computeAutoExtraReserve vs the optional path.
     3. [x] Plaid probe (req 4220, 10-04): Robinhood stmt 334.26/min 25/due 12 = stored. Chase 5630 (Prime) stmt
        7,991.16, min 773.05 = stored min. Discover stmt 10,413.92 (09-04), min 0 (paid 198.17 on 10-01, due 11-01),
