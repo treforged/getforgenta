@@ -29,6 +29,20 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW63 (10-04 ~00:40 ET, Ada successor of f1). START HERE, IN ORDER:
+    1. [x] R-NOW62 item 1 VERIFIED on localhost:8080 /debt as Tre: label x5, "never shrinks to fit" x0, "Treated as a
+       fixed obligation" x1 (Robinhood is the only card ON). No revert.
+    2. [ ] ec48da25 read-back at/after 09:17 ET 10-04 (SQL in R-NOW62 item 2). A session cron fd85591b fires 09:19 in
+       THIS tab only - if this tab is gone, run it by hand.
+    3. [~] 52898f88 overload. SHIPPED + pushed 0/0: shared src/components/shared/MoreInfo.tsx (one disclosure for every
+       "explain once" note; test proven red). 4001692a /debt: cash-floor, loan-totals, 0% plans notes + the earlier
+       "How this is worked out" all on MoreInfo. Dashboard Recommended This Month loan note. 029e1266 Goals tab: per-row
+       "Why Add is off" (was the same 30-word sentence x3), "How the order works" (goal-order sentence KEPT VISIBLE per
+       2d104bc7), projection "What this line includes". All pressed on localhost as Tre. NEXT: the same scan on a NEW
+       user (walk:empty, throwaway @forgenta.test, delete after) - Overview tab, Forecast, Budget; the scan that found
+       these: long `main p` textContent (>110 chars) per route. innerText reads EMPTY in the hidden MCP tab - use
+       textContent.
+    4. Monday 10-05: e501632b.
 R-NOW62 (10-04 ~00:45 ET, Ada getforgenta-f1, handoff gate). START HERE, IN ORDER:
     1. [ ] VERIFY last commit on localhost:8080 /debt as Tre (read-only): "Always pay this, no matter what" label shows on
        each card, the off-state sentence "never shrinks to fit" appears 0 times, "Treated as a fixed obligation" appears
@@ -12940,7 +12954,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 00:00 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 00:18 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -12959,14 +12973,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+03b28e26 [handoff]: R-NOW62 - verify always-pay render, ec48da25 read-back, overload next
+12f5eb88 [debt]: 'Always pay this' explains itself only when switched on
+737f49f9 [debt]: 'How this is worked out' - the Recommended method note moves behind a tap
 57015f4f [handoff]: Mac brief for native glass (ask 28589795)
 70a64576 [handoff]: R-NOW61 - four asks closed, ec48da25 read-back first
 9662049b [legal]: privacy policy names Plaid as the only bank-link provider
 e197ed4e [handoff]: fill progress 57 -> 51
 99b87f9a [layout]: loan tiles one line, Goal Progress empty state one row, Which Card rows one line
-943a064b [handoff]: width-ranked fill targets
-9a03f7b0 [scripts]: inventory:fill also reports empty WIDTH, with its own planted controls
-0572573c [handoff]: bank minimum deployed, read-back pending
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
