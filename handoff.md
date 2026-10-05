@@ -29,6 +29,21 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW83 (10-05 ~00:40Z, Ada getforgenta-97 hit the 175-call gate). START HERE, IN ORDER:
+    1. [~] d5c183b3 LOCAL STACK (Tre: "3. yes"). UAC raised for scripts/install-local-stack.ps1 (WSL2 + Docker Desktop,
+       NO reboot). Read scripts/install-local-stack.log (gitignored): "2 of 2 done" = installed; "FAIL" names the step.
+       NEXT after Tre REBOOTS (a reboot closes every desk, so it is his timing; tell Sam): `npx supabase start` (applies
+       supabase/migrations), then copy ONLY Tre's rows (user a72f416e): in prod, `create schema export_tre` + `create
+       table export_tre.<t> as select * from public.<t> where user_id = '<id>'` per user table, revoke from
+       anon/authenticated; `npx supabase db dump --linked --data-only --schema export_tre -f local-stack/tre.sql`
+       (local-stack/ is gitignored); `drop schema export_tre cascade` in prod at once; load locally into public.
+       NEVER a full dump: it would put other users' personal data on this PC. Undo = `npx supabase stop
+       --no-backup` + delete local-stack/ + `winget uninstall -e --id Docker.DockerDesktop` + `wsl --uninstall`.
+    2. [x] walk:press popup grace 8941c777: full walk 390/167/167, 0 no-change, PASS.
+    3. [ ] 853aba70: CronCreate 04d35a7e (06:23 ET 10-05) DIES WITH THIS TAB - re-arm it in the successor.
+    4. [ ] Watch for a repeat DB stall within 24 h of 23:16Z (if it happens: evidence to Sam for a compute upgrade, d9e5961c).
+    5. [ ] STANDING e1b0fffc.
+    Sam is now tre-forged-52.
 R-NOW82 (10-04 ~23:55Z, Ada getforgenta-97). OUTAGE OVER, WALK CLEAN.
     [x] da91e541 RECOVERED 23:16:21Z after Tre restarted the project (b570bd5f). Cause: OUR DB I/O-starved
         (19:00-23:16Z), not the regional incident. cron 28 session-watch slowed to */10 (undo: cron.alter_job(28,
