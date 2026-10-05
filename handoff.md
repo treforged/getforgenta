@@ -1,6 +1,20 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NEXT (2026-10-05 18:10 ET, Ada getforgenta-56 -> successor). IN ORDER:
+  1. ask 47a25afa FIRST-RUN DOUBLE DIALOG - REAL, diagnosed: WhatsNewDialog is mounted ONLY in Dashboard.tsx:1344,
+     onboarding runs on /onboarding (App.tsx:376, outside the Dashboard), so the "record silently while not onboarded"
+     effect in src/components/shared/WhatsNewDialog.tsx:61 never runs; a new user finishes the wizard, lands on Home with
+     onboarding_completed=true and no whats_new flag -> tour + What's New stacked. Candidate fix: write the
+     whatsNewFlag(CURRENT_RELEASE.version) into tour_flags in the onboarding finish save (grep the save in
+     src/pages/Onboarding.tsx), OR suppress while tour_flags.new_user_done !== true - CHECK the data split first:
+     select onboarding_completed, tour_flags->>'new_user_done', count(*) from profiles group by 1,2 (not yet run).
+     Prove with scripts/check-new-account-simple.cjs pattern on a SQL throwaway, but walk the REAL wizard
+     (npm run walk:first-run) rather than setting onboarding_completed by SQL.
+  2. ask 5b166e10 remaining: Budget, Forecast, Transactions Simple views (spec docs/simple-view/PROPOSAL.md; Forecast
+     already has a Summary/Detail toggle at src/pages/Forecast.tsx:155 to fold in). Gate each with
+     MSYS_NO_PATHCONV=1 PRESS_ROUTE=<route> ROUTES=<route> node scripts/measure-detail-load.mjs (red-prove each).
+  3. Re-run npm run check:grid-orphans after any layout change (49 reads, must stay 0).
 R-SIMPLE (2026-10-05 ~18:30 ET, Ada): SHIPPED Home, Debt, Accounts Simple views + new accounts default Simple (879d7448, Tre '1. yes'); layout ask 4ee0a129 DONE (check:grid-orphans, 49 reads 0 findings, red-proven). Gates: measure:detail-load (VIEW_MODE / PRESS_ROUTE / WIDTH), check:grid-orphans, scripts/check-new-account-simple.cjs (needs a SQL throwaway). NEXT on 5b166e10: Budget, Forecast, Transactions Simple; then the first-run double-dialog ask.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
