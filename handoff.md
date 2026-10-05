@@ -38,8 +38,9 @@ R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
        Undo: npx supabase stop --workdir local-stack/sb --no-backup; delete local-stack/ + .env.offline.local; remove the rule.
     2. [x] c3031372 + 07210a47 (Tre's Debt asks) SHIPPED dc6603ea: promo summary line + CardPromoList in the opened
        card; lg+ layout (controls|order equal height, summary full width, Recommended figures 1 row + rows 2x2).
-    3. [~] STANDING e1b0fffc: walk:press running (task bizkr0ccx, log in scratchpad walk-press.log); then
-       check:dark-contrast + check:dark-contrast:desktop. NEVER while a game runs.
+    3. [x] STANDING e1b0fffc walk 10-05 ~04:30: walk:press PASS 390/167/167; dark-contrast phone PASS 477;
+       desktop found green "$0.00" on /budget 4.43:1 -> FIXED af1b22fe (--success-text split, 81 classes); desktop PASS 0/463.
+       NEXT standing: check:light-contrast:desktop, walk:empty (throwaway @forgenta.test made+deleted in SQL).
     4. [~] 853aba70 cron fd4341f9 06:23 ET; DB probe cron 12f8b011 :17/:47 until 23:16Z. Both session-only.
     5. Orphan vite pid 17384 on :8080 (mine, from 02:34) - the classifier refused my kill; Tre may end it. It serves current code.
     6. 73df9085 routed to Sam (Tre: make the Sam session Remote Control).
