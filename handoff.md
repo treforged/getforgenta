@@ -48,6 +48,15 @@ R-NOW86 (10-05 ~04:30 ET, Ada getforgenta-1f, OVERDRIVE). Crons RE-ARMED (sessio
     CORRECTION 12:02Z: schedules are ALIVE. `gh run list --event schedule` repo-wide returned STALE rows; read per workflow
     via `gh api .../workflows/<f>/runs?event=schedule` (Promote 03:57Z 10-05). Only android-build '0 10' never fired.
     Promote DISPATCHES wedge (3 runs queued, 0 jobs, DELETE 403, force-cancel 409). b1fc066f checks the 12:00Z tick.
+    [!] MY ERROR 13:38Z: a dispatch-only promote copy (run 37318367911) PROMOTED today's release 10%->100% after ~2h,
+    because last-shipped-run read the STALE run list (09-11). Told Sam. Tre decided (600525fd): keep it, ship 100% always.
+    [~] 7ef43384 SHIPPED a23e9c19: Deploy step 'Deploy to Google Play (Production)' status: completed; last-shipped-run
+    takes 'new||old' names (test proven red); BOTH promote workflows deleted. LEFT: verify on the NEXT ship (daily 10:00Z
+    cron has never fired yet - else dispatch) that Play production reads 100%, then ask done 7ef43384.
+    KNOWN RESIDUE: last-shipped-run uses `gh run list`, which returned stale rows today - a ship decision may re-ship or
+    a release note may cover too wide a range. schedule-canary.yml still on main (6dce46c4, 0 scheduled ticks so far).
+    [x] dce52d58 Tre: groceries 150 in the no-rent gap: 0683bc28 ends 2027-03-31, 562abcf4 150 Apr-Jun 2027, ddc609d6
+    230 from 2027-07-01. Snapshot backup.tre_groceries_20261005.
 R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
     1. [x] d5c183b3 OFFLINE STACK DONE (Tre "1. yes"). `npx supabase start --workdir local-stack/sb -x edge-runtime`
        (schema-only prod dump; repo migrations cannot build from zero), then `npm run dev:offline` (:8081, vite mode
@@ -13292,16 +13301,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 07:57 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 09:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13311,6 +13321,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+0a6ce0cc [handoff]: correct the dead-schedules claim; promote dispatches wedge
 4fc07c41 [handoff]: promote workflow wedged on GitHub; soak 18h
 de2e1582 [ci]: Android rollout soak 18h, so it can complete between daily ships (6dce46c4)
 4d1be0ce [handoff]: Play shipped (37303553168); schedule repair in flight
@@ -13318,7 +13329,6 @@ de2e1582 [ci]: Android rollout soak 18h, so it can complete between daily ships 
 6f2663a3 [ci]: temporary 5-minute schedule canary - does GitHub fire any schedule here? (6dce46c4)
 16eefd95 [handoff]: 853aba70 blocked - repo schedules silent since 09-11 (6dce46c4)
 fdc3e5ab [handoff]: R-NOW86 - light phone contrast PASS 477/0
-b2c84099 [handoff]: R-NOW86 - crons re-armed, walk:empty + one-banner PASS on a deleted throwaway
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
