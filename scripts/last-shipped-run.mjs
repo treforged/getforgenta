@@ -33,13 +33,16 @@ export function ghJson(args) {
  */
 export function lastShippedRun({ workflow, step, branch = 'main', gh = ghJson }) {
   if (!workflow || !step) throw new Error('workflow and step are both required');
+  // `step` may name several steps joined by '||', so a RENAMED deploy step still finds the runs that
+  // shipped under its old name (2026-10-05: 'staged 10%' became a full release, 7ef43384).
+  const names = step.split('||').map(n => n.trim()).filter(Boolean);
   const runs = gh(['run', 'list', '--workflow', workflow, '--branch', branch, '--limit', String(WINDOW),
     '--json', 'databaseId,headSha,status']);
   for (const run of runs) {
     if (run.status !== 'completed') continue;
     const { jobs = [] } = gh(['run', 'view', String(run.databaseId), '--json', 'jobs']);
     for (const job of jobs) {
-      const hit = (job.steps ?? []).find(s => s.name === step && s.conclusion === 'success');
+      const hit = (job.steps ?? []).find(s => names.includes(s.name) && s.conclusion === 'success');
       if (hit) return { sha: run.headSha, completedAt: hit.completedAt, runId: run.databaseId };
     }
   }

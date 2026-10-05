@@ -52,4 +52,14 @@ describe('lastShippedRun - the last run whose store step succeeded, not the last
     const { gh } = fakeGh([{ databaseId: 1, headSha: 'x', status: 'completed' }], { 1: job('success') });
     expect(lastShippedRun({ workflow: 'android-build.yml', step: 'Deploy to Google Play', gh })).toBeNull();
   });
+
+  it('finds a run that shipped under the OLD step name when given both names (rename, 7ef43384)', () => {
+    const NEW = 'Deploy to Google Play (Production)';
+    const { gh } = fakeGh(
+      [{ databaseId: 9, headSha: 'push-only', status: 'completed' }, { databaseId: 8, headSha: 'old-name-ship', status: 'completed' }],
+      { 9: [{ steps: [{ name: NEW, conclusion: 'skipped' }] }], 8: job('success', '2026-10-05T11:40:00Z') },
+    );
+    expect(lastShippedRun({ workflow: 'android-build.yml', step: `${NEW}||${STEP}`, gh })?.sha).toBe('old-name-ship');
+    expect(lastShippedRun({ workflow: 'android-build.yml', step: NEW, gh })).toBeNull();
+  });
 });

@@ -3,7 +3,7 @@ name: Tests
 # THE POINT OF THIS FILE IS THAT IT DEPLOYS NOTHING.
 #
 # Until 2026-09-03 the only workflow that touched the Android project was
-# `android-build.yml`, which ships to Google Play (production, staged 10%) on
+# `android-build.yml`, which ships to Google Play (production, full release) on
 # every push to main touching `src/**` or `android/**`. That made `main` a
 # release channel rather than a branch, and it meant THE ONLY WAY TO EXERCISE CI
 # WAS TO PUBLISH A RELEASE. A pipeline you cannot test without shipping is a

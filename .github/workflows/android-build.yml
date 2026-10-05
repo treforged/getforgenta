@@ -96,7 +96,7 @@ jobs:
             exit 0
           fi
           set +e
-          LAST=$(node scripts/last-shipped-run.mjs android-build.yml "Deploy to Google Play (Production, staged 10%)")
+          LAST=$(node scripts/last-shipped-run.mjs android-build.yml "Deploy to Google Play (Production)||Deploy to Google Play (Production, staged 10%)")
           CODE=$?
           set -e
           if [ "$CODE" = "0" ] && [ "${LAST%% *}" = "$GITHUB_SHA" ]; then
@@ -274,7 +274,7 @@ jobs:
           RELEASE_RANGE_WORKFLOW: android-build.yml
           # The range starts at the last run that REACHED Play, so a daily deploy's note covers
           # every push since, not just the last one.
-          RELEASE_RANGE_SHIPPED_STEP: Deploy to Google Play (Production, staged 10%)
+          RELEASE_RANGE_SHIPPED_STEP: Deploy to Google Play (Production)||Deploy to Google Play (Production, staged 10%)
         run: |
           mkdir -p whatsnew
           # A SHIPPING RUN NEEDS THE LAST SHIPPED COMMIT IN THE CLONE. Since the daily schedule
@@ -330,15 +330,17 @@ jobs:
             exit 1
           fi
 
-      - name: Deploy to Google Play (Production, staged 10%)
+      # FULL RELEASE, NO STAGED ROLLOUT (Tre 2026-10-05, decision 600525fd, ask 7ef43384: "just set
+      # it to 100% automatically from now on"). The 6-hourly promote workflow is retired. The old
+      # step name stays in the lookups above so runs that shipped under it are still found.
+      - name: Deploy to Google Play (Production)
         if: steps.ship.outputs.ship == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           packageName: com.treforged.forged
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           tracks: production
-          status: inProgress
-          userFraction: 0.10
+          status: completed
           mappingFile: android/app/build/outputs/mapping/release/mapping.txt
           whatsNewDirectory: whatsnew
           serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
