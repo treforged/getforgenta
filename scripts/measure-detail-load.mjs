@@ -21,6 +21,7 @@ import { readFileSync, mkdirSync } from 'node:fs';
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
 const OUT = 'test-results/detail-load';
+const W = Number(process.env.WIDTH || 390); // WIDTH=1440 for the desktop layout
 const ROUTES = (process.env.ROUTES || '/dashboard,/dashboard?tab=goals,/dashboard?tab=accounts,/transactions?tab=transactions,/transactions?tab=budget,/transactions?tab=forecast,/debt').split(',');
 const fail = (code, msg) => { console.error(msg); process.exit(code); };
 
@@ -46,7 +47,7 @@ if (!session.access_token) fail(2, `sign-in returned ${res.status}`);
 const { chromium } = await import('@playwright/test');
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: 'dark' });
+const ctx = await browser.newContext({ viewport: { width: W, height: 844 }, deviceScaleFactor: W > 800 ? 1 : 2, colorScheme: 'dark' });
 let aborted = 0;
 await ctx.route(`${url}/**`, async (route) => {
   const m = route.request().method();
@@ -106,17 +107,17 @@ for (const r of ROUTES) {
   const name = r.replace(/[/?=&]/g, '_').replace(/^_/, '');
   // The app scrolls an inner container, so fullPage captures one viewport. Grow the viewport to
   // the measured height for the frame, then put it back.
-  await page.setViewportSize({ width: 390, height: Math.min(cur.height + 120, 12000) });
+  await page.setViewportSize({ width: W, height: Math.min(cur.height + 120, 12000) });
   await page.waitForTimeout(800);
   await page.screenshot({ path: `${OUT}/${name}.png` });
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: W, height: 844 });
   rows.push({ route: r, ...cur, screens: +(cur.height / 844).toFixed(1), settled: ok });
 }
-// PRESS PHASE (Advanced runs only): press Simple on /dashboard and require FEWER cards, then press
+// PRESS PHASE (Advanced runs only): press Simple on PRESS_ROUTE (default /dashboard) and require FEWER cards, then press
 // "Show advanced detail" and require the count to come back. The save is answered 204 in-browser.
 let press = null;
 if (!process.env.VIEW_MODE) {
-  await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}${process.env.PRESS_ROUTE || '/dashboard'}`, { waitUntil: 'domcontentloaded' });
   const settle = async () => { let p = null; for (let t = 0; t < 20; t++) { await page.waitForTimeout(1500); const c = await read(); if (p && c.skeleton === 0 && c.cards > 0 && c.cards === p.cards && c.figures === p.figures) return c; p = c; } return null; };
   const before = await settle();
   await page.getByRole('tab', { name: 'Simple' }).click();
@@ -124,7 +125,7 @@ if (!process.env.VIEW_MODE) {
   if (before && simple && !(simple.cards < before.cards)) fail(1, `PRESS FAILED: pressing Simple left ${simple.cards} cards (Advanced ${before.cards}).`);
   await page.getByTestId('show-advanced').click();
   const back = await settle();
-  await page.setViewportSize({ width: 390, height: 844 });
+  await page.setViewportSize({ width: W, height: 844 });
   press = { before, simple, back };
 }
 await browser.close();
@@ -132,8 +133,8 @@ await browser.close();
 console.log('route'.padEnd(34), 'cards', 'figures', 'screens', 'settled');
 for (const x of rows) console.log(x.route.padEnd(34), String(x.cards).padStart(5), String(x.figures).padStart(7), String(x.screens).padStart(7), x.settled ? '' : 'UNSTABLE');
 console.log(`writes answered in-browser (not sent): ${aborted}`);
-const dash = rows.find((x) => x.route === '/dashboard');
-if (!dash || dash.cards < 1 || dash.figures < 1) fail(2, 'CONTROL FAILED: /dashboard read no cards or no figures.');
+const dash = rows[0];
+if (!dash || dash.cards < 1 || dash.figures < 1) fail(2, `CONTROL FAILED: ${rows[0]?.route} read no cards or no figures.`);
 if (press) {
   const { before, simple, back } = press;
   if (!before || !simple || !back) fail(2, 'PRESS: a read never settled.');

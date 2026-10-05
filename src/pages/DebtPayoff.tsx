@@ -28,6 +28,8 @@ import { isCardOpenAsOf } from '@/lib/card-start-date';
 import { debtTabFromSearch, type DebtTab } from '@/lib/debt-tab';
 import VehicleMoneyPanels from '@/components/vehicles/VehicleMoneyPanels';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { useViewMode } from '@/hooks/useViewMode';
+import { ViewModeSwitch } from '@/components/shared/ViewModeSwitch';
 
 const emptyForm = { name: '', balance: '', apr: '', min_payment: '', target_payment: '', credit_limit: '' };
 
@@ -76,6 +78,9 @@ export default function DebtPayoff() {
   const [form, setForm] = useState(emptyForm);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [activeTab, setActiveTab] = usePersistedState<DebtTab>('tre:debtpayoff:activeTab', 'cards');
+  // Simple view (ask 5b166e10): the same switch as Home, one saved choice for the whole app.
+  const { mode: viewMode, setMode: setViewMode } = useViewMode();
+  const isSimple = viewMode === 'simple';
   const [searchParams, setSearchParams] = useSearchParams();
 
   // A deep link (`/debt?tab=auto`, which is what the Garage's car list points at now that the
@@ -468,6 +473,10 @@ export default function DebtPayoff() {
         DERIVED, NOT HAND-LISTED. The five buttons were five copies of one shape, which is how a
         sixth debt type gets added to the page and forgotten by whatever else enumerates them.
       */}
+      <div className="flex justify-center sm:justify-end">
+        <ViewModeSwitch mode={viewMode} onChange={setViewMode} />
+      </div>
+
       <PanelBar>
         {([
           { id: 'cards' as const, Icon: CreditCard, label: 'Credit Card Payoff', count: openCreditCards.length, always: true },
@@ -498,7 +507,7 @@ export default function DebtPayoff() {
       {activeTab === 'use' && <CardAdvisorPanel />}
 
       {/* Hidden with no open card: on an empty account it is a switch that changes nothing (walk:empty, 2026-10-01). */}
-      {activeTab === 'cards' && openCreditCards.length > 0 && (
+      {activeTab === 'cards' && !isSimple && openCreditCards.length > 0 && (
         <div className="flex items-center justify-between p-3 bg-secondary border border-border" style={{ borderRadius: 'var(--radius)' }}>
           <div className="min-w-0">
             <p className="text-xs font-medium">Pause optional savings transfers during payoff</p>
@@ -575,15 +584,23 @@ export default function DebtPayoff() {
           forecastRevolvingPayoffMonth={cardProjection?.forecastRevolvingPayoffMonth ?? null}
           simRevolvingPayoffMonth={cardProjection?.simRevolvingPayoffMonth ?? null}
           pauseSavings={pauseSavings}
+          simple={isSimple}
         />
         </ErrorBoundary>
       )}
 
       {/* fee53760: the consolidation calculator had tests and no screen. Collapsed by default. */}
-      {activeTab === 'cards' && (
+      {activeTab === 'cards' && !isSimple && (
         <ErrorBoundary variant="widget" label="Consolidation Loan">
           <ConsolidationPanel accounts={accounts ?? []} plans={paymentPlans ?? []} />
         </ErrorBoundary>
+      )}
+      {activeTab === 'cards' && isSimple && (
+        <button type="button" onClick={() => setViewMode('advanced')}
+          className="w-full text-left text-sm font-semibold text-primary py-3 border-t border-border/40 btn-press hover:underline"
+          data-testid="show-advanced">
+          Show advanced detail ›
+        </button>
       )}
 
       {activeTab === 'other' && (

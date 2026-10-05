@@ -138,6 +138,10 @@ type Props = {
    * usePersistedState here) so toggling the switch on DebtPayoff.tsx updates this component's own
    * calculations immediately, instead of only after the Cards tab unmounts/remounts. */
   pauseSavings: boolean;
+  /** Simple view (ask 5b166e10): hide the chart, the toolbar, the strategy controls and the
+   * per-card panels. Hidden with a class, not unmounted, so every figure is computed exactly as
+   * in Advanced; only what is on screen changes. */
+  simple?: boolean;
 };
 
 // The summary card's type scale, shared by its four tiles so they cannot drift apart.
@@ -182,7 +186,7 @@ const PAYMENT_MODE_TIPS = {
 // but it should not - the fix is numbers that reconcile, not a better caption for numbers
 // that do not.
 
-export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings }: Props) {
+export default function CreditCardEngine({ accounts, transactions, rules, debts, profile, goals, carFunds, incomeGrowthEnabled, incomeGrowth, raiseMonth, raiseMode, bonusEnabled, bonusAmount, bonusMode, bonusMonth, bonusRecurring, taxReturnEnabled, taxReturnAmountOverride, taxReturnMonth, month0, perCardPayments, perCardPaymentsScaled, monthlyRevolvingBalances, monthlyCyclingOwed, monthlyCyclingInterest, monthlyBalances, monthlyInterest, paymentPlans, forecastRevolvingPayoffMonth, simRevolvingPayoffMonth, pauseSavings, simple = false }: Props) {
   // ⚠️ BOTH BINDINGS ARE NOW UNUSED and the line is KEPT ON PURPOSE. Their only reader was
   // `syncDebtAndAccount`, deleted 2026-09-12 with the never-wired inline target edit above it.
   // This is the file's ONLY `useDebts()` call, so reducing it to a bare `useDebts();` — or
@@ -1506,7 +1510,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         />
 
         {/* Debt Payoff Trajectory Chart */}
-        {debtChartData.length > 0 && (
+        {!simple && debtChartData.length > 0 && (
           <div className="card-forged p-4 sm:p-5 min-w-0 overflow-x-hidden">
             <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 mb-3 sm:mb-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 min-w-0">
@@ -1542,7 +1546,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             under the Payoff ETA figure, off on its own inside a stats tile). The "targets ending
             cash = safe minimum" note was the third place this page printed the safe minimum; it is
             the button's title now, and the figure stays in the Cash floor control. */}
-        <div className="flex items-center gap-2 sm:gap-3" data-testid="debt-toolbar">
+        <div className={`flex items-center gap-2 sm:gap-3 ${simple ? 'hidden' : ''}`} data-testid="debt-toolbar">
           <button
             onClick={handleAutoAdjust}
             title={`Recalculate the plan so cash ends each month near your safe minimum (${formatCurrency(recommendedSafeMinimum)})`}
@@ -1590,7 +1594,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             139px tall over an empty band. Controls on the left, what they produce on the right.
             Placed by grid lines, not by DOM order, so a phone still reads summary -> controls ->
             order, exactly as before. Two tiles per row in the half-width column. */}
-        <div className="card-forged p-4 sm:p-5 min-w-0 lg:col-span-2 lg:row-start-2">
+        {/* Simple hides the controls in cell 1, so the summary takes that cell beside the order. */}
+        <div className={`card-forged p-4 sm:p-5 min-w-0 ${simple ? 'lg:col-start-1 lg:row-start-1' : 'lg:col-span-2 lg:row-start-2'}`}>
           {/* ⚠️ FOUR TILES, NOT FIVE. "Total Limit" was removed on 2026-09-17 - Tre: "on the
               debt we don't need to see total limit and open limit. Those are the same exact
               thing." He is right, and it was verified rather than taken on trust: this tile summed
@@ -1684,7 +1689,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             the pills never wrap under the label (Snowball used to drop to the card's left edge at
             390). Every control is CONTROL_H tall, and the notes under the cash floor sit in the
             control column rather than at the card edge. */}
-        <div className="card-forged p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 min-w-0 lg:col-start-1 lg:row-start-1">
+        <div className={`card-forged p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 min-w-0 lg:col-start-1 lg:row-start-1 ${simple ? 'hidden' : ''}`}>
           <div className={CONTROL_ROW}>
             <span className={CONTROL_LABEL}>Strategy</span>
             <div className="flex flex-wrap items-center gap-2">
@@ -2198,7 +2203,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
         </div>
 
         {/* Individual Card Projections */}
-        <div className="space-y-3">
+        <div className={`space-y-3 ${simple ? 'hidden' : ''}`}>
           {projections.map(proj => {
             const isExpanded = expandedCard === proj.card.id;
             const cardOverrides = overrides[proj.card.id] || {};
