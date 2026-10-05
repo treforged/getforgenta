@@ -1,0 +1,18 @@
+name: Schedule canary
+
+# TEMPORARY (6dce46c4, 2026-10-05, Ada). No scheduled run has fired in this repo since
+# 2026-09-11, while push runs work. This does nothing but print the time, every 5 minutes,
+# to show whether GitHub's scheduler fires ANY workflow here. Delete this file once answered.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "schedule canary fired at $(date -u +%FT%TZ) event=${{ github.event_name }}"
