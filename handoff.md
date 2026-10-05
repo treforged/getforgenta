@@ -30,7 +30,8 @@ CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagg
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
 R-NOW83 (10-05 ~00:40Z, Ada getforgenta-97 hit the 175-call gate). START HERE, IN ORDER:
-    1. [~] d5c183b3 LOCAL STACK (Tre: "3. yes"). UAC raised for scripts/install-local-stack.ps1 (WSL2 + Docker Desktop,
+    1. [~] d5c183b3 LOCAL STACK (Tre: "3. yes"). INSTALL DONE 20:43:45 ET 10-04 (log "2 of 2 done"; Docker Desktop.exe present;
+       wsl --status Default Version 2). WAITING ON TRE'S REBOOT (told Sam). Then the steps below. UAC raised for scripts/install-local-stack.ps1 (WSL2 + Docker Desktop,
        NO reboot). Read scripts/install-local-stack.log (gitignored): "2 of 2 done" = installed; "FAIL" names the step.
        NEXT after Tre REBOOTS (a reboot closes every desk, so it is his timing; tell Sam): `npx supabase start` (applies
        supabase/migrations), then copy ONLY Tre's rows (user a72f416e): in prod, `create schema export_tre` + `create
