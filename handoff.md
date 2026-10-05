@@ -7,8 +7,10 @@ R-NEXT (2026-10-05 ~18:50 ET, Ada). BOTH ITEMS OF THE PREVIOUS R-NEXT ARE DONE A
       suppressing until the tour was rejected. walk:first-run REOPEN=1 is the only mode that sees the defect
       (pressing through leaves a stale cached profile and the dialog's silent branch hides it). Red -> green 11/11.
   [x] 5b166e10 Plan/Forecast/Transactions Simple: 3e286a7b. Plan 10->2, Forecast 17->4, Transactions 8->3 (Filters 3->8).
-  NEXT: ask 5ce71f3a - walk:press + contrast sweeps in the SIMPLE view (never run there), and Goals Simple.
-      Then eb7282e9 at 10:37Z 10-06 (Play ship fallback).
+  [x] 5ce71f3a Goals Simple + Simple-view sweeps: 02afccab. walk:press VIEW_MODE=simple PASS (135/135 changed);
+      check:*-contrast VIEW_MODE=simple 0 below AA x4. measure:detail-load gained PRESS_GONE + STUB_GOALS.
+  NEXT: eb7282e9 at 10:37Z 10-06 (Play ship fallback) - CronCreate 3a9ffcf6 armed in session getforgenta (06:39 ET);
+      a session that is not that one must do it by hand. Otherwise STANDING e1b0fffc (keep improving the app).
 R-SIMPLE (2026-10-05 ~18:30 ET, Ada): SHIPPED Home, Debt, Accounts Simple views + new accounts default Simple (879d7448, Tre '1. yes'); layout ask 4ee0a129 DONE (check:grid-orphans, 49 reads 0 findings, red-proven). Gates: measure:detail-load (VIEW_MODE / PRESS_ROUTE / WIDTH), check:grid-orphans, scripts/check-new-account-simple.cjs (needs a SQL throwaway). NEXT on 5b166e10: Budget, Forecast, Transactions Simple; then the first-run double-dialog ask.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
