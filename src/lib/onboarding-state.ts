@@ -17,6 +17,7 @@
 // you already finished is a worse failure than a checklist nudging someone who is already set up.
 
 import { supabase } from '@/integrations/supabase/client';
+import { CURRENT_RELEASE, whatsNewFlag } from '@/lib/whats-new';
 
 /**
  * The key `App.tsx` has always gated on. The `forged:` spelling is deliberately kept: renaming it
@@ -185,6 +186,42 @@ export async function markOnboardingComplete(
     return { ok: true };
   } catch (err: unknown) {
     return { ok: false, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Record the CURRENT What's New release as seen, for an account leaving the wizard.
+ *
+ * ⚠️ WHY THE WIZARD DOES THIS AND NOT THE DIALOG (ask 47a25afa). `WhatsNewDialog` records a
+ * not-yet-onboarded user silently - but it is mounted only in the Dashboard, and the wizard runs on
+ * /onboarding. So that silent branch never ran for anybody who onboarded through the wizard: they
+ * landed on Home already onboarded, with no flag, and got the tour AND a catch-up card about a
+ * release they never used, stacked. Suppressing the dialog until the tour is done was the other
+ * option and is wrong: 2 onboarded accounts have no `new_user_done` (SQL, 2026-10-05), and they
+ * would never see a release again.
+ *
+ * Read-merge-write, because `tour_flags` is a shared map and a blind write would erase the tour's
+ * own flags. Best effort: a failure here costs one extra dialog, never a lost setup, so it never
+ * blocks the exit.
+ */
+export async function recordCurrentReleaseSeen(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('tour_flags')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error || !data) return false;
+    const flags = (data.tour_flags as Record<string, boolean> | null) ?? {};
+    const key = whatsNewFlag(CURRENT_RELEASE.version);
+    if (flags[key] === true) return true;
+    const { error: writeError } = await supabase
+      .from('profiles')
+      .update({ tour_flags: { ...flags, [key]: true } })
+      .eq('user_id', userId);
+    return !writeError;
+  } catch {
+    return false;
   }
 }
 

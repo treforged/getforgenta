@@ -15,6 +15,10 @@
  *   - the profile reads onboarding_furthest_step='finish' and onboarding_completed=true,
  *     both straight after the walk and again 10 s later (the app must not undo it)
  *   - the wizard's income really saved: weekly_gross_income > 0 on the row
+ *   - Home opens with ONE dialog, never the tour AND What's New stacked (ask 47a25afa), and the
+ *     row carries a whats_new_* flag, because the wizard runs where WhatsNewDialog is not mounted.
+ *     REOPEN=1 loads /dashboard fresh after the finish screen instead of pressing "Continue free";
+ *     only that mode can see the defect, because pressing through leaves a stale cached profile.
  *
  * CREDENTIALS come from FIRST_RUN_EMAIL / FIRST_RUN_PASSWORD and are never stored. The account is
  * created in SQL for the run and DELETED after it (ask 813d6b21 pattern); this script never creates
@@ -59,7 +63,7 @@ let chromium;
 try { ({ chromium } = await import('@playwright/test')); } catch { fail(2, 'could not load @playwright/test.'); }
 
 const rest = { apikey: anon, Authorization: `Bearer ${session.access_token}` };
-const COLS = 'display_name,onboarding_completed,onboarding_completed_via,onboarding_furthest_step,weekly_gross_income';
+const COLS = 'display_name,onboarding_completed,onboarding_completed_via,onboarding_furthest_step,weekly_gross_income,tour_flags';
 async function readProfile() {
   const r = await fetch(`${url}/rest/v1/profiles?select=${COLS}&user_id=eq.${uid}`, { headers: rest });
   const rows = r.ok ? await r.json() : [];
@@ -98,6 +102,9 @@ const checks = [];
 let landed = '';
 let wizardShown = false;
 let finishShown = false;
+let whatsNewOnHome = null;
+let tourOnHome = false;
+let dialogsOnHome = -1;
 try {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
@@ -120,11 +127,26 @@ try {
   finishShown = await page.getByText(/Your profile is set/i).first()
     .waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
   await shot('finish');
-  await press(/Continue free/i);
+  if (process.env.REOPEN === '1') {
+    // A user who finishes the wizard and opens the app LATER: a fresh load, no query cache left
+    // over from the wizard. Without it the dialog's silent branch reads a stale "not onboarded"
+    // profile and hides ask 47a25afa (proven 2026-10-05: the stripped fix still passed).
+    await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+  } else {
+    await press(/Continue free/i);
+  }
   await page.waitForURL((u) => new URL(u).pathname === '/dashboard', { timeout: 10000 }).catch(() => {});
   landed = new URL(page.url()).pathname;
   await page.waitForTimeout(3000);
   await shot('dashboard');
+  // Wait for the tour (control: a brand-new account must get it) so "no What's New" is not a read
+  // taken before Home mounted - the first REOPEN red run read 0 dialogs for exactly that reason.
+  tourOnHome = await page.getByText(/Getting started/i).first()
+    .waitFor({ timeout: 20000 }).then(() => true).catch(() => false);
+  await page.waitForTimeout(4000);
+  // Counted by role and by the dialog's own accessible name, never by a class the fix touched.
+  whatsNewOnHome = await page.getByRole('dialog', { name: /what's new in forgenta/i }).isVisible().catch(() => false);
+  dialogsOnHome = await page.locator('[role=dialog]:visible, [role=alertdialog]:visible').count();
 } catch (err) {
   console.error(`walk stopped: ${err.message}`);
   await shot('stopped').catch(() => {});
@@ -150,6 +172,12 @@ checks.push(
   ['both still true 10 s later (the app did not undo them)', after2.onboarding_furthest_step === 'finish' && after2.onboarding_completed === true,
     `${after2.onboarding_furthest_step} / ${after2.onboarding_completed}`],
   ['the income saved (weekly_gross_income > 0)', Number(after2.weekly_gross_income) > 0, `${after2.weekly_gross_income}`],
+  ['Home opens the tour for a brand-new account (control)', tourOnHome, `tour=${tourOnHome}`],
+  ["Home does not open What's New for a brand-new account", landed === '/dashboard' && whatsNewOnHome === false,
+    `whatsNew=${whatsNewOnHome}, visible dialogs=${dialogsOnHome}`],
+  ['the row records the current release as seen (whats_new_* flag)',
+    Object.keys(after2.tour_flags || {}).some((k) => k.startsWith('whats_new_') && after2.tour_flags[k] === true),
+    `${JSON.stringify(after2.tour_flags)}`],
 );
 let failed = 0;
 for (const [name, ok, detail] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${detail}`); if (!ok) failed++; }

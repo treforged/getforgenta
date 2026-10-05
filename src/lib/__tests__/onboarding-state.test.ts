@@ -38,8 +38,10 @@ import {
   resolveOnboardingState,
   fetchOnboardingCompleted,
   markOnboardingComplete,
+  recordCurrentReleaseSeen,
   ONBOARDING_FETCH_TIMEOUT_MS,
 } from '../onboarding-state';
+import { CURRENT_RELEASE, whatsNewFlag } from '../whats-new';
 
 const USER = 'user-abc';
 
@@ -204,5 +206,33 @@ describe('markOnboardingComplete', () => {
     updateEq.mockRejectedValue(new Error('offline'));
     await expect(markOnboardingComplete(USER, 'wizard')).resolves.toMatchObject({ ok: false });
     expect(readOnboardingCache(USER)).toBe(false);
+  });
+});
+
+// Ask 47a25afa: the wizard runs outside the Dashboard, so WhatsNewDialog's silent branch never
+// recorded a new account and Home opened the tour AND What's New together.
+describe('recordCurrentReleaseSeen', () => {
+  const KEY = whatsNewFlag(CURRENT_RELEASE.version);
+
+  it('adds the current release flag WITHOUT erasing the tour flags already there', async () => {
+    selectMaybeSingle.mockResolvedValue({ data: { tour_flags: { new_user_done: true } }, error: null });
+    updateEq.mockResolvedValue({ error: null });
+    await expect(recordCurrentReleaseSeen(USER)).resolves.toBe(true);
+    expect(updatePayloads).toEqual([{ tour_flags: { new_user_done: true, [KEY]: true } }]);
+  });
+
+  it('treats a null tour_flags as an empty map', async () => {
+    selectMaybeSingle.mockResolvedValue({ data: { tour_flags: null }, error: null });
+    updateEq.mockResolvedValue({ error: null });
+    await recordCurrentReleaseSeen(USER);
+    expect(updatePayloads).toEqual([{ tour_flags: { [KEY]: true } }]);
+  });
+
+  it('writes nothing when the release is already recorded, or the read failed', async () => {
+    selectMaybeSingle.mockResolvedValue({ data: { tour_flags: { [KEY]: true } }, error: null });
+    await expect(recordCurrentReleaseSeen(USER)).resolves.toBe(true);
+    selectMaybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    await expect(recordCurrentReleaseSeen(USER)).resolves.toBe(false);
+    expect(updatePayloads).toEqual([]);
   });
 });

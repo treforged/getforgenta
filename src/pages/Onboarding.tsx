@@ -23,6 +23,7 @@ import {
   markOnboardingComplete,
   type OnboardingCompletionPath,
   readOnboardingCache,
+  recordCurrentReleaseSeen,
   writeOnboardingCache,
 } from '@/lib/onboarding-state';
 import {
@@ -452,6 +453,8 @@ export default function Onboarding() {
       // here on its stale copy.
       writeOnboardingCache(user!.id);
       qc.setQueryData(onboardingQueryKey(user!.id), true);
+      // Before Home opens, so the tour is the only dialog a new account meets (ask 47a25afa).
+      await recordCurrentReleaseSeen(user!.id);
       // The answers are on the server now; the draft is spent. Cleared here and not in `finally`,
       // so a throw on the way up leaves the input intact for the retry.
       clearOnboardingDraft();
@@ -492,6 +495,7 @@ export default function Onboarding() {
       return;
     }
     qc.setQueryData(onboardingQueryKey(user.id), true);
+    await recordCurrentReleaseSeen(user.id);
     // Skipping is a decision, not an interruption — the half-filled draft should not reappear.
     clearOnboardingDraft();
     navigate('/dashboard');

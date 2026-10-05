@@ -241,6 +241,9 @@ section states reasoning, not measurement, and says so.
   SQL, pass FIRST_RUN_EMAIL / FIRST_RUN_PASSWORD, DELETE it after and prove auth.users returns). Reads the profile
   from outside the browser right after the walk and again 10 s later: furthest_step='finish', completed=true,
   income > 0, no write refused. First run 2026-10-01: 8/8, 15 writes all 2xx. A non-fresh account exits 2 (proven).
+  `REOPEN=1` loads /dashboard fresh after the finish screen and asserts Home shows the tour but NOT What's New, and the
+  row carries a whats_new_* flag (ask 47a25afa). Only REOPEN can see that defect: pressing through leaves a stale cached
+  profile that hides it. Red with the wizard's recordCurrentReleaseSeen stripped (What's New stacked, flag {}); green 11/11.
 - `npm run check:first-save` - at 390x844, signed in: walks onboarding twice and asserts the wizard
   saves on "See your plan" BEFORE the finish screen says "Your profile is set", that neither finish
   button saves again, and that every press works with the cookie banner up. Writes are answered
