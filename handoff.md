@@ -29,6 +29,14 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW84 (10-05 00:25 ET, Ada getforgenta-ae, CLOSED ON TRE'S ORDER, no successor). RESUME FIRST: (1) d5c183b3 local
+    stack - install DONE, waits on Tre's REBOOT; then the R-NOW83 item 1 steps. (2) 853aba70 date check: my cron 519bbea2
+    (06:23 ET) DIED WITH THIS TAB - run it by hand after 10:00Z 10-05 (gh run list --workflow android-build.yml --event
+    schedule; the Deploy step must be success). (3) DB stall watch: the 04:03 resume cron 30a56545 DIED WITH THIS TAB.
+    Probe now tracked: `bash scripts/db-stall-probe.sh` (keyed auth health + REST read). 4 reads 00:43Z-04:02Z, all OK.
+    Window ends 23:16Z 10-05. (4) STANDING e1b0fffc: run the headless regression walk (walk:press, check:dark-contrast,
+    :desktop) - NEVER while Tre is in a game (check Get-Process VALORANT*), and open no window.
+    Done this session: news asks d460d6b2/4ac0520f/87a57055 closed (watch only); inventory:fill re-run, /dashboard 0 flags.
 R-NOW83 (10-05 ~00:40Z, Ada getforgenta-97 hit the 175-call gate). START HERE, IN ORDER:
     1. [~] d5c183b3 LOCAL STACK (Tre: "3. yes"). INSTALL DONE 20:43:45 ET 10-04 (log "2 of 2 done"; Docker Desktop.exe present;
        wsl --status Default Version 2). WAITING ON TRE'S REBOOT (told Sam). Then the steps below. UAC raised for scripts/install-local-stack.ps1 (WSL2 + Docker Desktop,
@@ -13246,16 +13254,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 20:36 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 00:03 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13265,14 +13274,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+68fa9708 [handoff]: d5c183b3 install done, waits on Tre's reboot
+bdb78aea [handoff]: R-NOW83 - 853aba70 cron re-armed (519bbea2), DB stall watch 9108c059
 765d2ed2 [local-stack]: install script for WSL2 + Docker (d5c183b3), gitignore local data; handoff R-NOW83
 8941c777 test: walk:press waits up to 3 s for a late popup before calling a press dead
 a9caf0a3 [handoff]: R-NOW82 - outage over 23:16Z, full walk clean, f13ac477
 f13ac477 test: walk:press hides the backend-health banner it trips itself
 cee06e81 [handoff]: restart is Tre's click (b570bd5f), 8d0cddfd banner wording
 8d0cddfd [ui]: the outage notice says a provider "reports a problem", not that it caused the outage
-fff6d26f [handoff]: da91e541 diagnosis corrected - our DB is I/O-starved, not only the regional incident
-d74efa8a [handoff]: R-NOW81 - 7353acbf, 8b6ac319, d5c183b3 local stack ask, outage still on 21:05Z
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
