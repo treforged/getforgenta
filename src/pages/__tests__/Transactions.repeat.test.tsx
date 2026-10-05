@@ -40,6 +40,8 @@ const rule = {
   notes: null, active: true, created_at: '2026-01-01T00:00:00Z',
 };
 
+// The page reads the Simple|Advanced switch from the profile; these tests pin Advanced (ask 5b166e10).
+vi.mock('@/hooks/useViewMode', () => ({ useViewMode: () => ({ mode: 'advanced', setMode: () => {} }) }));
 vi.mock('@/hooks/useSupabaseData', () => ({
   useTransactions: () => ({
     data: [transaction], loading: false,

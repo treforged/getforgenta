@@ -47,6 +47,8 @@ const SPOTIFY_CHARGE = {
 /** Answered by the user months ago, never linked — the state the queue can no longer reach. */
 const ANSWERED = { synced_transaction_id: 'stx-spotify', transaction_id: null };
 
+// The page reads the Simple|Advanced switch from the profile; these tests pin Advanced (ask 5b166e10).
+vi.mock('@/hooks/useViewMode', () => ({ useViewMode: () => ({ mode: 'advanced', setMode: () => {} }) }));
 vi.mock('@/hooks/useSupabaseData', () => ({
   useTransactions: () => ({
     data: mocks.realTransactions, loading: false,

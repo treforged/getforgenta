@@ -47,6 +47,8 @@ import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
 import { Link, useSearchParams } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
+import { useViewMode } from '@/hooks/useViewMode';
+import { ViewModeSwitch } from '@/components/shared/ViewModeSwitch';
 import { useSubscription } from '@/hooks/useSubscription';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
@@ -158,6 +160,12 @@ export default function Transactions() {
   // heals anything else rather than rendering an empty surface.
   const [storedTab, setActiveTab] = usePersistedState<ActivityTab>('tre:transactions:tab', 'transactions');
   const activeTab = effectiveActivityTab(storedTab);
+  // Simple view (ask 5b166e10): each panel shows its short form; the ledger folds its filters and
+  // summaries behind one "Filters" button. The switch and the way back are on this page too.
+  const { mode: viewMode, setMode: setViewMode } = useViewMode();
+  const isSimple = viewMode === 'simple';
+  const [showFilters, setShowFilters] = useState(false);
+  const ledgerDetail = !isSimple || showFilters;
   // A link may name a panel — `/budget` redirects here saying `?tab=budget`. Honoured ONCE and then
   // stripped, after which the user's own remembered panel takes over again. Identical to Dashboard.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -874,6 +882,8 @@ export default function Transactions() {
   // gate used to wait for — so "No payment plans yet." showed up first.
   useEscapeToClose(() => { setEditChoiceId(null); setEditChoiceRule(null); }, editChoiceId !== null);
   useEscapeToClose(closePlanForm, showPlanForm);
+  const activeFilterCount = [filterMonth !== currentMonthStr, filterType !== 'all', filterCategory !== 'all', filterSource !== 'all']
+    .filter(Boolean).length;
   if (accountsLoading || transactionsLoading || rulesLoading || paymentPlansLoading) {
     return <TransactionsSkeleton />;
   }
@@ -892,6 +902,10 @@ export default function Transactions() {
     <div className="ml-auto">
       <SurfaceGuide surface="transactions" />
     </div>
+  </div>
+
+  <div className="flex justify-center sm:justify-end">
+    <ViewModeSwitch mode={viewMode} onChange={setViewMode} />
   </div>
 
   {/* Tabs — the rules, then everything those rules and the bank produce.
@@ -1004,7 +1018,7 @@ export default function Transactions() {
           queries never run while the user is on the ledger. */}
       {activeTab === 'budget' && (
         <Suspense fallback={<div className="h-64" />}>
-          <ErrorBoundary variant="widget" label="Plan"><BudgetControl embedded /></ErrorBoundary>
+          <ErrorBoundary variant="widget" label="Plan"><BudgetControl embedded simple={isSimple} /></ErrorBoundary>
         </Suspense>
       )}
 
@@ -1024,7 +1038,7 @@ export default function Transactions() {
           `> * + *`, which is DOM order, so the visual gap would land above the wrong half. */}
       {activeTab === 'forecast' && (
         <Suspense fallback={<PageSkeleton />}>
-          <ForecastPanel />
+          <ForecastPanel simple={isSimple} />
         </Suspense>
       )}
 
@@ -1073,7 +1087,7 @@ export default function Transactions() {
         </div>
       )}
 
-      {showDemoGuides && (
+      {showDemoGuides && ledgerDetail && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
@@ -1105,8 +1119,8 @@ export default function Transactions() {
         </div>
       )}
 
-      {/* Payment Plans Section — visible to all, gated for free users */}
-      <div className="card-forged overflow-hidden">
+      {/* Payment Plans Section — visible to all, gated for free users. Advanced only in Simple. */}
+      {ledgerDetail && <div className="card-forged overflow-hidden">
           <div
             onClick={() => setShowPlans(p => !p)}
             className="w-full flex items-center justify-between p-4 text-left hover:bg-muted/20 transition-colors cursor-pointer"
@@ -1219,7 +1233,7 @@ export default function Transactions() {
               )}
             </div>
           )}
-        </div>
+        </div>}
 
       {/* SEARCH, above the four selects and full width on a phone.
           It goes FIRST because that is where every ledger people already use puts it, and because
@@ -1250,7 +1264,17 @@ export default function Transactions() {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      {isSimple && (
+        <button type="button" onClick={() => setShowFilters(v => !v)} aria-expanded={showFilters}
+          data-testid="show-filters"
+          className="self-start inline-flex items-center gap-1.5 text-xs font-semibold text-primary btn-press hover:underline">
+          <SlidersHorizontal size={12} /> {showFilters ? 'Hide filters' : 'Filters'}
+          {/* A filter set in Advanced still applies here; the count says so rather than hiding it. */}
+          {activeFilterCount > 0 && <span className="seg-badge">{activeFilterCount}</span>}
+        </button>
+      )}
+
+      {ledgerDetail && <div className="flex flex-wrap items-center gap-2">
         <select aria-label="Filter by month" value={filterMonth} onChange={e => setFilterMonth(e.target.value)} className="bg-secondary border border-border px-2 py-1 text-xs text-foreground font-medium min-w-[120px]" style={{ borderRadius: 'var(--radius)' }}>
           <option value="all">All Time</option>
           {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -1273,7 +1297,7 @@ export default function Transactions() {
           <option value="all">All Sources</option>
           {paymentSourceOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-      </div>
+      </div>}
 
       <DuplicateTransactionWarning
         collisions={visibleDuplicates}
@@ -1281,7 +1305,7 @@ export default function Transactions() {
         onDismiss={dismissDuplicate}
       />
 
-      <div className="grid grid-cols-3 gap-3">
+      {ledgerDetail && <div className="grid grid-cols-3 gap-3">
         <div className="card-forged p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Income</p>
           <p className="text-sm font-display font-bold text-success-text">{formatCurrency(totals.income)}</p>
@@ -1300,9 +1324,9 @@ export default function Transactions() {
           )}
         </div>
         <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net)}</p></div>
-      </div>
+      </div>}
 
-      {Object.keys(spendBySource).length > 0 && (
+      {ledgerDetail && Object.keys(spendBySource).length > 0 && (
         <div className="card-forged p-4">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Spend by Payment Source</h3>
           {/* The count is the user's own, so a fixed column count always leaves a ragged last row
@@ -1443,6 +1467,15 @@ export default function Transactions() {
 
           </div>
         </div>
+      )}
+
+      {/* One footer for every panel in Simple, so each has the way back to Advanced. */}
+      {isSimple && (
+        <button type="button" onClick={() => setViewMode('advanced')}
+          className="w-full text-left text-sm font-semibold text-primary py-3 border-t border-border/40 btn-press hover:underline"
+          data-testid="show-advanced">
+          Show advanced detail ›
+        </button>
       )}
 
       {/* Edit Choice Dialog for Generated Transactions */}

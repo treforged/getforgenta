@@ -32,6 +32,8 @@ import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactio
 import CalcDrawer, { type CalcDrawerLine } from '@/components/shared/CalcDrawer';
 import ForecastHero from '@/components/forecast/ForecastHero';
 import ForecastAssumptionsPanel from '@/components/forecast/ForecastAssumptionsPanel';
+import ForecastSimpleSummary from '@/components/forecast/ForecastSimpleSummary';
+import { forecastLowPoint } from '@/lib/forecast-low-point';
 import MonthlyBreakdownTable from '@/components/forecast/MonthlyBreakdownTable';
 import { isManualCashFloor } from '@/lib/cash-floor';
 import ReceiptsDisclosure from '@/components/forecast/ReceiptsDisclosure';
@@ -96,7 +98,12 @@ function ForecastTooltip({ active, payload, label }: ForecastTooltipProps) {
   );
 }
 
-export default function Forecast() {
+/**
+ * `simple` (ask 5b166e10, docs/simple-view/PROPOSAL.md): one chart, the lowest point and its month,
+ * and how many of the next 12 months end below the floor. The controls, assumptions, year filter,
+ * monthly table, cash-flow and retirement cards are Advanced only. Nothing is removed from Advanced.
+ */
+export default function Forecast({ simple = false }: { simple?: boolean } = {}) {
   const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
   const { loading: debtsLoading } = useDebts();
@@ -318,6 +325,7 @@ export default function Forecast() {
 
   const freePreview = !isPremium && !isDemo;
   const displayData = freePreview ? filteredData.slice(0, 12) : filteredData;
+  const lowPoint = useMemo(() => forecastLowPoint(displayData), [displayData]);
 
   useEscapeToClose(() => setAssumptionsTutorialSeen(true), !isDemo && !assumptionsTutorialSeen);
   if (forecastInputsLoading) return <ForecastSkeleton />;
@@ -382,7 +390,7 @@ export default function Forecast() {
             <SurfaceGuide surface="forecast" />
           </div>
         </div>
-        <div className="w-full sm:w-auto">
+        {!simple && <div className="w-full sm:w-auto">
           {/* The disclosure itself is `sm:hidden`: it exists only where the controls cost a screen.
               It is a DISCLOSURE, not a hide — every control below is still reachable, one tap in,
               and the count says how many are waiting so an empty-looking toolbar is never a
@@ -473,7 +481,7 @@ export default function Forecast() {
             </>
           )}
           </div>
-        </div>
+        </div>}
       </div>
 
       {/* Directly under the button that opens it, so the press visibly does something on a small
@@ -498,16 +506,17 @@ export default function Forecast() {
           alone, each was a 1296px card with its text in the left corner (Tre, 2026-10-03, ask
           1be673ad: "fill in their boxes more or reduce the box sizes"). A phone stacks them, and
           with no short months the milestone keeps the full row. gap-5 is the stack-section gap. */}
-      <div className={`grid gap-5 ${!forecastInputsLoading && shortMonths.length > 0 ? 'lg:grid-cols-2' : ''}`}>
+      <div className={`grid gap-5 ${!forecastInputsLoading && (simple || shortMonths.length > 0) ? 'lg:grid-cols-2' : ''}`}>
         <ForecastHero
           milestones={projections.milestones}
           emptyReason={noInputs ? 'no-inputs' : 'no-milestones'}
         />
 
-        {!forecastInputsLoading && <ShortfallLevers shortMonths={shortMonths} compute={computeLevers} />}
+        {!forecastInputsLoading && !simple && <ShortfallLevers shortMonths={shortMonths} compute={computeLevers} />}
+        {!forecastInputsLoading && simple && <ForecastSimpleSummary lowPoint={lowPoint} shortMonthCount={shortMonths.length} />}
       </div>
 
-      {showDemoGuides && (
+      {showDemoGuides && !simple && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
@@ -541,7 +550,7 @@ export default function Forecast() {
           vertical-rhythm block in `src/index.css`. */}
       <div className="stack-row">
       {/* Year Filter — premium only */}
-      {!freePreview && (
+      {!freePreview && !simple && (
         <div className="flex gap-1.5 sm:gap-2 overflow-x-auto w-full pb-1">
           <SegmentedControl
             label="Filter forecast by year"
@@ -557,7 +566,7 @@ export default function Forecast() {
 
 
       {/* Safe minimum override notice — shown when fixed monthly obligations exceed user cash floor */}
-      {m0Floor && m0Floor.monthMinSafe > m0Floor.settingsCashFloor && (
+      {!simple && m0Floor && m0Floor.monthMinSafe > m0Floor.settingsCashFloor && (
         <div className="flex items-start gap-2.5 bg-primary/5 border border-primary/20 px-3 py-2.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
           <Info size={13} className="text-primary shrink-0 mt-0.5" />
           <div className="min-w-0">
@@ -580,7 +589,8 @@ export default function Forecast() {
         </div>
       )}
 
-      {viewMode === 'monthly' ? (
+      {/* Simple always shows the chart: the old Summary/Detail toggle folds into the view switch. */}
+      {(simple || viewMode === 'monthly') ? (
         <>
           {/* Net Worth Chart */}
           {!noInputs && (
@@ -676,7 +686,7 @@ export default function Forecast() {
             onDismiss={dismissDuplicate}
             title="A month below is counted twice"
           />
-          <ReceiptsDisclosure
+          {!simple && <ReceiptsDisclosure
             title="Monthly breakdown"
             summary={`${displayData.length} month${displayData.length === 1 ? '' : 's'}`}
             open={showReceipts}
@@ -695,7 +705,7 @@ export default function Forecast() {
               onOpenCalcDrawer={setCalcDrawer}
               onOpenFloorDrawer={setFloorCalcDrawer}
             />
-          </ReceiptsDisclosure>
+          </ReceiptsDisclosure>}
         </>
       ) : (
 
@@ -725,10 +735,10 @@ export default function Forecast() {
           Moved here off the dashboard on 2026-09-22 (ask 035ffb29, Tre: "8. approved."), "where
           the rest of the time series lives". It reads `useMonthlyCashFlow`, the same derivation
           the dashboard reads, so the six months here are the months the dashboard showed. */}
-      <CashFlowOverviewCard />
+      {!simple && <CashFlowOverviewCard />}
 
       {/* ── Retirement & Investment Growth Projections ─────────────────── */}
-      {retirementProjections.length > 0 && (
+      {!simple && retirementProjections.length > 0 && (
         <div className="card-forged p-4 sm:p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={14} className="text-primary" />

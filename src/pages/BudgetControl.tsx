@@ -229,7 +229,11 @@ function migrateOldDeductions(profile: Partial<Tables<'profiles'>>): PaycheckDed
  */
 type RuleTab = 'income' | 'fixed' | 'subscriptions' | 'variable' | 'debt' | 'transfers';
 
-export default function BudgetControl({ embedded = false }: { embedded?: boolean } = {}) {
+/**
+ * `simple` (ask 5b166e10): the allocation donut and the rule lists stay - a Simple user still adds
+ * a bill here. Income & Taxes, Pay Schedule, Per Paycheck and the demo guide are Advanced only.
+ */
+export default function BudgetControl({ embedded = false, simple = false }: { embedded?: boolean; simple?: boolean } = {}) {
   const [ruleTab, setRuleTab] = useState<RuleTab>('income');
   const { user } = useAuth();
   const { isDemo, showDemoGuides } = useDemo();
@@ -1050,7 +1054,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         )}
       </div>
 
-      {showDemoGuides && (
+      {showDemoGuides && !simple && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
@@ -1080,7 +1084,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
       )}
 
       {/* Income & Taxes — auto-saves */}
-      <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
+      {!simple && <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
           <button
             onClick={() => setIncomeSectionCollapsed(!incomeSectionCollapsed)}
@@ -1313,7 +1317,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         </div>
 
         </>}
-      </div>
+      </div>}
 
       {/* PAY SCHEDULE — its own card since 2026-09-18, split from Income & Taxes at the
           `border-t` that already divided them (Tre: "yes" to f22ae273).
@@ -1327,7 +1331,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           INSIDE `!incomeSectionCollapsed`, so lifting them to siblings without this wrapper
           would render them while the section reads as collapsed - a split that silently changes
           behaviour rather than only layout. */}
-      {!incomeSectionCollapsed && <>
+      {!incomeSectionCollapsed && !simple && <>
       <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Pay Schedule</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -1383,7 +1387,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           rendered and the allocation card takes both columns rather than leaving one empty. */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* WHAT EACH PAYCHECK IS WORTH — the second half of the same split. */}
-      {!incomeSectionCollapsed && (
+      {!incomeSectionCollapsed && !simple && (
       <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider">Per Paycheck</h3>
         {/*
@@ -1455,7 +1459,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
 
       {/* Budget Allocation Bar — current month only, distinct colors */}
-      <div className={`card-forged p-4 sm:p-5 flex flex-col ${incomeSectionCollapsed ? 'lg:col-span-2' : ''}`}>
+      <div className={`card-forged p-4 sm:p-5 flex flex-col ${incomeSectionCollapsed || simple ? 'lg:col-span-2' : ''}`}>
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider mb-1">Budget Allocation</h3>
         <p className="text-sm text-muted-foreground mb-4">{now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} — current month only</p>
         {(() => {

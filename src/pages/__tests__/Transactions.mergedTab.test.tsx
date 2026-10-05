@@ -38,6 +38,10 @@ const BANK_CHARGE = {
   pending: false, name: 'PUBLIX SUPER MARKET', merchant_name: 'PUBLIX', category: null,
 };
 
+// The page reads the Simple|Advanced switch from the profile; these tests pin Advanced (ask 5b166e10).
+// The Simple|Advanced switch is its own tablist; these tests are about the panel row.
+const panelTabs = () => screen.getAllByRole('tab').filter(t => !t.closest('[data-testid="view-mode-switch"]'));
+vi.mock('@/hooks/useViewMode', () => ({ useViewMode: () => ({ mode: 'advanced', setMode: () => {} }) }));
 vi.mock('@/hooks/useSupabaseData', async () => {
   // The pure re-exports are the REAL ones. `planLedgerImport` in particular is the double-count
   // guard, and a stub of it would make this file agree with itself about nothing.
@@ -149,7 +153,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); vi.useRealTimers(); });
 describe('Transactions — Planning and Bank Activity as one tab', () => {
   it('offers three panels, not four', () => {
     renderAt();
-    const tabs = screen.getAllByRole('tab').map(t => t.textContent);
+    const tabs = panelTabs().map(t => t.textContent);
     // 'Plan' since 2026-08-27 (Tre: "rename Budget Control to Plan"). The tab ID is still
     // `budget` — only the label moved, so every persisted tab and deep link keeps working.
     // 'Forecast' joined on 2026-09-12, moving off the bottom nav onto this row. The point of
@@ -214,7 +218,7 @@ describe('Transactions — Planning and Bank Activity as one tab', () => {
     mocks.needsDecision = [BANK_CHARGE];
     mocks.suggestedCount = 3;
     renderAt();
-    const tab = screen.getAllByRole('tab')[1];
+    const tab = panelTabs()[1];
     expect(within(tab).getByText('3')).toBeTruthy();
   });
 

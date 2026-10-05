@@ -56,6 +56,8 @@ const RENT_CHARGE = {
   pending: false, name: 'GREYSTAR RENT', merchant_name: 'Greystar',
 };
 
+// The page reads the Simple|Advanced switch from the profile; these tests pin Advanced (ask 5b166e10).
+vi.mock('@/hooks/useViewMode', () => ({ useViewMode: () => ({ mode: 'advanced', setMode: () => {} }) }));
 vi.mock('@/hooks/useSupabaseData', () => ({
   useTransactions: () => ({
     data: mocks.realTransactions, loading: false,

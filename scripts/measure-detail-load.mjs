@@ -131,6 +131,15 @@ if (!process.env.VIEW_MODE) {
     console.log(`press: Show each account ${simple.cards} -> ${opened?.cards} cards`);
     if (!opened || !(opened.cards > simple.cards)) fail(1, 'PRESS FAILED: Show each account did not open the list.');
   }
+  // Transactions in Simple folds filters and summaries behind "Filters"; pressing it must bring them back.
+  const filters = page.getByTestId('show-filters');
+  if (await filters.count()) {
+    const pre = await settle();
+    await filters.click();
+    const opened = await settle();
+    console.log(`press: Filters ${pre?.cards} -> ${opened?.cards} cards`);
+    if (!opened || !pre || !(opened.cards > pre.cards)) fail(1, 'PRESS FAILED: Filters did not open the filters and summaries.');
+  }
   await page.getByTestId('show-advanced').click();
   const back = await settle();
   await page.setViewportSize({ width: W, height: 844 });
