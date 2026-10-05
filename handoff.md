@@ -1,6 +1,7 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-SIMPLE (2026-10-05 16:58 ET, Ada): ask 7515c3fa DONE - proposal https://claude.ai/artifact/Ees6zS86xuDNUkqjaEDrEx + docs/simple-view/PROPOSAL.md. NEXT = the build ask (slice 1: profiles.view_mode + header Simple|Advanced switch + press test). Instruments: scripts/measure-detail-load.mjs (live counts, writes answered 204), scripts/render-simple-mock.mjs. Free tier failed the mock (truncated) - split per screen next time.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
     REFUSED `gh secret set` (Secret-Store Writes). Do NOT route around it; Tre runs the two `gh secret set` commands
