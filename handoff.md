@@ -29,6 +29,9 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW88 (10-05 ~16:25 ET, Ada getforgenta-1f, WRAP-UP close). FIRST UP NEXT TIME: eb7282e9 / R-NOW87 below (Play ship
+    check 10:37Z 10-06). DB stall probe (d9e5961c): every read 08:17Z-20:20Z OK (two slow-but-OK reads, 13:50Z rest 3.1s and
+    18:20Z rest 2.5s); this tab closed at the wrap-up, so 20:20Z-23:16Z is NOT measured - the window closes unwatched.
 R-NOW87 >>> DO AT 10:37Z 10-06 (06:37 ET): Play ship fallback for 7ef43384 - if no android-build run since 10-05 14:00Z has
     'Deploy to Google Play (Production)' = success (GET runs by id; lists go stale), dispatch android-build.yml ONCE, require
     that step success + status completed in its log, then ask done 7ef43384. New crons never register here (6dce46c4).
@@ -13306,7 +13309,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 11:20 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 16:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13326,6 +13329,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ee747ed2 [ci]: last-shipped-run filters branch client-side; GitHub's branch-filtered list is frozen at 09-11
 e6fa17a5 [handoff]: R-NOW87 - 10:37Z 10-06 Play ship fallback at the top
 cc9cdf38 [handoff]: full Play release shipped in CI, groceries split, early-promote error recorded
 a23e9c19 [ci]: Play ships a FULL release; the staged-rollout promoter is retired (7ef43384)
@@ -13333,7 +13337,6 @@ a23e9c19 [ci]: Play ships a FULL release; the staged-rollout promoter is retired
 0a6ce0cc [handoff]: correct the dead-schedules claim; promote dispatches wedge
 4fc07c41 [handoff]: promote workflow wedged on GitHub; soak 18h
 de2e1582 [ci]: Android rollout soak 18h, so it can complete between daily ships (6dce46c4)
-4d1be0ce [handoff]: Play shipped (37303553168); schedule repair in flight
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
