@@ -1,7 +1,7 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
-R-SIMPLE (2026-10-05 17:25 ET, Ada): 7515c3fa DONE (proposal https://claude.ai/artifact/Ees6zS86xuDNUkqjaEDrEx). Build ask 5b166e10 slice 1+2 SHIPPED ee29968a: profiles.view_mode (NULL=advanced, nobody's screen changed), header Simple|Advanced switch, Simple Home 16->7 cards / 37->8 figures. Live press gate: MSYS_NO_PATHCONV=1 ROUTES=/dashboard node scripts/measure-detail-load.mjs (red-proven). NEXT: Debt Simple, Accounts Simple (group totals), then Budget/Forecast/Transactions; then ask Sam/Tre about the NEW-ACCOUNT default (proposal says Simple; held at Advanced until he has seen it).
+R-SIMPLE (2026-10-05 ~18:30 ET, Ada): SHIPPED Home, Debt, Accounts Simple views + new accounts default Simple (879d7448, Tre '1. yes'); layout ask 4ee0a129 DONE (check:grid-orphans, 49 reads 0 findings, red-proven). Gates: measure:detail-load (VIEW_MODE / PRESS_ROUTE / WIDTH), check:grid-orphans, scripts/check-new-account-simple.cjs (needs a SQL throwaway). NEXT on 5b166e10: Budget, Forecast, Transactions Simple; then the first-run double-dialog ask.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
     REFUSED `gh secret set` (Secret-Store Writes). Do NOT route around it; Tre runs the two `gh secret set` commands
@@ -13310,17 +13310,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 16:20 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 17:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13330,14 +13329,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+53e0d4fe [handoff]: R-SIMPLE - Home Simple view shipped ee29968a; Debt and Accounts next
+ee29968a [dashboard]: Simple | Advanced switch; Simple Home keeps what is due and safe to spend (5b166e10)
+6f71f52f [handoff]: R-SIMPLE - simple/advanced proposal shipped, build is next
+27a13eaf [ux]: simple vs advanced view proposal, detail-load inventory, simple mock (ask 7515c3fa)
+93633a4a [handoff]: R-NOW88 wrap-up close; first up is the 10:37Z 10-06 ship check
 ee747ed2 [ci]: last-shipped-run filters branch client-side; GitHub's branch-filtered list is frozen at 09-11
 e6fa17a5 [handoff]: R-NOW87 - 10:37Z 10-06 Play ship fallback at the top
 cc9cdf38 [handoff]: full Play release shipped in CI, groceries split, early-promote error recorded
-a23e9c19 [ci]: Play ships a FULL release; the staged-rollout promoter is retired (7ef43384)
-1ce47d95 [ci]: dispatch-only copy of the Android promote workflow, because the original's dispatches wedge (6dce46c4)
-0a6ce0cc [handoff]: correct the dead-schedules claim; promote dispatches wedge
-4fc07c41 [handoff]: promote workflow wedged on GitHub; soak 18h
-de2e1582 [ci]: Android rollout soak 18h, so it can complete between daily ships (6dce46c4)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
