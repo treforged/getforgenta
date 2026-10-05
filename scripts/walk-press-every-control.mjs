@@ -205,6 +205,19 @@ function stubBody(req, stub) {
 async function isolatedPage(stub = null) {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, storageState: BASELINE });
   const page = await c.newPage();
+  // ⚠️ HIDE THE BACKEND-HEALTH BANNER. This walk ABORTS every write in the browser, and the app's
+  // fetch wrapper (src/lib/backend-health.ts) rightly reads an aborted request as a network failure
+  // and floats "can't reach its servers" over the top of the page - where it covered the planted
+  // controls and failed this walk's own positive control on 2026-10-04 (exit 2, both clicks timed
+  // out). The banner is the walk's artefact here, not a finding; check:connection-banner owns it.
+  await page.addInitScript(() => {
+    const hide = () => {
+      const s = document.createElement('style');
+      s.textContent = '[data-testid="backend-health-banner"]{display:none!important}';
+      document.head.appendChild(s);
+    };
+    if (document.head) hide(); else document.addEventListener('DOMContentLoaded', hide, { once: true });
+  });
   page.blockedWrites = [];
   page.stubbedWrites = [];
   page.restWrites = new Set(); // which blocked writes were REST (tables/rpc), so the stub phase can pick them
