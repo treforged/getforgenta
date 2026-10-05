@@ -36,10 +36,14 @@ export function lastShippedRun({ workflow, step, branch = 'main', gh = ghJson })
   // `step` may name several steps joined by '||', so a RENAMED deploy step still finds the runs that
   // shipped under its old name (2026-10-05: 'staged 10%' became a full release, 7ef43384).
   const names = step.split('||').map(n => n.trim()).filter(Boolean);
-  const runs = gh(['run', 'list', '--workflow', workflow, '--branch', branch, '--limit', String(WINDOW),
-    '--json', 'databaseId,headSha,status']);
+  // NO server-side --branch filter: on 2026-10-05 GitHub's branch-filtered list for this repo was
+  // frozen at 2026-09-11 while the unfiltered list was current, so this named a 09-11 deploy as the
+  // last ship and the promoter moved a 2-hour-old release to 100%. Filter on headBranch here.
+  const runs = gh(['run', 'list', '--workflow', workflow, '--limit', String(WINDOW),
+    '--json', 'databaseId,headSha,status,headBranch']);
   for (const run of runs) {
     if (run.status !== 'completed') continue;
+    if (run.headBranch !== branch) continue;
     const { jobs = [] } = gh(['run', 'view', String(run.databaseId), '--json', 'jobs']);
     for (const job of jobs) {
       const hit = (job.steps ?? []).find(s => names.includes(s.name) && s.conclusion === 'success');

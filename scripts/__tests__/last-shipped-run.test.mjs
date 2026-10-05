@@ -19,7 +19,7 @@ const job = (conclusion, completedAt = '2026-10-04T14:15:29Z') =>
 describe('lastShippedRun - the last run whose store step succeeded, not the last green run', () => {
   it('skips a GREEN push run whose deploy step was skipped', () => {
     const { gh } = fakeGh(
-      [{ databaseId: 3, headSha: 'push-green', status: 'completed' }, { databaseId: 2, headSha: 'shipped', status: 'completed' }],
+      [{ databaseId: 3, headSha: 'push-green', status: 'completed', headBranch: 'main' }, { databaseId: 2, headSha: 'shipped', status: 'completed', headBranch: 'main' }],
       { 3: job('skipped'), 2: job('success', '2026-10-04T10:05:00Z') },
     );
     expect(lastShippedRun({ workflow: 'android-build.yml', step: STEP, gh }))
@@ -28,7 +28,7 @@ describe('lastShippedRun - the last run whose store step succeeded, not the last
 
   it('skips a run whose deploy step FAILED (Play quota) and finds the one before', () => {
     const { gh } = fakeGh(
-      [{ databaseId: 5, headSha: 'quota-red', status: 'completed' }, { databaseId: 4, headSha: 'good', status: 'completed' }],
+      [{ databaseId: 5, headSha: 'quota-red', status: 'completed', headBranch: 'main' }, { databaseId: 4, headSha: 'good', status: 'completed', headBranch: 'main' }],
       { 5: job('failure'), 4: job('success') },
     );
     expect(lastShippedRun({ workflow: 'android-build.yml', step: STEP, gh })?.sha).toBe('good');
@@ -36,7 +36,7 @@ describe('lastShippedRun - the last run whose store step succeeded, not the last
 
   it('ignores a run still in progress', () => {
     const { gh, calls } = fakeGh(
-      [{ databaseId: 7, headSha: 'running', status: 'in_progress' }, { databaseId: 6, headSha: 'done', status: 'completed' }],
+      [{ databaseId: 7, headSha: 'running', status: 'in_progress', headBranch: 'main' }, { databaseId: 6, headSha: 'done', status: 'completed', headBranch: 'main' }],
       { 7: job('success'), 6: job('success') },
     );
     expect(lastShippedRun({ workflow: 'android-build.yml', step: STEP, gh })?.sha).toBe('done');
@@ -44,22 +44,32 @@ describe('lastShippedRun - the last run whose store step succeeded, not the last
   });
 
   it('returns null, never a guess, when no run in the window shipped', () => {
-    const { gh } = fakeGh([{ databaseId: 1, headSha: 'x', status: 'completed' }], { 1: job('skipped') });
+    const { gh } = fakeGh([{ databaseId: 1, headSha: 'x', status: 'completed', headBranch: 'main' }], { 1: job('skipped') });
     expect(lastShippedRun({ workflow: 'android-build.yml', step: STEP, gh })).toBeNull();
   });
 
   it('matches the step by its exact name', () => {
-    const { gh } = fakeGh([{ databaseId: 1, headSha: 'x', status: 'completed' }], { 1: job('success') });
+    const { gh } = fakeGh([{ databaseId: 1, headSha: 'x', status: 'completed', headBranch: 'main' }], { 1: job('success') });
     expect(lastShippedRun({ workflow: 'android-build.yml', step: 'Deploy to Google Play', gh })).toBeNull();
   });
 
   it('finds a run that shipped under the OLD step name when given both names (rename, 7ef43384)', () => {
     const NEW = 'Deploy to Google Play (Production)';
     const { gh } = fakeGh(
-      [{ databaseId: 9, headSha: 'push-only', status: 'completed' }, { databaseId: 8, headSha: 'old-name-ship', status: 'completed' }],
+      [{ databaseId: 9, headSha: 'push-only', status: 'completed', headBranch: 'main' }, { databaseId: 8, headSha: 'old-name-ship', status: 'completed', headBranch: 'main' }],
       { 9: [{ steps: [{ name: NEW, conclusion: 'skipped' }] }], 8: job('success', '2026-10-05T11:40:00Z') },
     );
     expect(lastShippedRun({ workflow: 'android-build.yml', step: `${NEW}||${STEP}`, gh })?.sha).toBe('old-name-ship');
     expect(lastShippedRun({ workflow: 'android-build.yml', step: NEW, gh })).toBeNull();
+  });
+
+  it('skips a run on another branch and never asks gh to filter by branch (stale filtered list, 2026-10-05)', () => {
+    const { gh, calls } = fakeGh(
+      [{ databaseId: 11, headSha: 'feature-ship', status: 'completed', headBranch: 'feature' },
+       { databaseId: 10, headSha: 'main-ship', status: 'completed', headBranch: 'main' }],
+      { 11: job('success'), 10: job('success') },
+    );
+    expect(lastShippedRun({ workflow: 'android-build.yml', step: STEP, gh })?.sha).toBe('main-ship');
+    expect(calls.find(a => a[1] === 'list')).not.toContain('--branch');
   });
 });
