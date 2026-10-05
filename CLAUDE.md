@@ -296,6 +296,15 @@ section states reasoning, not measurement, and says so.
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.
+- `npm run check:grid-orphans` - every CSS grid of card-sized tiles on the 7 main screens at 360, 390, 768, 1024,
+  1280, 1440 and 1920, signed in: fails on an ORPHAN last row (fewer tiles than the first row and >25% of the width
+  empty) and on an OVERSIZED tile (>1.4x its siblings' median width with its text spanning <60% of it). Planted
+  controls run first (3+1, blank double, even 2x2). Proven red on Tre's two 2026-10-05 screenshots (Monthly Income
+  spanning 2 columns; Minimums Due alone at 768). Its first sweep also found raw account ids printed on the
+  Transactions source tiles. Does NOT cover flex-wrap rows, grids behind a dialog, or colour.
+- `npm run measure:detail-load` - an INVENTORY of cards, dollar figures and phone screens per route (ask 7515c3fa).
+  VIEW_MODE=simple reads every route in the Simple view; PRESS_ROUTE=/debt presses Simple, Show each account and
+  Show advanced detail there and fails if the count does not drop and return. WIDTH=1440 for desktop.
 - `npm run check:goal-grid` - the Dashboard Goal Progress card at 390 AND 1440, signed in: the savings_goals read is
   answered in-browser with 1, 2 and 3 goals (nothing written) and EVERY ROW of tiles must span the card. Proven red
   at 1440 on the fixed `md:grid-cols-3` (848px unused at 1 goal, 424px at 2) and at 390 by forcing 2 columns

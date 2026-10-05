@@ -1889,7 +1889,9 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               split of 2026-10-03 left a tall empty band under the figures, because four rows of
               payments always outgrow four numbers. Same tiles, same rows, same order on a phone. */}
           <div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-3 sm:mb-4">
+          {/* FOUR tiles, so 2 x 2 or 4 across, never 3 + 1 (Tre, 2026-10-05, ask 4ee0a129: Minimums Due
+              sat alone on its own row at tablet widths). */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3 sm:mb-4">
             <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>

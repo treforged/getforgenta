@@ -30,6 +30,8 @@
     "check:card-advisor": "node scripts/check-card-advisor.mjs",
     "check:boot-failure": "node scripts/check-boot-failure.mjs",
     "check:budget-tiles": "node scripts/check-budget-tiles.mjs",
+    "check:grid-orphans": "node scripts/check-grid-orphans.mjs",
+    "measure:detail-load": "node scripts/measure-detail-load.mjs",
     "check:goal-grid": "node scripts/check-goal-grid.mjs",
     "check:goal-starts": "node scripts/check-goal-starts.mjs",
     "check:forecast-table": "node scripts/check-forecast-table.mjs",

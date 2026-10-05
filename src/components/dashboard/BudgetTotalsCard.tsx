@@ -36,6 +36,9 @@ type BudgetTileProps = {
   onOpen: () => void;
   figureClass: string;
   className?: string;
+  /** Spans the whole row on a phone. Laid out label-left, figure-right there, so a full-width
+   * tile is not a box with its right half empty (Tre, 2026-10-05, ask 4ee0a129). */
+  wide?: boolean;
 };
 
 const ACCENT_TEXT = { gold: 'text-primary', crimson: 'text-destructive-text', success: 'text-success-text' } as const;
@@ -62,7 +65,7 @@ export function sharedFigureClass(values: string[]): string {
  * rounded box to keep concentric) and the chart glyph marks "opens the arithmetic" at the end of
  * that same row, instead of floating in a corner of empty space.
  */
-function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass, className }: BudgetTileProps) {
+function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass, className, wide = false }: BudgetTileProps) {
   return (
     <button
       type="button"
@@ -72,6 +75,7 @@ function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass
         'card-forged relative overflow-hidden w-full h-full text-left p-3 md:px-4 flex flex-col justify-start gap-1',
         'hover:border-primary/20 transition-colors duration-300',
         ACCENT_GLOW[accent],
+        wide && 'max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3',
         className,
       )}
     >
@@ -82,10 +86,10 @@ function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass
         </span>
         <BarChart2 size={12} className="ml-auto shrink-0 text-muted-foreground/60" aria-hidden="true" data-testid="budget-tile-glyph" />
       </span>
-      <p className={cn('font-display font-bold tracking-tight whitespace-nowrap tabular-nums', figureClass, ACCENT_TEXT[accent])}>
+      <p className={cn('font-display font-bold tracking-tight whitespace-nowrap tabular-nums', figureClass, ACCENT_TEXT[accent], wide && 'max-md:col-start-2 max-md:row-start-1 max-md:row-span-2 max-md:text-right')}>
         {value}
       </p>
-      {sub && <p className="text-[11px] md:text-xs text-muted-foreground leading-snug">{sub}</p>}
+      {sub && <p className={cn('text-[11px] md:text-xs text-muted-foreground leading-snug', wide && 'max-md:col-start-1 max-md:row-start-2')}>{sub}</p>}
     </button>
   );
 }
@@ -245,16 +249,16 @@ export default function BudgetTotalsCard() {
   });
 
   const tiles: Omit<BudgetTileProps, 'figureClass'>[] = [
-    { label: 'Monthly Income', value: formatCurrency(totals.income), sub: 'recurring', accent: 'success', icon: DollarSign, onOpen: openIncomeCalc, className: 'col-span-2' },
-    { label: 'Fixed Expenses', sub: countLabel(fixedRules), value: formatCurrency(totals.fixed), accent: 'crimson', icon: TrendingDown, onOpen: openFixedCalc },
-    { label: 'Variable', sub: countLabel(variableRules), value: formatCurrency(totals.variable), accent: 'gold', icon: TrendingDown, onOpen: openVariableCalc },
-    { label: 'Debt Payments', sub: countLabel(debtRules), value: formatCurrency(totals.debt), accent: 'crimson', icon: CreditCard, onOpen: openDebtCalc },
-    { label: 'Transfers', sub: countLabel(transferRules), value: formatCurrency(totals.transfers), accent: 'gold', icon: ArrowLeftRight, onOpen: openTransferCalc },
+    { label: 'Monthly Income', value: formatCurrency(totals.income), sub: 'recurring', accent: 'success', icon: DollarSign, onOpen: openIncomeCalc, wide: true, className: 'col-span-2 md:col-span-3' },
+    { label: 'Fixed Expenses', sub: countLabel(fixedRules), value: formatCurrency(totals.fixed), accent: 'crimson', icon: TrendingDown, onOpen: openFixedCalc, className: 'md:col-span-3' },
+    { label: 'Variable', sub: countLabel(variableRules), value: formatCurrency(totals.variable), accent: 'gold', icon: TrendingDown, onOpen: openVariableCalc, className: 'md:col-span-3' },
+    { label: 'Debt Payments', sub: countLabel(debtRules), value: formatCurrency(totals.debt), accent: 'crimson', icon: CreditCard, onOpen: openDebtCalc, className: 'md:col-span-3' },
+    { label: 'Transfers', sub: countLabel(transferRules), value: formatCurrency(totals.transfers), accent: 'gold', icon: ArrowLeftRight, onOpen: openTransferCalc, className: 'md:col-span-4' },
     // "planned" is load-bearing (§2.4 step 10): this is the sum of the budget RULES, not of
     // anything that happened. Unlabeled it reads as an actual and gets compared to MONTHLY
     // EXPENSES further down this same page, which is a different question entirely.
-    { label: 'Monthly Spend', sub: 'planned (from rules)', value: formatCurrency(totals.expenses), accent: 'crimson', icon: TrendingDown, onOpen: openMonthlySpendCalc },
-    { label: 'Annual Spend', sub: 'planned × 12', value: formatCurrency(totals.expenses * 12), accent: 'crimson', icon: TrendingDown, onOpen: openAnnualSpendCalc },
+    { label: 'Monthly Spend', sub: 'planned (from rules)', value: formatCurrency(totals.expenses), accent: 'crimson', icon: TrendingDown, onOpen: openMonthlySpendCalc, className: 'md:col-span-4' },
+    { label: 'Annual Spend', sub: 'planned × 12', value: formatCurrency(totals.expenses * 12), accent: 'crimson', icon: TrendingDown, onOpen: openAnnualSpendCalc, className: 'md:col-span-4' },
   ];
   const figureClass = sharedFigureClass(tiles.map(t => t.value));
 
@@ -264,11 +268,12 @@ export default function BudgetTotalsCard() {
         This Month's Budget
       </h3>
       {/* ONE grid, no ragged rows (Tre, 2026-10-03: "items fill their boxes more or the boxes shrink").
-          Phone: income takes a full row, then three rows of two. Desktop (md+): four across, income
-          spans two columns, so the seven tiles make exactly two full rows. Every figure in the
+          Phone: income takes a full row laid out label-left, figure-right, then three rows of two.
+          md+: a 12-column grid, four tiles of 3 then three tiles of 4, so both rows are full and no
+          tile is double width (Tre, 2026-10-05: "the monthly income box is to big"). Every figure in the
           section shares ONE type size (chosen from the longest), so figures in a row sit on one
           baseline and nothing re-fits as a number changes. */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-12 gap-3">
         {tiles.map(t => (
           <BudgetTile key={t.label} {...t} figureClass={figureClass} />
         ))}

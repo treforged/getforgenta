@@ -371,6 +371,9 @@ export default function Transactions() {
     if (source === 'bank_account') return 'Bank Account';
     if (source === 'credit_card') return 'Credit Card';
     if (source === 'cash') return 'Cash';
+    // An account id that resolves to nothing is an account that was deleted. Never print the raw
+    // id to the user (found by check:grid-orphans, 2026-10-05: "de100007-0000-..." on a tile).
+    if (/^(account:)?[0-9a-f]{8}-[0-9a-f]{4}-/i.test(source)) return 'Deleted account';
     return source;
   }, [paymentSourceOptions, accountMap]);
 
@@ -1302,9 +1305,11 @@ export default function Transactions() {
       {Object.keys(spendBySource).length > 0 && (
         <div className="card-forged p-4">
           <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Spend by Payment Source</h3>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* The count is the user's own, so a fixed column count always leaves a ragged last row
+              (ask 4ee0a129). A list on a phone; from sm up the tiles wrap and GROW to fill each row. */}
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3">
             {Object.entries(spendBySource).map(([src, amt]) => (
-              <div key={src} className="p-3 bg-muted/30 border border-border text-center" style={{ borderRadius: 'var(--radius)' }}>
+              <div key={src} className="flex items-center justify-between gap-3 p-3 bg-muted/30 border border-border sm:block sm:flex-1 sm:basis-40 sm:text-center" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-xs text-muted-foreground truncate">{src}</p>
                 <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(amt)}</p>
               </div>
