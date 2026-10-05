@@ -123,6 +123,14 @@ if (!process.env.VIEW_MODE) {
   await page.getByRole('tab', { name: 'Simple' }).click();
   const simple = await settle();
   if (before && simple && !(simple.cards < before.cards)) fail(1, `PRESS FAILED: pressing Simple left ${simple.cards} cards (Advanced ${before.cards}).`);
+  // Accounts in Simple folds the list behind one button; pressing it must bring rows back.
+  const fold = page.getByTestId('show-each-account');
+  if (await fold.count()) {
+    await fold.click();
+    const opened = await settle();
+    console.log(`press: Show each account ${simple.cards} -> ${opened?.cards} cards`);
+    if (!opened || !(opened.cards > simple.cards)) fail(1, 'PRESS FAILED: Show each account did not open the list.');
+  }
   await page.getByTestId('show-advanced').click();
   const back = await settle();
   await page.setViewportSize({ width: W, height: 844 });

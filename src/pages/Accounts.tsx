@@ -141,7 +141,11 @@ const APY_TYPES = ['401k', 'roth_ira', 'brokerage', 'savings', 'high_yield_savin
  * Add Account button, the three sub-panels, every modal — is untouched; those ARE the "sections
  * within tabs" that were asked for.
  */
-export default function Accounts({ embedded = false }: { embedded?: boolean } = {}) {
+export default function Accounts({ embedded = false, simple = false }: { embedded?: boolean; simple?: boolean } = {}) {
+  // Simple view (ask 5b166e10): the totals strip above already answers "what do I have", so the
+  // per-account list folds behind one button. Nothing is removed; the button opens it in place.
+  const [showEachAccount, setShowEachAccount] = useState(false);
+  const listHidden = simple && !showEachAccount;
   const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
   /**
@@ -995,8 +999,15 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       )}
       </div>
 
+      {effectiveTab === 'balances' && listHidden && activeAccounts.length > 0 && (
+        <button type="button" onClick={() => setShowEachAccount(true)} data-testid="show-each-account"
+          className="w-full card-forged p-4 text-left text-sm font-semibold text-primary btn-press hover:underline">
+          Show each account ({activeAccounts.length}) ›
+        </button>
+      )}
+
       {/* Filter */}
-      {effectiveTab === 'balances' && (
+      {effectiveTab === 'balances' && !listHidden && (
       /* CENTRED TO MATCH THE PILL ROW ABOVE IT. Left-aligned under a centred
          control it read as a stray group rather than as the second half of one
          header, which is the alignment half of Tre's 2026-09-01 note. */
@@ -1016,7 +1027,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
       )}
 
       {/* Account List */}
-      {effectiveTab === 'balances' && (
+      {effectiveTab === 'balances' && !listHidden && (
       <div className="space-y-3">
         {filteredAccounts.length === 0 && (
           <div className="card-forged p-8 text-center"><p className="text-sm text-muted-foreground">No accounts yet. Add one above.</p></div>

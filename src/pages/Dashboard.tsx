@@ -1470,7 +1470,8 @@ export default function Dashboard() {
         dismissedMonth={shortMonthsDismissed}
         onDismiss={setShortMonthsDismissed}
       />
-      {!isSimple && <DashboardOverviewStrip
+      {/* Simple keeps the strip on the Accounts panel only: there it IS the summary. */}
+      {(!isSimple || activeTab === 'accounts') && <DashboardOverviewStrip
         loading={overviewStripLoading}
         empty={accounts.length === 0
           && netWorthBreakdown.assets.length === 0
@@ -1531,7 +1532,7 @@ export default function Dashboard() {
       */}
       {activeTab === 'accounts' && (
         <Suspense fallback={<div className="h-64" />}>
-          <Accounts embedded />
+          <Accounts embedded simple={isSimple} />
         </Suspense>
       )}
 
@@ -1547,6 +1548,15 @@ export default function Dashboard() {
         <Suspense fallback={<div className="h-64" />}>
           <GoalsPanel embedded />
         </Suspense>
+      )}
+
+      {/* One footer for every panel in Simple, so each one has the way back to Advanced. */}
+      {isSimple && activeTab !== 'overview' && (
+        <button type="button" onClick={() => setViewMode('advanced')}
+          className="w-full text-left text-sm font-semibold text-primary py-3 border-t border-border/40 btn-press hover:underline"
+          data-testid="show-advanced">
+          Show advanced detail ›
+        </button>
       )}
 
       {activeTab === 'overview' && (
