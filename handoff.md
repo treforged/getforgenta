@@ -29,6 +29,9 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW87 >>> DO AT 10:37Z 10-06 (06:37 ET): Play ship fallback for 7ef43384 - if no android-build run since 10-05 14:00Z has
+    'Deploy to Google Play (Production)' = success (GET runs by id; lists go stale), dispatch android-build.yml ONCE, require
+    that step success + status completed in its log, then ask done 7ef43384. New crons never register here (6dce46c4).
 R-NOW86 (10-05 ~04:30 ET, Ada getforgenta-1f, OVERDRIVE). Crons RE-ARMED (session-only): b884cbf7 = 853aba70 Play check,
     one-shot 06:13 ET; 9b4110d9 = DB stall probe :17/:47 until 23:16Z (08:17Z OK, auth 0.41s rest 0.62s).
     [x] STANDING walk:empty PASS 10/10 (0 findings, 0 unstable) + check:one-banner PASS (bank -> 2FA -> clear), throwaway
@@ -13301,7 +13304,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 09:20 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 10:13 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13321,14 +13324,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+cc9cdf38 [handoff]: full Play release shipped in CI, groceries split, early-promote error recorded
+a23e9c19 [ci]: Play ships a FULL release; the staged-rollout promoter is retired (7ef43384)
+1ce47d95 [ci]: dispatch-only copy of the Android promote workflow, because the original's dispatches wedge (6dce46c4)
 0a6ce0cc [handoff]: correct the dead-schedules claim; promote dispatches wedge
 4fc07c41 [handoff]: promote workflow wedged on GitHub; soak 18h
 de2e1582 [ci]: Android rollout soak 18h, so it can complete between daily ships (6dce46c4)
 4d1be0ce [handoff]: Play shipped (37303553168); schedule repair in flight
 9d037a81 [ci]: a shipping Android run fetches full history so it can see the last shipped commit (6dce46c4)
-6f2663a3 [ci]: temporary 5-minute schedule canary - does GitHub fire any schedule here? (6dce46c4)
-16eefd95 [handoff]: 853aba70 blocked - repo schedules silent since 09-11 (6dce46c4)
-fdc3e5ab [handoff]: R-NOW86 - light phone contrast PASS 477/0
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
