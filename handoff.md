@@ -40,8 +40,12 @@ R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
        card; lg+ layout (controls|order equal height, summary full width, Recommended figures 1 row + rows 2x2).
     3. [x] STANDING e1b0fffc walk 10-05 ~04:30: walk:press PASS 390/167/167; dark-contrast phone PASS 477;
        desktop found green "$0.00" on /budget 4.43:1 -> FIXED af1b22fe (--success-text split, 81 classes); desktop PASS 0/463.
-       NEXT standing: check:light-contrast:desktop, walk:empty (throwaway @forgenta.test made+deleted in SQL).
-    4. [~] 853aba70 cron fd4341f9 06:23 ET; DB probe cron 12f8b011 :17/:47 until 23:16Z. Both session-only.
+       light desktop PASS 463. NEXT standing: walk:empty + check:one-banner with a throwaway @forgenta.test made in
+       SQL (auth.users + auth.identities, crypt password; the profile trigger fires), then DELETE it and read back 0.
+       NOT created yet (the handoff gate blocked the insert before it ran).
+    4. [ ] 853aba70: my crons DIED with getforgenta-d4. After 10:00Z 10-05 run `gh run list --workflow android-build.yml
+       --event schedule -L 3`; the Deploy step must be success; then ask done. DB stall probe `bash scripts/db-stall-probe.sh`
+       every ~30 min until 23:16Z (07:49Z last, OK); STALL twice -> Sam with evidence (d9e5961c).
     5. Orphan vite pid 17384 on :8080 (mine, from 02:34) - the classifier refused my kill; Tre may end it. It serves current code.
     6. 73df9085 routed to Sam (Tre: make the Sam session Remote Control).
 R-NOW84 (10-05 00:25 ET, Ada getforgenta-ae, CLOSED ON TRE'S ORDER, no successor). RESUME FIRST: (1) d5c183b3 local
