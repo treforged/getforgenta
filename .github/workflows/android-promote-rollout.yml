@@ -14,7 +14,11 @@ on:
 
 env:
   PACKAGE_NAME: com.treforged.forged
-  SOAK_HOURS: 24
+  # 18, not 24 (2026-10-05, 6dce46c4). android-build.yml ships at 10:00Z daily, and each ship
+  # opens a fresh 10% release. The last promote check before the next ship is ~06:00Z, which
+  # is only ~20 h after a 10:00Z ship, so a 24 h soak never completed on a day with a new ship.
+  # Undo: set back to 24 (only safe if the ship cadence is longer than a day).
+  SOAK_HOURS: 18
 
 jobs:
   promote:
