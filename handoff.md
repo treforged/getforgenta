@@ -11,6 +11,9 @@ R-NEXT (2026-10-05 ~18:50 ET, Ada). BOTH ITEMS OF THE PREVIOUS R-NEXT ARE DONE A
       check:*-contrast VIEW_MODE=simple 0 below AA x4. measure:detail-load gained PRESS_GONE + STUB_GOALS.
   NEXT: eb7282e9 at 10:37Z 10-06 (Play ship fallback) - CronCreate 3a9ffcf6 armed in session getforgenta (06:39 ET);
       a session that is not that one must do it by hand. Otherwise STANDING e1b0fffc (keep improving the app).
+  [x] Simple at DESKTOP (1440, measured 10-05, VIEW_MODE): Home 16->7 cards, Goals 8->5, Accounts 11->3, Debt 8->4,
+      Plan 10->2, Forecast 17->4, Transactions 8->3. Forecast frame looked at: clean. Blockers re-tested: native glass
+      (f22f17b1/8a202850/5ee1669a) still needs Xcode; 0006cc41 still under 10 premium (5 profiles).
 R-SIMPLE (2026-10-05 ~18:30 ET, Ada): SHIPPED Home, Debt, Accounts Simple views + new accounts default Simple (879d7448, Tre '1. yes'); layout ask 4ee0a129 DONE (check:grid-orphans, 49 reads 0 findings, red-proven). Gates: measure:detail-load (VIEW_MODE / PRESS_ROUTE / WIDTH), check:grid-orphans, scripts/check-new-account-simple.cjs (needs a SQL throwaway). NEXT on 5b166e10: Budget, Forecast, Transactions Simple; then the first-run double-dialog ask.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
@@ -13320,7 +13323,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 18:05 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 19:11 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13340,14 +13343,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ff7d5366 [handoff]: 5ce71f3a shipped; eb7282e9 wake-up armed
+02afccab [simple]: Goals Simple view; walk:press and contrast sweeps run in Simple (ask 5ce71f3a)
+795990ae [handoff]: R-NEXT - 47a25afa and 5b166e10 shipped; Simple-view sweeps (5ce71f3a) next
+3e286a7b [simple]: Simple view on Plan, Forecast and Transactions (ask 5b166e10)
+04edfa63 [onboarding]: the wizard records What's New as seen, so a new account meets one dialog (ask 47a25afa)
 2f5e5a60 [handoff]: R-NEXT - first-run double dialog diagnosed; Budget/Forecast/Transactions Simple next
 58853aef [handoff]: R-SIMPLE - three Simple screens, new-account default, grid gate shipped
 879d7448 [profiles]: new accounts start in the Simple view (ask ae6c85a3, Tre "1. yes")
-8f0bef12 [layout]: even tile grids at every width; check:grid-orphans gate (ask 4ee0a129)
-fa2e7306 [accounts]: Simple view on Accounts - the totals strip, list folded behind one button (5b166e10)
-8a21ed46 [debt]: Simple view on Debt Payoff - the totals, the order and what to pay (5b166e10)
-53e0d4fe [handoff]: R-SIMPLE - Home Simple view shipped ee29968a; Debt and Accounts next
-ee29968a [dashboard]: Simple | Advanced switch; Simple Home keeps what is due and safe to spend (5b166e10)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
