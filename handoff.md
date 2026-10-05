@@ -29,6 +29,20 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
+    1. [x] d5c183b3 OFFLINE STACK DONE (Tre "1. yes"). `npx supabase start --workdir local-stack/sb -x edge-runtime`
+       (schema-only prod dump; repo migrations cannot build from zero), then `npm run dev:offline` (:8081, vite mode
+       offline, .env.offline.local). Local login in local-stack/.env.local-tre (gitignored). `node
+       scripts/check-offline-stack.mjs`: 31 local calls, 0 prod, PASS. Ports firewalled inbound (rule "Forgenta local
+       stack - block inbound"). Docker Desktop costs ~4-5 GB RAM: stop it (`docker desktop stop`) when idle or when Tre games.
+       Undo: npx supabase stop --workdir local-stack/sb --no-backup; delete local-stack/ + .env.offline.local; remove the rule.
+    2. [x] c3031372 + 07210a47 (Tre's Debt asks) SHIPPED dc6603ea: promo summary line + CardPromoList in the opened
+       card; lg+ layout (controls|order equal height, summary full width, Recommended figures 1 row + rows 2x2).
+    3. [~] STANDING e1b0fffc: walk:press running (task bizkr0ccx, log in scratchpad walk-press.log); then
+       check:dark-contrast + check:dark-contrast:desktop. NEVER while a game runs.
+    4. [~] 853aba70 cron fd4341f9 06:23 ET; DB probe cron 12f8b011 :17/:47 until 23:16Z. Both session-only.
+    5. Orphan vite pid 17384 on :8080 (mine, from 02:34) - the classifier refused my kill; Tre may end it. It serves current code.
+    6. 73df9085 routed to Sam (Tre: make the Sam session Remote Control).
 R-NOW84 (10-05 00:25 ET, Ada getforgenta-ae, CLOSED ON TRE'S ORDER, no successor). RESUME FIRST: (1) d5c183b3 local
     stack - install DONE, waits on Tre's REBOOT; then the R-NOW83 item 1 steps. (2) 853aba70 date check: my cron 519bbea2
     (06:23 ET) DIED WITH THIS TAB - run it by hand after 10:00Z 10-05 (gh run list --workflow android-build.yml --event
@@ -13254,7 +13268,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 00:03 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 03:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13274,14 +13288,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+dc6603ea [debt]: one promo summary line per card; Debt page sections fill their rows
+e1f12d00 [local-stack]: dev:offline runs the app on the local stack; check:offline proves no prod calls
+4931731a [local-stack]: firewall-block the stack's ports; drop a config entry with no source
+9f3543d6 [handoff]: R-NOW84 close-out on Tre's order; track db-stall probe
 68fa9708 [handoff]: d5c183b3 install done, waits on Tre's reboot
 bdb78aea [handoff]: R-NOW83 - 853aba70 cron re-armed (519bbea2), DB stall watch 9108c059
 765d2ed2 [local-stack]: install script for WSL2 + Docker (d5c183b3), gitignore local data; handoff R-NOW83
 8941c777 test: walk:press waits up to 3 s for a late popup before calling a press dead
-a9caf0a3 [handoff]: R-NOW82 - outage over 23:16Z, full walk clean, f13ac477
-f13ac477 test: walk:press hides the backend-health banner it trips itself
-cee06e81 [handoff]: restart is Tre's click (b570bd5f), 8d0cddfd banner wording
-8d0cddfd [ui]: the outage notice says a provider "reports a problem", not that it caused the outage
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
