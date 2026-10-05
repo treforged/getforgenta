@@ -277,6 +277,14 @@ jobs:
           RELEASE_RANGE_SHIPPED_STEP: Deploy to Google Play (Production, staged 10%)
         run: |
           mkdir -p whatsnew
+          # A SHIPPING RUN NEEDS THE LAST SHIPPED COMMIT IN THE CLONE. Since the daily schedule
+          # (2026-10-04) a ship covers every push since the last one, so the gap can pass the
+          # depth-50 checkout: run 37302778331 refused because the last ship (5a5c6a32, 09-11) was
+          # 1,255 commits back. Only shipping runs reach this step (once a day), so they pay for
+          # the full history and push builds keep depth 50. 6dce46c4.
+          if [ "$(git rev-parse --is-shallow-repository)" = "true" ]; then
+            git fetch --quiet --unshallow origin
+          fi
           # THE RANGE IS RESOLVED, NOT GUESSED, AND A REFUSAL STOPS THE DEPLOY.
           #
           # This used to fall back to RANGE="-6" whenever there was no `before` - which is
