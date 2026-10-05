@@ -4,8 +4,9 @@
  * want it like myself". Spec: docs/simple-view/PROPOSAL.md.
  *
  * ⚠️ NULL READS AS ADVANCED. Every account that existed before this shipped keeps the screen it
- * already uses; Simple is opt-in until the new-account default is decided. Anything that is not
- * exactly 'simple' is Advanced, so a bad value can only ever show MORE, never hide a card.
+ * already uses. NEW accounts start in Simple through the column DEFAULT (Tre, 2026-10-05, ask
+ * ae6c85a3: "1. yes"; migration 20261005b). Anything that is not exactly 'simple' is Advanced,
+ * so a bad value can only ever show MORE, never hide a card.
  */
 export type ViewMode = 'simple' | 'advanced';
 
