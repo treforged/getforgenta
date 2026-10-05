@@ -42,6 +42,9 @@
      palette below. Tailwind v4 drives every utility from one variable, so a `text-`-only override
      is not available and the split has to live in the class name. */
   --color-destructive-text: hsl(var(--destructive-text));
+  /* The TEXT green, split from --color-success for the same reason as the red: a fill carries white
+     check marks, so it cannot lighten, while green TEXT over the dark glow measured 4.43:1. */
+  --color-success-text: hsl(var(--success-text));
 
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
@@ -870,6 +873,7 @@ so size and variant are separated here and the 44px floor is stated once.
        real margin rather than sitting on it, which is the same call `--muted-foreground` took.
        The fill keeps 35% and keeps its 6.68:1, so nothing about a destructive BUTTON changes. */
     --destructive-text: 0 73% 66%;
+    --success-text: 142 50% 46%;
     --border: 0 0% 15%;
     --input: 0 0% 15%;
     --ring: 43 56% 52%;
@@ -969,6 +973,7 @@ so size and variant are separated here and the 44px floor is stated once.
        would INHERIT the 66% red and draw it on a 96% page at 3.29:1 - the fix introducing a fresh
        AA failure in the theme it was not aimed at. */
     --destructive-text: 0 72% 42%;
+    --success-text: 142 55% 30%;
     /* ⚠️ `--input` IS PULLED WELL PAST `--border`, and that split is the point. A divider may be
        quiet; a control's edge is telling you where you can type, and at 88% it was 1.32:1 — an
        affordance nobody can see. They were the same value only because dark mode never made the
@@ -1091,6 +1096,7 @@ so size and variant are separated here and the 44px floor is stated once.
        real margin rather than sitting on it, which is the same call `--muted-foreground` took.
        The fill keeps 35% and keeps its 6.68:1, so nothing about a destructive BUTTON changes. */
     --destructive-text: 0 73% 66%;
+    --success-text: 142 50% 46%;
     --border: 222 14% 16%;
     --input: 222 14% 16%;
     --ring: 43 56% 52%;

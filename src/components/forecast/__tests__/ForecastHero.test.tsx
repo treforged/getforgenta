@@ -35,7 +35,7 @@ describe('ForecastHero — a positive next milestone', () => {
 
   it('gives good news the success voice', () => {
     renderHero([GOAL, CC_FREE]);
-    expect(screen.getByText('Emergency Fund Complete!').parentElement?.className).toContain('text-success');
+    expect(screen.getByText('Emergency Fund Complete!').parentElement?.className).toContain('text-success-text');
   });
 
   it('keeps every remaining milestone reachable under the hero', () => {

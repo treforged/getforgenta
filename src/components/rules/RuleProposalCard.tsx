@@ -61,7 +61,7 @@ export default function RuleProposalCard({
 
       <p
         data-testid="rule-proposal-amount"
-        className={`text-5xl font-display font-bold leading-none ${income ? 'text-success' : 'text-foreground'}`}
+        className={`text-5xl font-display font-bold leading-none ${income ? 'text-success-text' : 'text-foreground'}`}
       >
         {income ? '+' : '-'}{formatCurrency(proposal.amount)}
       </p>

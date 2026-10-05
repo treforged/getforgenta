@@ -87,7 +87,7 @@ export default function FormModal({ title, fields, values, onChange, onSave, onC
               role="status"
               data-testid="draft-restored-notice"
             >
-              <RotateCcw size={12} className="text-success mt-0.5 shrink-0" />
+              <RotateCcw size={12} className="text-success-text mt-0.5 shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] text-foreground leading-relaxed">
                   We brought back what you had typed before you left.

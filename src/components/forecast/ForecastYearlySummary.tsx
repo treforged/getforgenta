@@ -97,7 +97,7 @@ export default function ForecastYearlySummary({ assumptions, payConfig, annualFe
             {yr.bonus > 0 && (
               <div>
                 <p className="text-[9px] text-muted-foreground">Bonus</p>
-                <p className="text-xs font-display font-bold text-success">{formatCurrency(yr.bonus)}</p>
+                <p className="text-xs font-display font-bold text-success-text">{formatCurrency(yr.bonus)}</p>
               </div>
             )}
             {yr.taxReturn !== 0 && (

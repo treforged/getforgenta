@@ -658,7 +658,7 @@ export default function SettingsPage() {
               Current: <span className="text-foreground">{user?.email}</span>
             </p>
             {emailSent ? (
-              <div className="flex items-center gap-2 text-xs text-success">
+              <div className="flex items-center gap-2 text-xs text-success-text">
                 <CheckCircle size={13} />
                 Verification sent to your new email. Click the link to confirm the change.
               </div>
@@ -763,7 +763,7 @@ export default function SettingsPage() {
             description="Set a new sign-in password. You stay signed in on this device; other devices are unaffected."
           >
             {passwordSuccess ? (
-              <div className="flex items-center gap-2 text-xs text-success">
+              <div className="flex items-center gap-2 text-xs text-success-text">
                 <CheckCircle size={13} />
                 Password updated successfully.
               </div>
@@ -886,7 +886,7 @@ export default function SettingsPage() {
               style={{ borderRadius: 'var(--radius)' }}
             >
               {inviteCopied
-                ? <><CheckCircle size={12} className="text-success" /> Copied!</>
+                ? <><CheckCircle size={12} className="text-success-text" /> Copied!</>
                 : <><Copy size={12} /> Copy link</>}
             </button>
           </div>

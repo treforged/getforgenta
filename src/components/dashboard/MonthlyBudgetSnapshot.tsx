@@ -47,7 +47,7 @@ const C = {
 
 const TONE_CLASS: Record<SnapshotRowTone, string> = {
   neutral:  'text-foreground',
-  positive: 'text-success',
+  positive: 'text-success-text',
   negative: 'text-destructive-text',
   muted:    'text-muted-foreground',
   subtotal: 'text-primary',
@@ -233,7 +233,7 @@ export default function MonthlyBudgetSnapshot({
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none">
                   Available
                 </span>
-                <span className="text-2xl font-display font-bold leading-tight text-success">
+                <span className="text-2xl font-display font-bold leading-tight text-success-text">
                   {formatCurrency(availableToDeploy, true)}
                 </span>
                 <span className="text-[9px] text-muted-foreground leading-none">to deploy</span>

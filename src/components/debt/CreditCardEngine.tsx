@@ -1625,7 +1625,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
             <div className="min-w-0">
               <p className={SUMMARY_LABEL}>Utilization</p>
-              <p className={`${SUMMARY_VALUE} ${overallUtil > 30 ? 'text-destructive-text' : overallUtil > 10 ? 'text-primary' : 'text-success'}`}>{overallUtil.toFixed(1)}%</p>
+              <p className={`${SUMMARY_VALUE} ${overallUtil > 30 ? 'text-destructive-text' : overallUtil > 10 ? 'text-primary' : 'text-success-text'}`}>{overallUtil.toFixed(1)}%</p>
               <div className={SUMMARY_SUBFACTS}>
                 <div className={SUMMARY_SUBFACT}>
                   <span className="text-muted-foreground">Open limit</span>
@@ -1641,7 +1641,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               <p className={SUMMARY_LABEL}>Payoff ETA</p>
               {(() => {
                 const eta = headerEta;
-                const color = eta <= 1 ? 'text-success' : 'text-primary';
+                const color = eta <= 1 ? 'text-success-text' : 'text-primary';
                 if (headerEtaNever) {
                   return (
                     <p className={`${SUMMARY_VALUE} text-destructive-text`}
@@ -1914,11 +1914,11 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       </div>
                       {cashBreakdownItems.incomeItems.length > 0 && (
                         <div className="mb-2">
-                          <p className="text-[10px] text-success uppercase tracking-wider mb-1">+ Upcoming income</p>
+                          <p className="text-[10px] text-success-text uppercase tracking-wider mb-1">+ Upcoming income</p>
                           {cashBreakdownItems.incomeItems.map((item: TransactionLineItem, i: number) => (
                             <div key={i} className="flex justify-between gap-3">
                               <span className="text-muted-foreground truncate max-w-[200px]">{fmtDate(item.date)} · {item.note}{item.isGenerated ? ' *' : ''}</span>
-                              <span className="text-success shrink-0">+{formatCurrency(item.amount, true)}</span>
+                              <span className="text-success-text shrink-0">+{formatCurrency(item.amount, true)}</span>
                             </div>
                           ))}
                         </div>
@@ -2032,7 +2032,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                     <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: r.color }} />
                     <span className="text-[10px] sm:text-xs font-medium truncate min-w-0">{r.cardName}</span>
                     {r.reason === 'Autopay Full Balance' ? (
-                      <span className="text-[9px] sm:text-[10px] text-success bg-success/10 px-1.5 py-0.5 flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
+                      <span className="text-[9px] sm:text-[10px] text-success-text bg-success/10 px-1.5 py-0.5 flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={9} /> autopay
                       </span>
                     ) : r.pastDue ? (
@@ -2214,7 +2214,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                       <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                         <h4 className="text-xs sm:text-sm font-semibold">{proj.card.name}</h4>
                         {proj.card.paymentPreference !== null && (
-                          <span className="text-[8px] sm:text-[9px] px-1.5 py-0.5 bg-success/15 text-success border border-success/30 font-medium flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
+                          <span className="text-[8px] sm:text-[9px] px-1.5 py-0.5 bg-success/15 text-success-text border border-success/30 font-medium flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
                             <CheckCircle2 size={9} /> {proj.card.paymentPreference === 'full' ? 'Full Balance' : 'Statement Bal.'}
                           </span>
                         )}
@@ -2237,7 +2237,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         <div className={`h-full transition-all ${proj.utilizationNow > 30 ? 'bg-destructive' : proj.utilizationNow > 10 ? 'bg-primary' : 'bg-success'}`}
                           style={{ width: `${Math.min(100, proj.utilizationNow)}%` }} />
                       </div>
-                      <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success' : 'text-destructive-text'}`}>
+                      <p className={`text-sm sm:text-base font-display font-bold mt-0.5 ${proj.card.balance <= 0 ? 'text-success-text' : 'text-destructive-text'}`}>
                         {formatCurrency(Math.max(0, proj.card.balance))}
                       </p>
                       <p className="text-[11px] sm:text-xs text-muted-foreground">
@@ -2490,7 +2490,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                   <div className="px-3 sm:px-4 py-3">
                     <CardPromoList card={proj.card} account={accounts.find(a => a.id === proj.card.id)} />
                     {proj.card.balance <= 0 && (
-                      <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
+                      <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success-text" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={14} className="shrink-0" />
                         <span>Debt-free. Monthly purchases ({formatCurrency(proj.card.steadyMonthlyPurchases ?? proj.card.monthlyNewPurchases)}) paid as {proj.card.paymentPreference === 'full' ? 'full balance' : proj.card.paymentPreference === 'statement' ? 'statement balance' : 'minimum'} — as cash allows.</span>
                       </div>
@@ -2534,7 +2534,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                             }))}
                           />
                           {yearMonths.length === 0 ? (
-                            <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
+                            <div className="flex items-center gap-2 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success-text" style={{ borderRadius: 'var(--radius)' }}>
                               <CheckCircle2 size={14} className="shrink-0" />
                               <span>{proj.card.name} is projected to be paid off before {getCalendarYearLabel(yearIdx)} — nothing to show here.</span>
                             </div>
@@ -2639,8 +2639,8 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                                     non-reconciling row is tracked separately and is still open.
                                     Do not restore this line - fix the numbers. */}
                                 {row.interest > 0 && <span className="text-destructive-text">+{formatCurrency(row.interest, true)} interest</span>}
-                                {surplusAmt > 0 && <span className="text-success">+{formatCurrency(surplusAmt)} surplus redirect</span>}
-                                <span className={row.utilization > 30 ? 'text-destructive-text' : row.utilization > 10 ? 'text-primary' : 'text-success'}>
+                                {surplusAmt > 0 && <span className="text-success-text">+{formatCurrency(surplusAmt)} surplus redirect</span>}
+                                <span className={row.utilization > 30 ? 'text-destructive-text' : row.utilization > 10 ? 'text-primary' : 'text-success-text'}>
                                   {row.utilization.toFixed(1)}% utilization
                                 </span>
                               </div>

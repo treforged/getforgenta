@@ -710,7 +710,7 @@ export default function Forecast() {
                   <span className="text-xs font-medium truncate">{e.name}</span>
                   {e.source && <span className="text-[9px] sm:text-xs text-muted-foreground hidden sm:inline">· {e.source}</span>}
                 </div>
-                <span className={`text-xs font-display font-bold shrink-0 ${e.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
+                <span className={`text-xs font-display font-bold shrink-0 ${e.type === 'income' ? 'text-success-text' : 'text-destructive-text'}`}>
                   {e.type === 'income' ? '+' : '-'}{formatCurrency(e.amount)}
                 </span>
               </div>
@@ -760,7 +760,7 @@ export default function Forecast() {
                     // its 12px radius, so the tile's radius is that radius minus the gap.
                     <div key={label} className="card-forged px-2 py-1.5 text-center" style={{ borderRadius: 'max(0px, calc(var(--radius) - 10px))' }}>
                       <p className="text-[9px] text-muted-foreground uppercase">{label}</p>
-                      <p className="text-xs font-bold font-display text-success">{formatCurrency(val)}</p>
+                      <p className="text-xs font-bold font-display text-success-text">{formatCurrency(val)}</p>
                     </div>
                   ))}
                 </div>
@@ -769,7 +769,7 @@ export default function Forecast() {
             {retirementProjections.length > 1 && (
               <div className="flex items-center justify-between pt-2 border-t border-border/30">
                 <p className="text-xs text-muted-foreground font-medium">Combined projected retirement (10yr)</p>
-                <p className="text-sm font-bold font-display text-success">
+                <p className="text-sm font-bold font-display text-success-text">
                   {formatCurrency(retirementProjections.reduce((s, p) => s + p.milestones.year10, 0))}
                 </p>
               </div>

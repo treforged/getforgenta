@@ -774,7 +774,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
           <div role="dialog" aria-modal="true" aria-label={`${plaidSyncResult.institutionName} linked`} className="card-forged w-full max-w-sm p-5 flex flex-col gap-4">
             <div className="flex flex-col items-center text-center gap-1.5">
               <div className="w-12 h-12 rounded-full bg-success/10 flex items-center justify-center">
-                <Link2 size={22} className="text-success" />
+                <Link2 size={22} className="text-success-text" />
               </div>
               <p className="text-sm font-semibold">{plaidSyncResult.institutionName} linked!</p>
               <p className="text-xs text-muted-foreground">
@@ -794,13 +794,13 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                       </div>
                       {isCreditCard && (
                         <div className="flex flex-col gap-0.5 items-end shrink-0 text-xs font-medium">
-                          <span className={acct.apr != null ? 'text-success' : 'text-muted-foreground'}>
+                          <span className={acct.apr != null ? 'text-success-text' : 'text-muted-foreground'}>
                             APR {acct.apr != null ? `${acct.apr}%` : '—'}
                           </span>
-                          <span className={acct.credit_limit != null ? 'text-success' : 'text-muted-foreground'}>
+                          <span className={acct.credit_limit != null ? 'text-success-text' : 'text-muted-foreground'}>
                             Limit {acct.credit_limit != null ? formatCurrency(acct.credit_limit, false) : '—'}
                           </span>
-                          <span className={acct.min_payment != null ? 'text-success' : 'text-muted-foreground'}>
+                          <span className={acct.min_payment != null ? 'text-success-text' : 'text-muted-foreground'}>
                             Min {acct.min_payment != null ? formatCurrency(acct.min_payment) : '—'}
                           </span>
                         </div>
@@ -1131,7 +1131,7 @@ export default function Accounts({ embedded = false }: { embedded?: boolean } = 
                           alone returns roughly 90px to the name on a 390px phone. */}
                       <p className="text-sm font-semibold break-words">{a.name}</p>
                     </div>
-                    <span className={`text-base font-display font-bold shrink-0 ${liability ? 'text-destructive-text' : 'text-success'}`}>
+                    <span className={`text-base font-display font-bold shrink-0 ${liability ? 'text-destructive-text' : 'text-success-text'}`}>
                       {liability ? '-' : ''}{formatCurrency(Number(a.balance))}
                     </span>
                   </div>

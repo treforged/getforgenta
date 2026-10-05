@@ -89,7 +89,7 @@ export default function AdvancedAnalyticsCard() {
                       <div className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: BREAKDOWN_COLORS[idx % BREAKDOWN_COLORS.length] }} />
                       <span className="font-medium truncate">{a.name}</span>
                     </div>
-                    <span className="font-bold font-display text-success whitespace-nowrap shrink-0">{formatCurrency(Number(a.value))}</span>
+                    <span className="font-bold font-display text-success-text whitespace-nowrap shrink-0">{formatCurrency(Number(a.value))}</span>
                   </div>
                 ))}
                 {allAssetsForBreakdown.length === 0 && <p className="text-xs text-muted-foreground">No assets yet.</p>}

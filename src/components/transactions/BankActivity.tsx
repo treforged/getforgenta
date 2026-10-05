@@ -1157,7 +1157,7 @@ export default function BankActivity() {
                       </p>
                     </div>
                   </div>
-                  <span className={`text-xs font-semibold font-display whitespace-nowrap ${isInflow ? 'text-success' : 'text-destructive-text'}`}>
+                  <span className={`text-xs font-semibold font-display whitespace-nowrap ${isInflow ? 'text-success-text' : 'text-destructive-text'}`}>
                     {isInflow ? '+' : '-'}{formatCurrency(Math.abs(amount))}
                   </span>
                 </div>
@@ -1228,7 +1228,7 @@ export default function BankActivity() {
                 {links.map(link => (
                   <span
                     key={link.id}
-                    className="inline-flex items-center gap-1 text-xs text-success bg-success/10 pl-1.5 pr-1 py-0.5"
+                    className="inline-flex items-center gap-1 text-xs text-success-text bg-success/10 pl-1.5 pr-1 py-0.5"
                     style={{ borderRadius: 'var(--radius)' }}
                   >
                     {linkLabel(link)}
@@ -1237,7 +1237,7 @@ export default function BankActivity() {
                         decision on the charge to correct one of them. */}
                     <button
                       onClick={() => removeLink.mutate(link.id)}
-                      className="text-success/70 hover:text-success"
+                      className="text-success/70 hover:text-success-text"
                       title="Undo just this link"
                       aria-label={`Undo ${linkLabel(link)}`}
                     >
@@ -1248,7 +1248,7 @@ export default function BankActivity() {
 
                 {exclusiveHandled && exclusive ? (
                   <>
-                    <span className="text-xs text-success bg-success/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
+                    <span className="text-xs text-success-text bg-success/10 px-1.5 py-0.5" style={{ borderRadius: 'var(--radius)' }}>
                       {/* A recorded transfer leg carries `'ignored'` because that is the only
                           existing status meaning "nothing about this belongs in the ledger" (see
                           `recordTransfer`), but "ignored" is not what the user did — they told the

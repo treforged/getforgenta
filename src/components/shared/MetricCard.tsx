@@ -45,7 +45,7 @@ export default function MetricCard({
     gold: 'text-primary',
     silver: 'text-foreground',
     crimson: 'text-destructive-text',
-    success: 'text-success',
+    success: 'text-success-text',
     orange: 'text-primary',
   };
 
@@ -61,7 +61,7 @@ export default function MetricCard({
     gold: 'bg-primary/10 text-primary',
     silver: 'bg-muted text-foreground',
     crimson: 'bg-destructive/10 text-destructive-text',
-    success: 'bg-success/10 text-success',
+    success: 'bg-success/10 text-success-text',
     orange: 'bg-primary/10 text-primary',
   };
 

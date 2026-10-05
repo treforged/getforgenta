@@ -169,7 +169,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
             {!item.done && (
               <button
                 onClick={e => handleMarkDone(e, item.key)}
-                className="absolute top-2 right-2 text-[10px] text-muted-foreground hover:text-success px-1.5 py-0.5 rounded border border-transparent hover:border-success/30 transition-colors"
+                className="absolute top-2 right-2 text-[10px] text-muted-foreground hover:text-success-text px-1.5 py-0.5 rounded border border-transparent hover:border-success/30 transition-colors"
               >
                 Mark done
               </button>

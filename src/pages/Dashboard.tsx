@@ -1013,7 +1013,7 @@ export default function Dashboard() {
                         says so: the amount beside it is what left the account, not what was due. */}
                     {e.settledDate && (
                       <span
-                        className="text-[9px] text-success bg-success/10 px-1 py-0.5 ml-2"
+                        className="text-[9px] text-success-text bg-success/10 px-1 py-0.5 ml-2"
                         style={{ borderRadius: 'var(--radius)' }}
                         title={e.projectedAmount !== undefined
                           ? `A settled transaction paid this. Scheduled ${formatCurrency(e.projectedAmount)}.`
@@ -1063,7 +1063,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground uppercase">Progress</p>
-                <p className="text-lg font-display font-bold text-success">{carGoalData.target > 0 ? `${((carGoalData.saved / carGoalData.target) * 100).toFixed(0)}%` : '0%'}</p>
+                <p className="text-lg font-display font-bold text-success-text">{carGoalData.target > 0 ? `${((carGoalData.saved / carGoalData.target) * 100).toFixed(0)}%` : '0%'}</p>
               </div>
               {carGoalData.isCarFund && (
                 <div>
@@ -1187,7 +1187,7 @@ export default function Dashboard() {
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-md flex items-center justify-center ${t.type === 'income' ? 'bg-success/10' : 'bg-muted'}`}>
-                        {t.type === 'income' ? <ArrowUpRight size={14} className="text-success" /> : <CategoryIcon category={t.category} size={14} />}
+                        {t.type === 'income' ? <ArrowUpRight size={14} className="text-success-text" /> : <CategoryIcon category={t.category} size={14} />}
                       </div>
                       <div>
                         <div className="flex items-center gap-1">
@@ -1210,7 +1210,7 @@ export default function Dashboard() {
                     </div>
                     {/* A transfer leaves the account, so it keeps its minus - but it is not a
                         loss, so it does not get the red that means one. */}
-                    <span className={`text-xs font-bold font-display ${t.isTransfer ? 'text-muted-foreground' : t.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
+                    <span className={`text-xs font-bold font-display ${t.isTransfer ? 'text-muted-foreground' : t.type === 'income' ? 'text-success-text' : 'text-destructive-text'}`}>
                       {t.type === 'income' ? '+' : '-'}{formatCurrency(Number(t.amount))}
                     </span>
                   </div>

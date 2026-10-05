@@ -129,7 +129,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
                   <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: r.color }} />
                   <span className="text-[10px] font-medium">{r.cardName}</span>
                   {r.reason === 'Autopay Full Balance' ? (
-                    <span className="text-[9px] text-success bg-success/10 px-1.5 py-0.5 flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
+                    <span className="text-[9px] text-success-text bg-success/10 px-1.5 py-0.5 flex items-center gap-1" style={{ borderRadius: 'var(--radius)' }}>
                       <CheckCircle2 size={9} /> autopay
                     </span>
                   ) : r.pastDue ? (

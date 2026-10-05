@@ -38,7 +38,7 @@ type BudgetTileProps = {
   className?: string;
 };
 
-const ACCENT_TEXT = { gold: 'text-primary', crimson: 'text-destructive-text', success: 'text-success' } as const;
+const ACCENT_TEXT = { gold: 'text-primary', crimson: 'text-destructive-text', success: 'text-success-text' } as const;
 const ACCENT_GLOW = {
   gold: 'shadow-[0_0_20px_-8px_hsl(var(--gold)/0.3)]',
   crimson: 'shadow-[0_0_20px_-8px_hsl(var(--crimson)/0.2)]',

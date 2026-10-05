@@ -906,7 +906,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         // Says "matched", not "auto-matched": the underlying index also includes matches Tre
         // confirmed by hand, and the label should not claim the automatic path when it was a person.
         <span
-          className="text-xs px-1 py-0.5 bg-success/20 text-success border border-success/30 shrink-0"
+          className="text-xs px-1 py-0.5 bg-success/20 text-success-text border border-success/30 shrink-0"
           style={{ borderRadius: 'var(--radius)' }}
           title="A settled transaction on the linked account matches this rule's amount and due date this month."
         >
@@ -1113,14 +1113,14 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               </div>
             )}
             {autoSaveStatus === 'saving' && <span className="text-xs sm:text-sm text-muted-foreground animate-pulse">Saving…</span>}
-            {autoSaveStatus === 'saved' && <span className="text-xs sm:text-sm text-success">✓ Saved</span>}
+            {autoSaveStatus === 'saved' && <span className="text-xs sm:text-sm text-success-text">✓ Saved</span>}
           </div>
         </div>
 
         {/* Collapsed summary — shows key info when section is folded */}
         {incomeSectionCollapsed && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground pt-1">
-            <span>{freqLabel(payFrequency)} · Net: <span className="font-display font-bold text-success">{formatCurrency(paycheckNet)}</span></span>
+            <span>{freqLabel(payFrequency)} · Net: <span className="font-display font-bold text-success-text">{formatCurrency(paycheckNet)}</span></span>
             <span>Next: <span className="font-medium text-primary">{nextPayday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span></span>
           </div>
         )}
@@ -1267,7 +1267,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
                         </div>
                       )}
                       {d.goalId && d.value > 0 && (
-                        <p className="text-xs text-success">
+                        <p className="text-xs text-success-text">
                           {formatCurrency(Math.round(d.flatAmt * (payFrequency === 'biweekly' ? 26 : payFrequency === 'monthly' ? 12 : 52) / 12 * 100) / 100, false)}/mo → goal
                         </p>
                       )}
@@ -1284,7 +1284,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
           {/* Totals summary */}
           {(preTaxDeductionsFlat + postTaxDeductionsFlat) > 0 && (
             <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs sm:text-sm pt-1">
-              {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat)} pre-tax <span className="text-success">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100))} tax)</span></span>}
+              {preTaxDeductionsFlat > 0 && <span className="text-primary">−{formatCurrency(preTaxDeductionsFlat)} pre-tax <span className="text-success-text">(saves {formatCurrency(preTaxDeductionsFlat * (taxRate / 100))} tax)</span></span>}
               {postTaxDeductionsFlat > 0 && <span className="text-gold">−{formatCurrency(postTaxDeductionsFlat)} post-tax</span>}
             </div>
           )}
@@ -1296,7 +1296,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
               {!hasTaxDeductions && <span>× {(100 - taxRate).toFixed(0)}%</span>}
               {postTaxDeductionsFlat > 0 && <><span className="text-gold">−{formatCurrency(postTaxDeductionsFlat)} post-tax</span></>}
               <span>→</span>
-              <span className="font-display font-bold text-success">{formatCurrency(paycheckNet)} net</span>
+              <span className="font-display font-bold text-success-text">{formatCurrency(paycheckNet)} net</span>
             </div>
           )}
           {/* 401k per-paycheck breakdown — used by Forecast to compute remaining contributions this month */}
@@ -1411,7 +1411,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
         <div className="grid grid-cols-2 gap-2">
           <div className="card-forged p-2.5 text-left col-span-2 flex flex-row items-baseline justify-between">
             <p className="text-xs sm:text-sm text-muted-foreground">Per Paycheck (Net)</p>
-            <p className="pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
+            <p className="pt-0.5 text-base sm:text-lg font-display font-bold text-success-text wrap-break-word">
               {formatCurrency(paycheckNet)}
             </p>
           </div>
@@ -1425,7 +1425,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
           <div className="card-forged p-2.5 text-left flex flex-col">
             <p className="text-xs sm:text-sm text-muted-foreground">Monthly Take-Home</p>
-            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
+            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-success-text wrap-break-word">
               {formatCurrency(monthlyTakeHome)}
             </p>
           </div>
@@ -1439,7 +1439,7 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
 
           <div className="card-forged p-2.5 text-left flex flex-col">
             <p className="text-xs sm:text-sm text-muted-foreground">Annual Take-Home</p>
-            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-success wrap-break-word">
+            <p className="mt-auto pt-0.5 text-base sm:text-lg font-display font-bold text-success-text wrap-break-word">
               {formatCurrency(annualTakeHome)}
             </p>
           </div>
@@ -1587,12 +1587,12 @@ export default function BudgetControl({ embedded = false }: { embedded?: boolean
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Income Rules</h3>
               <div className="ml-auto flex items-center gap-3">
-                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-success">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>
+                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-success-text">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>
                 <button onClick={() => openAdd('income')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
               </div>
             </div>
             {incomeRules.length === 0 && <p className="text-sm text-muted-foreground">No income rules. Add one to auto-generate paychecks.</p>}
-            {incomeRules.map(r => <RuleRow key={r.id} r={r} color="text-success" />)}
+            {incomeRules.map(r => <RuleRow key={r.id} r={r} color="text-success-text" />)}
           </div>
         )}
 

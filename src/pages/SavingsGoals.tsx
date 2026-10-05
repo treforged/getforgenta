@@ -144,7 +144,7 @@ function GoalLumpSumModal({
           {date && proj !== null && (
             <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
               <span>Goal balance at date: <span className="text-foreground font-medium">{formatCurrency(proj)}</span></span>
-              <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash)}</span></span>
+              <span>Cash available: <span className="text-success-text font-medium">{formatCurrency(liquidCash)}</span></span>
             </div>
           )}
         </div>
@@ -991,7 +991,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
           was 641x87 at 1440 holding a 100px label and figure in its middle. On a phone they stay
           stacked, because a 175px tile cannot fit both on one line. */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success">{formatCurrency(totalSaved)}</p></div>
+        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success-text">{formatCurrency(totalSaved)}</p></div>
         <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3"><p className="text-xs text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget)}</p></div>
       </div>
 
@@ -1073,7 +1073,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                   </div>
                   <p className="text-xs text-muted-foreground wrap-break-word leading-relaxed">
                     {g.is_complete
-                      ? <span className="text-success">Target reached · contributions no longer counted{g.linked_rules && g.linked_rules.length > 0 ? ` (${g.linked_rules.map(r => r.name).join(', ')} still active)` : ''}</span>
+                      ? <span className="text-success-text">Target reached · contributions no longer counted{g.linked_rules && g.linked_rules.length > 0 ? ` (${g.linked_rules.map(r => r.name).join(', ')} still active)` : ''}</span>
                       : g.linked_rules && g.linked_rules.length > 0
                       ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution))}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
                       : pacedNote
@@ -1136,7 +1136,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                         <span className="shrink-0 font-mono text-muted-foreground">
                           {formatCurrency(s.threshold)}
                           {done
-                            ? <span className="ml-1.5 text-success">done</span>
+                            ? <span className="ml-1.5 text-success-text">done</span>
                             : isNow
                               ? <span className="ml-1.5 text-primary">now</span>
                               : s.afterCards

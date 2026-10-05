@@ -177,14 +177,14 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
     <div className="card-forged p-4 space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-y-2">
         <div className="flex items-center gap-2 min-w-0">
-          <Car size={16} className="text-success shrink-0" />
+          <Car size={16} className="text-success-text shrink-0" />
           <div className="min-w-0">
             <h3 className="text-sm font-semibold truncate">{cf.vehicle_name}</h3>
             <p className="text-xs text-muted-foreground">{cf.expected_apr}% APR · {cf.loan_term_months} mo</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0 ml-auto pl-2">
-          <span className="text-[10px] bg-success/15 text-success px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>Active Loan</span>
+          <span className="text-[10px] bg-success/15 text-success-text px-1.5 py-0.5 font-medium" style={{ borderRadius: 'var(--radius)' }}>Active Loan</span>
           <button
             onClick={onUndo}
             className={`icon-btn text-sm flex items-center gap-1 px-2 ${undoConfirm ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}
@@ -362,7 +362,7 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
                           {r.autoExtra > 0 ? formatCurrency(r.autoExtra) : '—'}
                         </td>
                       )}
-                      <td className="py-1 px-1 text-right text-success">{formatCurrency(r.principal)}</td>
+                      <td className="py-1 px-1 text-right text-success-text">{formatCurrency(r.principal)}</td>
                       <td className="py-1 px-1 text-right text-destructive-text">{r.deferred ? '—' : formatCurrency(r.interest)}</td>
                       <td className="py-1 px-1 text-right font-medium">{formatCurrency(r.endBalance)}</td>
                     </tr>

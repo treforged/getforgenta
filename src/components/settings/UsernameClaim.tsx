@@ -95,7 +95,7 @@ export function UsernameClaim({ readOnly = false }: { readOnly?: boolean }) {
          Caption ABOVE the handle rather than beside it, and `break-all` instead of `truncate`
          so a long name WRAPS. Wrapping costs a line; truncating costs the information. */
       <div className="flex items-start gap-2 text-xs">
-        <Check size={12} className="text-success shrink-0 mt-0.5" />
+        <Check size={12} className="text-success-text shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
           <span className="block text-muted-foreground">People can find you at</span>
           <span className="block font-medium break-all">@{current}</span>

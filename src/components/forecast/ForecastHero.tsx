@@ -51,7 +51,7 @@ const MONTH_TONE: Record<MilestoneTone, string> = {
 /** Supporting-line colour by tone — the distinct voice, at identical prominence. */
 const EVENT_TONE: Record<MilestoneTone, string> = {
   negative: 'text-destructive-text',
-  positive: 'text-success',
+  positive: 'text-success-text',
   neutral: 'text-muted-foreground',
 };
 
@@ -78,7 +78,7 @@ function RemainingMilestones({ milestones }: { milestones: ForecastMilestone[] }
           const chip = tone === 'negative'
             ? 'bg-destructive/10 text-destructive-text'
             : tone === 'positive'
-              ? 'bg-success/10 text-success'
+              ? 'bg-success/10 text-success-text'
               : 'bg-secondary text-muted-foreground';
           // The SAME icon source as the hero above. Before this, the hero drew a lucide glyph on
           // top of the emoji already inside the string (two warnings side by side) while these

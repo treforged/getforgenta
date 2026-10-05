@@ -108,7 +108,7 @@ function LumpSumModal({
           {date && (bal !== null || liquidCash !== undefined) && (
             <div className="flex flex-wrap gap-4 text-[10px] text-muted-foreground p-2.5 bg-secondary/30 border border-border/30" style={{ borderRadius: 'var(--radius)' }}>
               {bal !== null && <span>Balance at date: <span className="text-foreground font-medium">{formatCurrency(bal)}</span></span>}
-              {liquidCash !== undefined && <span>Cash available: <span className="text-success font-medium">{formatCurrency(liquidCash)}</span></span>}
+              {liquidCash !== undefined && <span>Cash available: <span className="text-success-text font-medium">{formatCurrency(liquidCash)}</span></span>}
             </div>
           )}
         </div>
@@ -247,12 +247,12 @@ export default function LumpSumPanel({
 
       {hasLumps && (monthsSaved > 0 || interestSaved > 0) && (
         <div className="p-2 bg-success/5 border border-success/20 text-[10px] space-y-0.5" style={{ borderRadius: 'var(--radius)' }}>
-          <p className="text-success font-semibold">Impact of extra payments:</p>
+          <p className="text-success-text font-semibold">Impact of extra payments:</p>
           <div className="flex flex-wrap gap-3">
             <span>Payoff: {new Date(withLumpsPayoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
               {monthsSaved > 0 && <span className="text-muted-foreground"> ({monthsSaved} mo earlier)</span>}
             </span>
-            {interestSaved > 0 && <span className="text-success">saves {formatCurrency(interestSaved)} interest</span>}
+            {interestSaved > 0 && <span className="text-success-text">saves {formatCurrency(interestSaved)} interest</span>}
           </div>
         </div>
       )}

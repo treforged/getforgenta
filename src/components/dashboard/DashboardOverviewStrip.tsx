@@ -153,7 +153,7 @@ export default function DashboardOverviewStrip({
       <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">
         {/* One per line on a phone, where the headline shares its row with Liquid Cash and the
             two figures together are wider than half the card. */}
-        <span className="block sm:inline"><span className="text-success font-medium">{money(totalAssets)}</span> assets</span>
+        <span className="block sm:inline"><span className="text-success-text font-medium">{money(totalAssets)}</span> assets</span>
         <span className="mx-1.5 text-border hidden sm:inline" aria-hidden="true">|</span>
         <span className="block sm:inline"><span className="text-destructive-text font-medium">{money(totalLiabilities)}</span> liabilities</span>
       </p>
@@ -184,7 +184,7 @@ export default function DashboardOverviewStrip({
 
         <div className="contents sm:block sm:border-t lg:border-t-0 lg:border-l border-border/40 sm:pt-4 lg:pt-0 lg:pl-5 xl:pl-6">
           <div className="contents text-center sm:grid sm:grid-cols-4 sm:items-start sm:gap-5">
-            <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success" onClick={onLiquidCashClick} className="col-span-2 sm:col-span-1" />
+            <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success-text" onClick={onLiquidCashClick} className="col-span-2 sm:col-span-1" />
             <SplitTile label="Investments" value={money(investments)} tone="text-primary" className="col-span-2 sm:col-span-1" />
             <SplitTile label="Retirement" value={money(retirement)} tone="text-primary" className="col-span-2 sm:col-span-1" />
             <SplitTile label="CC Debt" value={money(ccDebt)} tone="text-destructive-text" sub={utilizationSub} className="col-span-2 sm:col-span-1" />

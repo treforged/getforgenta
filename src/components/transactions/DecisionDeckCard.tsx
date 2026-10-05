@@ -152,7 +152,7 @@ export default function DecisionDeckCard({
 
       <p
         data-testid="decision-deck-amount"
-        className={`text-5xl font-display font-bold leading-none ${isInflow ? 'text-success' : 'text-foreground'}`}
+        className={`text-5xl font-display font-bold leading-none ${isInflow ? 'text-success-text' : 'text-foreground'}`}
       >
         {isInflow ? '+' : '-'}{formatCurrency(Math.abs(amount), false)}
       </p>

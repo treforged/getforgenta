@@ -1281,7 +1281,7 @@ export default function Transactions() {
       <div className="grid grid-cols-3 gap-3">
         <div className="card-forged p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Income</p>
-          <p className="text-sm font-display font-bold text-success">{formatCurrency(totals.income)}</p>
+          <p className="text-sm font-display font-bold text-success-text">{formatCurrency(totals.income)}</p>
           {totals.projectedIncome > 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedIncome)} projected</p>
           )}
@@ -1352,7 +1352,7 @@ export default function Transactions() {
                     {t.isGenerated && !t.isDebtPayment && t.matchedActualDate && <Repeat size={10} className="text-primary" />}
                     {t.isDebtPayment && <span className="text-[9px] text-primary bg-primary/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>debt payoff</span>}
                     {t.isPlanPayment && <span className="text-[9px] text-info bg-info/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>installment</span>}
-                    {t.isCarLoanPayment && <span className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
+                    {t.isCarLoanPayment && <span className="text-[9px] text-success-text bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>car loan</span>}
                     {pauseSavings && t.ruleId && savingsRuleIdsForBadge.has(t.ruleId) && (
                       <span className="text-[9px] text-muted-foreground bg-muted/20 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}>paused</span>
                     )}
@@ -1362,7 +1362,7 @@ export default function Transactions() {
                         where they came from and the title says what they replaced. */}
                     {t.matchedActualDate && (
                       <span
-                        className="text-[9px] text-success bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}
+                        className="text-[9px] text-success-text bg-success/10 px-1 py-0.5" style={{ borderRadius: 'var(--radius)' }}
                         title={t.matchedProjectedAmount !== undefined
                           ? `A settled bank transaction paid this. Scheduled ${formatCurrency(t.matchedProjectedAmount)}.`
                           : 'A settled bank transaction paid this.'}
@@ -1397,7 +1397,7 @@ export default function Transactions() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success' : 'text-destructive-text') : t.type === 'income' ? 'text-success' : 'text-destructive-text'}`}>
+                <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success-text' : 'text-destructive-text') : t.type === 'income' ? 'text-success-text' : 'text-destructive-text'}`}>
                   {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta) : formatCurrency(Number(t.amount))}
                 </span>
                 {/* ⚠️ BOTH FIGURES ON THE BUTTON, BEFORE THE PRESS — the same rule the queue's own

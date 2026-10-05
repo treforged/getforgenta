@@ -155,7 +155,7 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
         <ProgressBar value={pct} max={100} />
         {gift > 0 && (
           <div className="flex items-center gap-1 mt-1">
-            <span className="text-[10px] px-1.5 py-0.5 bg-success/10 border border-success/20 text-success font-medium" style={{ borderRadius: 'var(--radius)' }}>
+            <span className="text-[10px] px-1.5 py-0.5 bg-success/10 border border-success/20 text-success-text font-medium" style={{ borderRadius: 'var(--radius)' }}>
               Gift/contribution: {formatCurrency(gift)} covered
             </span>
           </div>
