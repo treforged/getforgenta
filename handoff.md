@@ -38,6 +38,10 @@ R-NOW86 (10-05 ~04:30 ET, Ada getforgenta-1f, OVERDRIVE). Crons RE-ARMED (sessio
     [!] 853aba70 BLOCKED on NEW 6dce46c4: GitHub has fired NO scheduled run in this repo since 09-11 15:49Z (promote-rollout,
     CodeQL, audit, and the new 10:00Z Play ship all silent; workflows state=active). Asked Sam for a yes to dispatch
     android-build.yml (publishes to Play). Crons now [ada-cron]: probe 34a65ccf, probes OK through 11:20Z.
+    [x] 853aba70 DONE: Sam said yes; run 37303553168 Deploy step success (staged 10%, note 443 chars, 1256 commits since
+    the 09-11 ship 5a5c6a32). The first dispatch refused because depth 50 missed 5a5c6a32 - fixed 9d037a81 (shipping runs
+    unshallow). [~] 6dce46c4: all 6 scheduled workflows disable/enable-toggled ~11:30-11:45Z + 5-min schedule-canary.yml
+    pushed; one-shot b1fc066f checks at 12:43Z. If schedules stay dead the new 10% rollout never gets PROMOTED.
 R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
     1. [x] d5c183b3 OFFLINE STACK DONE (Tre "1. yes"). `npx supabase start --workdir local-stack/sb -x edge-runtime`
        (schema-only prod dump; repo migrations cannot build from zero), then `npm run dev:offline` (:8081, vite mode
