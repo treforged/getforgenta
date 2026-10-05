@@ -15,7 +15,7 @@ import { summarizeUtilization } from '@/lib/credit-utilization';
 import DebtHero from './DebtHero';
 import AvalancheOrderList from './AvalancheOrderList';
 import { assetAccountIdsOf, otherAssetSourceId } from '@/lib/other-account-cash';
-import CardRateLine from './CardRateLine';
+import CardRateLine, { CardPromoList } from './CardRateLine';
 import {
   buildPayConfig, getNormalizedMonthNetIncome, getPrePaycheckNextMonthBills, getMinSafeCash,
   getRemainingTransactionIncomeByDay, getRemainingTransactionExpensesByDay,
@@ -1582,7 +1582,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
 
         {/* Controls and the order they produce, side by side from lg up: full-width, each one left
             most of a 1440px row empty (Tre, 2026-10-01). Stacked on a phone, as before. */}
-        <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:items-start">
+        <div className="grid gap-4 sm:gap-5 lg:grid-cols-2 lg:items-stretch">
         {/* Summary Stats */}
         {/* FROM lg UP THE SUMMARY SITS UNDER THE PAYOFF ORDER, beside the controls (Tre, 2026-10-03,
             ask 1be673ad: "fill in their boxes more or reduce the box sizes to reorient"). Full-width
@@ -1590,7 +1590,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             139px tall over an empty band. Controls on the left, what they produce on the right.
             Placed by grid lines, not by DOM order, so a phone still reads summary -> controls ->
             order, exactly as before. Two tiles per row in the half-width column. */}
-        <div className="card-forged p-4 sm:p-5 min-w-0 lg:col-start-2 lg:row-start-2">
+        <div className="card-forged p-4 sm:p-5 min-w-0 lg:col-span-2 lg:row-start-2">
           {/* ⚠️ FOUR TILES, NOT FIVE. "Total Limit" was removed on 2026-09-17 - Tre: "on the
               debt we don't need to see total limit and open limit. Those are the same exact
               thing." He is right, and it was verified rather than taken on trust: this tile summed
@@ -1608,7 +1608,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
               its tile's edge, and each breakdown figure inside the tile it breaks down -
               interest-bearing and 0%-plan balances under Total CC Balance, the open limit under
               the Utilization it is the denominator of. */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-x-4 gap-y-4 sm:gap-x-5" data-testid="debt-summary-grid">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-4 sm:gap-x-5" data-testid="debt-summary-grid">
             <div className="min-w-0">
               <p className={SUMMARY_LABEL}>Total CC Balance</p>
               <p className={`${SUMMARY_VALUE} text-destructive-text`}>{formatCurrency(totalBalance)}</p>
@@ -1684,7 +1684,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             the pills never wrap under the label (Snowball used to drop to the card's left edge at
             390). Every control is CONTROL_H tall, and the notes under the cash floor sit in the
             control column rather than at the card edge. */}
-        <div className="card-forged p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 min-w-0 lg:col-start-1 lg:row-start-1 lg:row-span-2">
+        <div className="card-forged p-4 sm:p-5 flex flex-col gap-3 sm:gap-4 min-w-0 lg:col-start-1 lg:row-start-1">
           <div className={CONTROL_ROW}>
             <span className={CONTROL_LABEL}>Strategy</span>
             <div className="flex flex-wrap items-center gap-2">
@@ -1842,7 +1842,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
           </div>
         </div>
 
-        <div className="min-w-0 lg:col-start-2 lg:row-start-1">
+        <div className="min-w-0 lg:col-start-2 lg:row-start-1 lg:[&>*]:h-full">
           <AvalancheOrderList
             entries={payoffOrder}
             strategy={strategy}
@@ -1879,12 +1879,12 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
           )}
 
-          {/* FROM lg UP: the four figures as a 2x2 block on the left, the per-card payments they fund on
-              the right (Tre, 2026-10-03, ask 1be673ad). Full-width, four short centred figures and
-              one wide row left a 1296px card 8.8% filled. Same tiles, same rows, same order on a
-              phone. */}
-          <div className="lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-4 lg:items-start">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-2 mb-3 sm:mb-4 lg:mb-0">
+          {/* FROM lg UP: the four figures in one row, then the per-card payments as a 2-column grid
+              (Tre, 2026-10-05, ask 07210a47: "just look at these gaps"). The 2x2-left / rows-right
+              split of 2026-10-03 left a tall empty band under the figures, because four rows of
+              payments always outgrow four numbers. Same tiles, same rows, same order on a phone. */}
+          <div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 mb-3 sm:mb-4">
             <Tooltip open={liquidCashOpen} onOpenChange={setLiquidCashOpen}>
               <TooltipTrigger asChild>
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>
@@ -2023,7 +2023,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
             </div>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-2 lg:space-y-0 lg:grid lg:grid-cols-2 lg:gap-2">
             {month0Recs.recs.map(r => {
               const hasHoldbackCap = (month0?.holdback ?? 0) > 0 && r.maxPayment > r.payment + 0.01;
               return (
@@ -2488,6 +2488,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 {isExpanded && (
                   <div className="border-t border-border">
                   <div className="px-3 sm:px-4 py-3">
+                    <CardPromoList card={proj.card} account={accounts.find(a => a.id === proj.card.id)} />
                     {proj.card.balance <= 0 && (
                       <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-success/10 border border-success/20 text-[10px] sm:text-xs text-success" style={{ borderRadius: 'var(--radius)' }}>
                         <CheckCircle2 size={14} className="shrink-0" />

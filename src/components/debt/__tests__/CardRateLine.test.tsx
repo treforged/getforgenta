@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import CardRateLine from '../CardRateLine';
+import CardRateLine, { CardPromoList } from '../CardRateLine';
 import type { CardData } from '@/lib/credit-card-engine';
 import type { BalanceTranche } from '@/lib/balance-tranches';
 
@@ -56,5 +56,40 @@ describe('CardRateLine', () => {
     expect(badge.className).toContain('text-muted-foreground');
     expect(badge.className).not.toContain('text-gold');
     expect(badge.className).not.toContain('text-primary');
+  });
+
+  // Tre, 2026-10-05 (c3031372): eight promo lines on one card was too much. Several promos
+  // collapse to ONE summary line; each plan is still one tap away.
+  const account = (tranches: BalanceTranche[]) =>
+    ({ apr: 27.74, balance_tranches: tranches }) as unknown as Parameters<typeof CardRateLine>[0]['account'];
+
+  const three = () => account([
+    tranche({ id: 'a', label: 'A', balance: 1000, promo_end_date: '2099-03-07' }),
+    tranche({ id: 'b', label: 'B', balance: 500, promo_end_date: '2099-01-07' }),
+    tranche({ id: 'c', label: 'C', balance: 250, promo_end_date: '2099-06-07' }),
+  ]);
+
+  it('collapses several promos to one summary line with the right totals and no control', () => {
+    render(<CardRateLine card={makeCard({ id: 'P', balance: 1750, apr: 27.74 })} utilizationNow={10} account={three()} />);
+    const summary = screen.getByTestId('promo-summary').textContent ?? '';
+    expect(summary).toContain('3 promo balances ($1,750)');
+    expect(summary).toContain('from Jan 7, 2099');
+    expect(screen.queryAllByText(/clearing it first needs/)).toHaveLength(0);
+    // It renders inside the card's header <button>; a nested button is invalid and toggles the card.
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+  });
+
+  it('lists each promo in the opened card', () => {
+    render(<CardPromoList card={makeCard({ id: 'P', balance: 1750, apr: 27.74 })} account={three()} />);
+    expect(screen.getAllByText(/clearing it first needs/)).toHaveLength(3);
+  });
+
+  it('keeps the full line for a single promo in the header, and the opened card adds nothing', () => {
+    const acct = account([tranche({ id: 'a', label: 'A', balance: 1000, promo_end_date: '2099-03-07' })]);
+    const card = makeCard({ id: 'P', balance: 1000, apr: 27.74 });
+    render(<><CardRateLine card={card} utilizationNow={10} account={acct} /><CardPromoList card={card} account={acct} /></>);
+    expect(screen.getAllByText(/clearing it first needs/)).toHaveLength(1);
+    expect(screen.queryByTestId('promo-summary')).toBeNull();
+    expect(screen.queryByTestId('promo-each')).toBeNull();
   });
 });
