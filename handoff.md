@@ -29,6 +29,10 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW86 (10-05 ~04:30 ET, Ada getforgenta-1f, OVERDRIVE). Crons RE-ARMED (session-only): b884cbf7 = 853aba70 Play check,
+    one-shot 06:13 ET; 9b4110d9 = DB stall probe :17/:47 until 23:16Z (08:17Z OK, auth 0.41s rest 0.62s).
+    [x] STANDING walk:empty PASS 10/10 (0 findings, 0 unstable) + check:one-banner PASS (bank -> 2FA -> clear), throwaway
+    walk-empty-10050818@forgenta.test (ab999d5b) made in SQL, DELETED, read back users/identities/profiles 0/0/0.
 R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
     1. [x] d5c183b3 OFFLINE STACK DONE (Tre "1. yes"). `npx supabase start --workdir local-stack/sb -x edge-runtime`
        (schema-only prod dump; repo migrations cannot build from zero), then `npm run dev:offline` (:8081, vite mode
@@ -13273,17 +13277,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 03:48 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 04:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13293,14 +13296,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ba720b82 [handoff]: R-NOW85 close-out at the 175-call gate
+9c952803 [handoff]: standing walk clean, af1b22fe contrast fix
+af1b22fe [theme]: green TEXT gets its own token, lighter in dark mode, so it clears AA over the glow
+61a7b7ad [handoff]: R-NOW85 - offline stack done, Debt fixes dc6603ea, walk running
 dc6603ea [debt]: one promo summary line per card; Debt page sections fill their rows
 e1f12d00 [local-stack]: dev:offline runs the app on the local stack; check:offline proves no prod calls
 4931731a [local-stack]: firewall-block the stack's ports; drop a config entry with no source
 9f3543d6 [handoff]: R-NOW84 close-out on Tre's order; track db-stall probe
-68fa9708 [handoff]: d5c183b3 install done, waits on Tre's reboot
-bdb78aea [handoff]: R-NOW83 - 853aba70 cron re-armed (519bbea2), DB stall watch 9108c059
-765d2ed2 [local-stack]: install script for WSL2 + Docker (d5c183b3), gitignore local data; handoff R-NOW83
-8941c777 test: walk:press waits up to 3 s for a late popup before calling a press dead
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
