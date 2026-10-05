@@ -42,6 +42,9 @@ R-NOW86 (10-05 ~04:30 ET, Ada getforgenta-1f, OVERDRIVE). Crons RE-ARMED (sessio
     the 09-11 ship 5a5c6a32). The first dispatch refused because depth 50 missed 5a5c6a32 - fixed 9d037a81 (shipping runs
     unshallow). [~] 6dce46c4: all 6 scheduled workflows disable/enable-toggled ~11:30-11:45Z + 5-min schedule-canary.yml
     pushed; one-shot b1fc066f checks at 12:43Z. If schedules stay dead the new 10% rollout never gets PROMOTED.
+    SOAK_HOURS 24->18 pushed (24 could never complete between daily 10:00Z ships). PROMOTE IS WEDGED ON GITHUB: dispatched
+    runs 37304281555 + 37306047943 stay 'queued' with 0 jobs; cancel says 'completed'. Canary dispatch 37305869156 ran fine.
+    Evidence sent to Sam for Tre's Actions-UI step. Promote due ~05:40Z 10-06.
 R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
     1. [x] d5c183b3 OFFLINE STACK DONE (Tre "1. yes"). `npx supabase start --workdir local-stack/sb -x edge-runtime`
        (schema-only prod dump; repo migrations cannot build from zero), then `npm run dev:offline` (:8081, vite mode
@@ -13286,17 +13289,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 07:20 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 07:38 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (5 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13306,14 +13308,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+4d1be0ce [handoff]: Play shipped (37303553168); schedule repair in flight
+9d037a81 [ci]: a shipping Android run fetches full history so it can see the last shipped commit (6dce46c4)
+6f2663a3 [ci]: temporary 5-minute schedule canary - does GitHub fire any schedule here? (6dce46c4)
+16eefd95 [handoff]: 853aba70 blocked - repo schedules silent since 09-11 (6dce46c4)
 fdc3e5ab [handoff]: R-NOW86 - light phone contrast PASS 477/0
 b2c84099 [handoff]: R-NOW86 - crons re-armed, walk:empty + one-banner PASS on a deleted throwaway
 ba720b82 [handoff]: R-NOW85 close-out at the 175-call gate
 9c952803 [handoff]: standing walk clean, af1b22fe contrast fix
-af1b22fe [theme]: green TEXT gets its own token, lighter in dark mode, so it clears AA over the glow
-61a7b7ad [handoff]: R-NOW85 - offline stack done, Debt fixes dc6603ea, walk running
-dc6603ea [debt]: one promo summary line per card; Debt page sections fill their rows
-e1f12d00 [local-stack]: dev:offline runs the app on the local stack; check:offline proves no prod calls
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
