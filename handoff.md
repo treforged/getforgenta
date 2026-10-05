@@ -1,20 +1,14 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
-R-NEXT (2026-10-05 18:10 ET, Ada getforgenta-56 -> successor). IN ORDER:
-  1. ask 47a25afa FIRST-RUN DOUBLE DIALOG - REAL, diagnosed: WhatsNewDialog is mounted ONLY in Dashboard.tsx:1344,
-     onboarding runs on /onboarding (App.tsx:376, outside the Dashboard), so the "record silently while not onboarded"
-     effect in src/components/shared/WhatsNewDialog.tsx:61 never runs; a new user finishes the wizard, lands on Home with
-     onboarding_completed=true and no whats_new flag -> tour + What's New stacked. Candidate fix: write the
-     whatsNewFlag(CURRENT_RELEASE.version) into tour_flags in the onboarding finish save (grep the save in
-     src/pages/Onboarding.tsx), OR suppress while tour_flags.new_user_done !== true - CHECK the data split first:
-     select onboarding_completed, tour_flags->>'new_user_done', count(*) from profiles group by 1,2 (not yet run).
-     Prove with scripts/check-new-account-simple.cjs pattern on a SQL throwaway, but walk the REAL wizard
-     (npm run walk:first-run) rather than setting onboarding_completed by SQL.
-  2. ask 5b166e10 remaining: Budget, Forecast, Transactions Simple views (spec docs/simple-view/PROPOSAL.md; Forecast
-     already has a Summary/Detail toggle at src/pages/Forecast.tsx:155 to fold in). Gate each with
-     MSYS_NO_PATHCONV=1 PRESS_ROUTE=<route> ROUTES=<route> node scripts/measure-detail-load.mjs (red-prove each).
-  3. Re-run npm run check:grid-orphans after any layout change (49 reads, must stay 0).
+R-NEXT (2026-10-05 ~18:50 ET, Ada). BOTH ITEMS OF THE PREVIOUS R-NEXT ARE DONE AND PUSHED:
+  [x] 47a25afa first-run double dialog: 04edfa63. The wizard (finish AND skip) writes the whats_new flag via
+      recordCurrentReleaseSeen (onboarding-state.ts). Data split: 2 onboarded accounts lack new_user_done, so
+      suppressing until the tour was rejected. walk:first-run REOPEN=1 is the only mode that sees the defect
+      (pressing through leaves a stale cached profile and the dialog's silent branch hides it). Red -> green 11/11.
+  [x] 5b166e10 Plan/Forecast/Transactions Simple: 3e286a7b. Plan 10->2, Forecast 17->4, Transactions 8->3 (Filters 3->8).
+  NEXT: ask 5ce71f3a - walk:press + contrast sweeps in the SIMPLE view (never run there), and Goals Simple.
+      Then eb7282e9 at 10:37Z 10-06 (Play ship fallback).
 R-SIMPLE (2026-10-05 ~18:30 ET, Ada): SHIPPED Home, Debt, Accounts Simple views + new accounts default Simple (879d7448, Tre '1. yes'); layout ask 4ee0a129 DONE (check:grid-orphans, 49 reads 0 findings, red-proven). Gates: measure:detail-load (VIEW_MODE / PRESS_ROUTE / WIDTH), check:grid-orphans, scripts/check-new-account-simple.cjs (needs a SQL throwaway). NEXT on 5b166e10: Budget, Forecast, Transactions Simple; then the first-run double-dialog ask.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
@@ -13324,18 +13318,19 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 17:20 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 18:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
+?? _inbox/
 ?? press-walk-frames/
 ?? test-results/
 ```
@@ -13343,14 +13338,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+2f5e5a60 [handoff]: R-NEXT - first-run double dialog diagnosed; Budget/Forecast/Transactions Simple next
+58853aef [handoff]: R-SIMPLE - three Simple screens, new-account default, grid gate shipped
+879d7448 [profiles]: new accounts start in the Simple view (ask ae6c85a3, Tre "1. yes")
+8f0bef12 [layout]: even tile grids at every width; check:grid-orphans gate (ask 4ee0a129)
+fa2e7306 [accounts]: Simple view on Accounts - the totals strip, list folded behind one button (5b166e10)
+8a21ed46 [debt]: Simple view on Debt Payoff - the totals, the order and what to pay (5b166e10)
 53e0d4fe [handoff]: R-SIMPLE - Home Simple view shipped ee29968a; Debt and Accounts next
 ee29968a [dashboard]: Simple | Advanced switch; Simple Home keeps what is due and safe to spend (5b166e10)
-6f71f52f [handoff]: R-SIMPLE - simple/advanced proposal shipped, build is next
-27a13eaf [ux]: simple vs advanced view proposal, detail-load inventory, simple mock (ask 7515c3fa)
-93633a4a [handoff]: R-NOW88 wrap-up close; first up is the 10:37Z 10-06 ship check
-ee747ed2 [ci]: last-shipped-run filters branch client-side; GitHub's branch-filtered list is frozen at 09-11
-e6fa17a5 [handoff]: R-NOW87 - 10:37Z 10-06 Play ship fallback at the top
-cc9cdf38 [handoff]: full Play release shipped in CI, groceries split, early-promote error recorded
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
