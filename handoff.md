@@ -35,6 +35,9 @@ R-NOW86 (10-05 ~04:30 ET, Ada getforgenta-1f, OVERDRIVE). Crons RE-ARMED (sessio
     walk-empty-10050818@forgenta.test (ab999d5b) made in SQL, DELETED, read back users/identities/profiles 0/0/0.
     [x] check:light-contrast (phone 390, ALREADY EXISTS - my 'no light phone gate' premise was wrong) PASS 477/0,
     pixel control discriminated (1.34). Probes 08:17Z/08:56Z OK. e74da89c re-test: 0 widget rows since 10-04 23:25Z.
+    [!] 853aba70 BLOCKED on NEW 6dce46c4: GitHub has fired NO scheduled run in this repo since 09-11 15:49Z (promote-rollout,
+    CodeQL, audit, and the new 10:00Z Play ship all silent; workflows state=active). Asked Sam for a yes to dispatch
+    android-build.yml (publishes to Play). Crons now [ada-cron]: probe 34a65ccf, probes OK through 11:20Z.
 R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
     1. [x] d5c183b3 OFFLINE STACK DONE (Tre "1. yes"). `npx supabase start --workdir local-stack/sb -x edge-runtime`
        (schema-only prod dump; repo migrations cannot build from zero), then `npm run dev:offline` (:8081, vite mode
@@ -13279,16 +13282,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 04:56 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 07:20 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (5 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? press-walk-frames/
@@ -13298,6 +13302,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+fdc3e5ab [handoff]: R-NOW86 - light phone contrast PASS 477/0
 b2c84099 [handoff]: R-NOW86 - crons re-armed, walk:empty + one-banner PASS on a deleted throwaway
 ba720b82 [handoff]: R-NOW85 close-out at the 175-call gate
 9c952803 [handoff]: standing walk clean, af1b22fe contrast fix
@@ -13305,7 +13310,6 @@ af1b22fe [theme]: green TEXT gets its own token, lighter in dark mode, so it cle
 61a7b7ad [handoff]: R-NOW85 - offline stack done, Debt fixes dc6603ea, walk running
 dc6603ea [debt]: one promo summary line per card; Debt page sections fill their rows
 e1f12d00 [local-stack]: dev:offline runs the app on the local stack; check:offline proves no prod calls
-4931731a [local-stack]: firewall-block the stack's ports; drop a config entry with no source
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
