@@ -423,6 +423,10 @@ async function pressFresh(route, c, textTrusted, plant, plantWith, stub = null) 
     const attempted = page.blockedWrites.slice(writesBefore).filter((w) => !AMBIENT.has(w));
     if (attempted.length) return { outcome: 'write-blocked', why: [...new Set(attempted)].join(', '), rest: attempted.every((w) => page.restWrites.has(w)) };
     const why = diff(before, after, textTrusted);
+    // A target=_blank link opens its tab LATE under load: on 2026-10-04 the landing footer's Privacy and
+    // Terms links read no-change in the full run and changed when / was walked alone. Before calling a
+    // press dead, give a popup up to 3 s more - a popup is the one change the page itself never shows.
+    if (!why.length && !popup) for (let i = 0; i < 12 && !popup; i++) await page.waitForTimeout(250);
     if (popup) why.push('popup/download');
     if (why.length) return { outcome: 'changed', why: why.join('; ') };
     const file = join(OUT, `${route.replace(/\W+/g, '_')}__${c.name.replace(/\W+/g, '_').slice(0, 40)}_${c.nth}.png`);
