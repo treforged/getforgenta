@@ -29,6 +29,16 @@ R00 DONE (09-28 23:45, PC Ada, session getforgenta-c7). TRE'S LEASE DICTATION (a
 CLOUD RUNS (Sam's Dots slice 3, 10-03): a cloud routine may take ONLY items tagged [cloud-ok]. Rules for it:
     install:hooks first; tsc+lint+test:tz+build AFTER the rebase; rebase conflict = abort, no push; never the money
     engine (fixtures absent, golden tests skip); verify push 0/0. As of R-NOW60 NO item is [cloud-ok].
+R-NOW82 (10-04 ~23:55Z, Ada getforgenta-97). OUTAGE OVER, WALK CLEAN.
+    [x] da91e541 RECOVERED 23:16:21Z after Tre restarted the project (b570bd5f). Cause: OUR DB I/O-starved
+        (19:00-23:16Z), not the regional incident. cron 28 session-watch slowed to */10 (undo: cron.alter_job(28,
+        schedule := '* * * * *')). IF IT STALLS AGAIN WITHIN 24 h: send Sam the evidence for a compute upgrade (d9e5961c).
+    [x] e222e48e full walk: empty 10/10, one-banner PASS, first-run 8/8, press 390/168/166 (the 2 no-change are
+        target=_blank footer links that work by hand; the walk's popup listener misses them, which is an instrument gap).
+        f13ac477: walk:press hides the outage banner it trips itself. Reviewer d3550fa8 reset via SQL
+        (backup.reviewer_profile_20261004); its own on-screen wizard is unproven (needs a service-role key).
+    [ ] NEXT: walk:press popup gap (landing footer links); d5c183b3 local stack (waits on Tre's yes);
+        853aba70 cron 04d35a7e fires 06:23 ET 10-05; STANDING e1b0fffc.
 R-NOW81 (10-04 ~20:05Z, Ada getforgenta-97). START HERE, IN ORDER:
     1. [x] e618b2f0 outage notice SHIPPED a10aa5b3 (pushed 0/0, origin/main grep ok). Reviewed: observe-only fetch
        wrap (supabase-js resolves global fetch at call time, so auth/REST are seen), 4xx never a failure, status
