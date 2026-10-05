@@ -40,8 +40,9 @@ R-NOW83 (10-05 ~00:40Z, Ada getforgenta-97 hit the 175-call gate). START HERE, I
        NEVER a full dump: it would put other users' personal data on this PC. Undo = `npx supabase stop
        --no-backup` + delete local-stack/ + `winget uninstall -e --id Docker.DockerDesktop` + `wsl --uninstall`.
     2. [x] walk:press popup grace 8941c777: full walk 390/167/167, 0 no-change, PASS.
-    3. [ ] 853aba70: CronCreate 04d35a7e (06:23 ET 10-05) DIES WITH THIS TAB - re-arm it in the successor.
-    4. [ ] Watch for a repeat DB stall within 24 h of 23:16Z (if it happens: evidence to Sam for a compute upgrade, d9e5961c).
+    3. [~] 853aba70: RE-ARMED by successor as CronCreate 519bbea2 (06:23 ET 10-05, session-only - dies with the tab).
+    4. [~] DB stall watch: CronCreate 9108c059 (:17/:37/:57) runs scratchpad db-stall-probe.sh (keyed auth health + REST
+       read; proven to print STALL on a broken env). 00:43Z OK 0.53s/0.82s. Window ends 23:16Z 10-05; then delete the cron.
     5. [ ] STANDING e1b0fffc.
     Sam is now tre-forged-52.
 R-NOW82 (10-04 ~23:55Z, Ada getforgenta-97). OUTAGE OVER, WALK CLEAN.
@@ -13244,7 +13245,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-04 19:05 by handoff_hook. Everything below this heading is
+_Written 2026-10-04 20:36 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13263,14 +13264,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+765d2ed2 [local-stack]: install script for WSL2 + Docker (d5c183b3), gitignore local data; handoff R-NOW83
+8941c777 test: walk:press waits up to 3 s for a late popup before calling a press dead
+a9caf0a3 [handoff]: R-NOW82 - outage over 23:16Z, full walk clean, f13ac477
+f13ac477 test: walk:press hides the backend-health banner it trips itself
+cee06e81 [handoff]: restart is Tre's click (b570bd5f), 8d0cddfd banner wording
 8d0cddfd [ui]: the outage notice says a provider "reports a problem", not that it caused the outage
 fff6d26f [handoff]: da91e541 diagnosis corrected - our DB is I/O-starved, not only the regional incident
 d74efa8a [handoff]: R-NOW81 - 7353acbf, 8b6ac319, d5c183b3 local stack ask, outage still on 21:05Z
-8b6ac319 [ui]: the outage notice's Dismiss button is a 44px tap target
-7353acbf test: pin the visible goal-order rule on the ranking list (decision 2d104bc7)
-d01ce9b3 [handoff]: R-NOW81 - 247e4ef0 detail-line fix, walk on recovery for Sam tre-forged-84
-247e4ef0 [ui]: the outage notice never says "no provider reports a problem" before it has read them
-29df0c95 [handoff]: R-NOW81 - e618b2f0 shipped a10aa5b3, walk waits on da91e541 recovery
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
