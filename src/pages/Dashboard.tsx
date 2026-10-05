@@ -1546,7 +1546,7 @@ export default function Dashboard() {
       */}
       {activeTab === 'goals' && (
         <Suspense fallback={<div className="h-64" />}>
-          <GoalsPanel embedded />
+          <GoalsPanel embedded simple={isSimple} />
         </Suspense>
       )}
 

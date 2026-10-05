@@ -427,7 +427,12 @@ function SavingsGrowthChart({ goals, extraByGoal, essentialMonthlyExpenses, pace
  * page heading and two of them is the thing the merge was meant to remove. Everything else — Add
  * Goal, the Vehicles link, the projection chart, every modal — is untouched.
  */
-export default function SavingsGoals({ embedded = false }: { embedded?: boolean } = {}) {
+/**
+ * `simple` (ask 5ce71f3a, PROPOSAL Goals row): each goal shows its name, saved of target and the bar,
+ * with its edit actions and any shortfall warning. The contribution line, staged plan, % row and
+ * lump-sum panel are Advanced only; nothing is removed from Advanced.
+ */
+export default function SavingsGoals({ embedded = false, simple = false }: { embedded?: boolean; simple?: boolean } = {}) {
   const { data: goals, add, update, remove, loading: goalsLoading } = useSavingsGoals();
   const { data: carFunds, loading: carFundsLoading } = useCarFunds();
   const { data: accounts, loading: accountsLoading } = useAccounts();
@@ -936,7 +941,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         </div>
       </div>
 
-      {showDemoGuides && (
+      {showDemoGuides && !simple && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
           <div className="flex items-start gap-3 mb-3">
             <div className="shrink-0 w-1.5 h-8 bg-primary rounded-full mt-0.5" />
@@ -978,14 +983,15 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
         </Link>
       )}
 
-      <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} essentialMonthlyExpenses={essentialMonthlyExpenses} pacedSchedules={projections.pacedGoalSchedules} />
+      {/* The 5-year chart and the surplus ranking are schedule detail: Advanced only in Simple. */}
+      {!simple && <SavingsGrowthChart goals={allGoals} extraByGoal={autoExtraByGoal} essentialMonthlyExpenses={essentialMonthlyExpenses} pacedSchedules={projections.pacedGoalSchedules} />}
 
-      <SurplusRankingSection
+      {!simple && <SurplusRankingSection
         cardsSubtitle={cardsRankSubtitle}
         autoExtraByTarget={autoExtraByGoal}
         ownMonthlyByTarget={ownMonthlyByTarget}
         capacityByMonth={surplusCapacityByMonth}
-      />
+      />}
 
       {/* Label and figure share one line from `sm` (ask 1be673ad): stacked and centred, each tile
           was 641x87 at 1440 holding a 100px label and figure in its middle. On a phone they stay
@@ -1045,7 +1051,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                   <span>{shortfallNote}</span>
                 </p>
               )}
-              {pacedNote && !g.is_complete && (
+              {!simple && pacedNote && !g.is_complete && (
                 <p className="text-[11px] text-primary flex items-start gap-1.5" data-testid="goal-paced-note">
                   <TrendingUp size={12} className="shrink-0 mt-0.5" aria-hidden="true" />
                   <span>{pacedNote}</span>
@@ -1071,7 +1077,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground wrap-break-word leading-relaxed">
+                  {!simple && <p className="text-xs text-muted-foreground wrap-break-word leading-relaxed">
                     {g.is_complete
                       ? <span className="text-success-text">Target reached · contributions no longer counted{g.linked_rules && g.linked_rules.length > 0 ? ` (${g.linked_rules.map(r => r.name).join(', ')} still active)` : ''}</span>
                       : g.linked_rules && g.linked_rules.length > 0
@@ -1084,9 +1090,9 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                     {g.available_after_outflows != null && (
                       <span className="ml-1 text-muted-foreground">· Available after bills: {formatCurrency(g.available_after_outflows)}</span>
                     )}
-                  </p>
+                  </p>}
                   {/* Never let the end_date this feature wrote onto a rule be invisible here. */}
-                  {g.auto_end_contributions && autoEndLabel(g.auto_end_stamped_rules) && (
+                  {!simple && g.auto_end_contributions && autoEndLabel(g.auto_end_stamped_rules) && (
                     <p className="text-[10px] text-primary/80 mt-0.5">
                       Auto-ends contributions {autoEndLabel(g.auto_end_stamped_rules)}
                     </p>
@@ -1115,7 +1121,7 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                   it is: done, being filled now, or waiting. A stop that is done is struck through
                   rather than deleted, because the card is the one place the whole sequence should
                   still be visible — it is the RANKED LIST that drops a filled stop. */}
-              {plan.staged && (
+              {!simple && plan.staged && (
                 <ul className="space-y-1 border-t border-border/40 pt-2">
                   {plan.stops.map(s => {
                     const done = saved >= s.threshold - 0.005;
@@ -1148,11 +1154,11 @@ export default function SavingsGoals({ embedded = false }: { embedded?: boolean 
                   })}
                 </ul>
               )}
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground">
+              {!simple && <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-xs text-muted-foreground">
                 <span>{pct.toFixed(0)}% complete</span>
                 <span>Est. completion: {estimateCompletion(g)}</span>
-              </div>
-              {!isDemo && (
+              </div>}
+              {!isDemo && !simple && (
                 <GoalLumpSumPanel
                   autoExtraOn={g.auto_extra === true}
                   lumpSums={goalLumps}

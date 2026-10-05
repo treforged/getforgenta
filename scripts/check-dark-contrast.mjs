@@ -154,6 +154,26 @@ console.log(`theme ${THEME}, viewport ${WIDTH}x${WIDTH === 390 ? 844 : 900}`);
 
 const ctx = await browser.newContext({ viewport: { width: WIDTH, height: WIDTH === 390 ? 844 : 900 }, deviceScaleFactor: 2 });
 const page = await ctx.newPage();
+// VIEW_MODE=simple measures the Simple view (ask 5ce71f3a) by rewriting the user's own profile READ in the
+// browser. Nothing is written; the walk account's view_mode is unchanged.
+if (process.env.VIEW_MODE) {
+  await ctx.route(/\/rest\/v1\/profiles/, async (r) => {
+    if (r.request().method() !== 'GET') return r.continue();
+    try {
+      const resp = await r.fetch();
+      let body = await resp.text();
+      try {
+        const j = JSON.parse(body);
+        const set = (o) => ({ ...o, view_mode: process.env.VIEW_MODE });
+        body = JSON.stringify(Array.isArray(j) ? j.map(set) : set(j));
+      } catch { /* not JSON: pass through */ }
+      return await r.fulfill({ response: resp, body });
+    } catch {
+      return r.abort().catch(() => { /* page already closed */ });
+    }
+  });
+  console.log(`view mode forced: ${process.env.VIEW_MODE}`);
+}
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
 await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
 // ⚠️ THE THEME IS SET THROUGH THE APP'S OWN MECHANISM, NOT BY FLIPPING A CLASS ON <html>.

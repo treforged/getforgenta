@@ -310,6 +310,10 @@ section states reasoning, not measurement, and says so.
   Show advanced detail there and fails if the count does not drop and return. WIDTH=1440 for desktop.
   Also presses Transactions' "Filters" (show-filters) and fails if it opens nothing. 2026-10-05, 390px: Plan 10->2->10,
   Forecast 17->4->17, Transactions 8->3->8 (Filters 3->8). Each red-proven (panel ignoring `simple`; a dead Filters).
+  PRESS_GONE=<regex> requires panel text gone in Simple (card counts missed a Goals panel ignoring Simple while the
+  Dashboard shrank around it); STUB_GOALS=N answers the goals read in-browser. Goals: STUB_GOALS=2 PRESS_GONE="% complete".
+  ⚠️ VIEW_MODE=simple also works on `walk:press` and all four `check:*-contrast` scripts (profile READ rewritten, nothing
+  written). 2026-10-05 Simple: walk:press 335 enumerated, 135 pressed, 135 changed, 0 no-change; contrast 0 below AA x4.
 - `npm run check:goal-grid` - the Dashboard Goal Progress card at 390 AND 1440, signed in: the savings_goals read is
   answered in-browser with 1, 2 and 3 goals (nothing written) and EVERY ROW of tiles must span the card. Proven red
   at 1440 on the fixed `md:grid-cols-3` (848px unused at 1 goal, 424px at 2) and at 390 by forcing 2 columns

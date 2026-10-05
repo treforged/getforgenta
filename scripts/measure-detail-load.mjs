@@ -51,6 +51,17 @@ const ctx = await browser.newContext({ viewport: { width: W, height: 844 }, devi
 let aborted = 0;
 await ctx.route(`${url}/**`, async (route) => {
   const m = route.request().method();
+  // STUB_GOALS=N answers the savings_goals READ with N probe goals in-browser (the walk account has none),
+  // the check:goal-grid pattern. Nothing is written.
+  if (m === 'GET' && process.env.STUB_GOALS && /\/rest\/v1\/savings_goals/.test(route.request().url())) {
+    const n = Number(process.env.STUB_GOALS);
+    const goals = Array.from({ length: n }, (_, k) => ({
+      id: `00000000-0000-4000-8000-00000000000${k + 1}`, user_id: session.user.id, name: `Probe goal ${k + 1}`,
+      goal_type: 'Custom', target_amount: 1000, current_amount: 250 * (k + 1), monthly_contribution: 50,
+      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+    }));
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(goals) });
+  }
   // VIEW_MODE=simple rewrites the user's own profile READ so every route renders Simple without
   // writing the column (the walk account's row is never changed by this instrument).
   if (m === 'GET' && process.env.VIEW_MODE && /\/rest\/v1\/profiles/.test(route.request().url())) {
@@ -120,8 +131,20 @@ if (!process.env.VIEW_MODE) {
   await page.goto(`${BASE}${process.env.PRESS_ROUTE || '/dashboard'}`, { waitUntil: 'domcontentloaded' });
   const settle = async () => { let p = null; for (let t = 0; t < 20; t++) { await page.waitForTimeout(1500); const c = await read(); if (p && c.skeleton === 0 && c.cards > 0 && c.cards === p.cards && c.figures === p.figures) return c; p = c; } return null; };
   const before = await settle();
+  // PRESS_GONE: text the PANEL shows only in Advanced. Card counts alone cannot see a panel that ignores
+  // Simple when the page around it still shrinks (Goals, 2026-10-05: the Dashboard hid its own strip,
+  // 12 -> 4 figures, with the panel untouched).
+  const gone = process.env.PRESS_GONE ? new RegExp(process.env.PRESS_GONE, 'i') : null;
+  const goneCount = () => page.getByText(gone).count();
+  const goneBefore = gone ? await goneCount() : 0;
   await page.getByRole('tab', { name: 'Simple' }).click();
   const simple = await settle();
+  if (gone) {
+    const goneSimple = await goneCount();
+    console.log(`press: "${process.env.PRESS_GONE}" advanced ${goneBefore} -> Simple ${goneSimple}`);
+    if (goneBefore < 1) fail(2, `CONTROL FAILED: "${process.env.PRESS_GONE}" not on the Advanced page.`);
+    if (goneSimple !== 0) fail(1, `PRESS FAILED: "${process.env.PRESS_GONE}" still shows in Simple (${goneSimple}).`);
+  }
   if (before && simple && !(simple.cards < before.cards)) fail(1, `PRESS FAILED: pressing Simple left ${simple.cards} cards (Advanced ${before.cards}).`);
   // Accounts in Simple folds the list behind one button; pressing it must bring rows back.
   const fold = page.getByTestId('show-each-account');

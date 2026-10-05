@@ -227,8 +227,26 @@ async function isolatedPage(stub = null) {
   page.on('request', (r) => { if (r.url().includes('.supabase.co/')) page.inflight.add(r); });
   const settleReq = (r) => page.inflight.delete(r);
   page.on('requestfinished', settleReq); page.on('requestfailed', settleReq);
-  await page.route(DATA_PLANE, (r) => {
+  await page.route(DATA_PLANE, async (r) => {
     const req = r.request();
+    // VIEW_MODE=simple walks the Simple view (ask 5ce71f3a) by rewriting the user's own profile READ,
+    // the same lever as measure-detail-load. Nothing is written; the walk account's row is unchanged.
+    if (process.env.VIEW_MODE && req.method() === 'GET' && /\/rest\/v1\/profiles/.test(req.url())) {
+      // Every press runs in a fresh page that is closed after it, so a read can still be in flight
+      // when its page goes away. That is the walk's own teardown, not a finding: drop it quietly.
+      try {
+        const resp = await r.fetch();
+        let body = await resp.text();
+        try {
+          const j = JSON.parse(body);
+          const set = (o) => ({ ...o, view_mode: process.env.VIEW_MODE });
+          body = JSON.stringify(Array.isArray(j) ? j.map(set) : set(j));
+        } catch { /* not JSON: pass through */ }
+        return await r.fulfill({ response: resp, body });
+      } catch {
+        return r.abort().catch(() => { /* page already closed */ });
+      }
+    }
     if (READ_METHODS.has(req.method())) return r.continue();
     const rpc = /\/rest\/v1\/rpc\/(\w+)/.exec(new URL(req.url()).pathname);
     if (rpc && READ_ONLY_RPC.has(rpc[1].toLowerCase())) return r.continue();
