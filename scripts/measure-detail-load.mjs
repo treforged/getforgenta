@@ -48,8 +48,20 @@ mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: 'dark' });
 let aborted = 0;
-await ctx.route(`${url}/**`, (route) => {
+await ctx.route(`${url}/**`, async (route) => {
   const m = route.request().method();
+  // VIEW_MODE=simple rewrites the user's own profile READ so every route renders Simple without
+  // writing the column (the walk account's row is never changed by this instrument).
+  if (m === 'GET' && process.env.VIEW_MODE && /\/rest\/v1\/profiles/.test(route.request().url())) {
+    const resp = await route.fetch();
+    let body = await resp.text();
+    try {
+      const j = JSON.parse(body);
+      const set = (o) => ({ ...o, view_mode: process.env.VIEW_MODE });
+      body = JSON.stringify(Array.isArray(j) ? j.map(set) : set(j));
+    } catch { /* not JSON: pass through */ }
+    return route.fulfill({ response: resp, body });
+  }
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS' || /\/auth\/v1\//.test(route.request().url())) return route.continue();
   aborted += 1;
   // ANSWERED in-browser, never sent: an abort reads as a network failure and raises the app's
@@ -100,6 +112,21 @@ for (const r of ROUTES) {
   await page.setViewportSize({ width: 390, height: 844 });
   rows.push({ route: r, ...cur, screens: +(cur.height / 844).toFixed(1), settled: ok });
 }
+// PRESS PHASE (Advanced runs only): press Simple on /dashboard and require FEWER cards, then press
+// "Show advanced detail" and require the count to come back. The save is answered 204 in-browser.
+let press = null;
+if (!process.env.VIEW_MODE) {
+  await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
+  const settle = async () => { let p = null; for (let t = 0; t < 20; t++) { await page.waitForTimeout(1500); const c = await read(); if (p && c.skeleton === 0 && c.cards > 0 && c.cards === p.cards && c.figures === p.figures) return c; p = c; } return null; };
+  const before = await settle();
+  await page.getByRole('tab', { name: 'Simple' }).click();
+  const simple = await settle();
+  if (before && simple && !(simple.cards < before.cards)) fail(1, `PRESS FAILED: pressing Simple left ${simple.cards} cards (Advanced ${before.cards}).`);
+  await page.getByTestId('show-advanced').click();
+  const back = await settle();
+  await page.setViewportSize({ width: 390, height: 844 });
+  press = { before, simple, back };
+}
 await browser.close();
 
 console.log('route'.padEnd(34), 'cards', 'figures', 'screens', 'settled');
@@ -107,4 +134,11 @@ for (const x of rows) console.log(x.route.padEnd(34), String(x.cards).padStart(5
 console.log(`writes answered in-browser (not sent): ${aborted}`);
 const dash = rows.find((x) => x.route === '/dashboard');
 if (!dash || dash.cards < 1 || dash.figures < 1) fail(2, 'CONTROL FAILED: /dashboard read no cards or no figures.');
+if (press) {
+  const { before, simple, back } = press;
+  if (!before || !simple || !back) fail(2, 'PRESS: a read never settled.');
+  console.log(`press: advanced ${before.cards} cards/${before.figures} figures -> Simple ${simple.cards}/${simple.figures} -> back ${back.cards}/${back.figures}`);
+  if (!(simple.cards < before.cards && simple.figures < before.figures)) fail(1, 'PRESS FAILED: pressing Simple did not reduce cards and figures.');
+  if (back.cards !== before.cards) fail(1, 'PRESS FAILED: Show advanced detail did not restore the Advanced dashboard.');
+}
 if (unstable) process.exit(2);

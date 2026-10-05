@@ -34,6 +34,9 @@ type Props = {
   safeToSpend?: SafeToSpendResult | null;
   /** Opens the safe-to-spend calculator drawer, so the figure is auditable. */
   onSafeToSpendClick?: () => void;
+  /** Simple view (ask 7515c3fa): keep the header figures and Safe to Spend, drop the donut, its
+   * eight rows and the legend. Those stay one tap away under Advanced; nothing is computed differently. */
+  compact?: boolean;
 };
 
 const C = {
@@ -99,6 +102,7 @@ export default function MonthlyBudgetSnapshot({
   onMonthEndClick,
   safeToSpend,
   onSafeToSpendClick,
+  compact = false,
 }: Props) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
   const { rows, pie, projectedRemaining, availableToDeploy } = snapshot;
@@ -127,7 +131,8 @@ export default function MonthlyBudgetSnapshot({
   const stsLabel = sts ? `Safe to Spend until ${new Date(sts.payday + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : null;
 
   return (
-    <div className="card-forged p-4 sm:p-5">
+    // Compact: the last block keeps no bottom margin, so the card ends where its text does.
+    <div className={`card-forged p-4 sm:p-5 ${compact ? '[&>*:last-child]:mb-0' : ''}`}>
       <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3 mb-5">
         <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           Monthly Budget Snapshot
@@ -183,6 +188,7 @@ export default function MonthlyBudgetSnapshot({
         <p className="text-xs text-muted-foreground -mt-3 mb-4" data-testid="safe-to-spend-empty">{stsMissing}</p>
       )}
 
+      {!compact && (<>
       {/* gap-2 below `lg`: stacked, the donut's box and the first row were 36px apart (Tre, 2026-10-02).
           The side-by-side layout keeps its gap-6. The donut's own
           box is wider than its ring (82% radius), so -mb-3 pulls the rows up under the visible ring. */}
@@ -325,6 +331,7 @@ export default function MonthlyBudgetSnapshot({
           </div>
         ))}
       </div>
+      </>)}
     </div>
   );
 }

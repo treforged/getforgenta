@@ -1778,6 +1778,7 @@ export type Database = {
           ui_preferences: Json | null
           updated_at: string
           user_id: string
+          view_mode: string | null
           weekly_gross_income: number | null
           widget_bg_refresh: boolean
           username: string | null
@@ -1842,6 +1843,7 @@ export type Database = {
           ui_preferences?: Json | null
           updated_at?: string
           user_id: string
+          view_mode?: string | null
           weekly_gross_income?: number | null
           widget_bg_refresh?: boolean
           username?: string | null
@@ -1906,6 +1908,7 @@ export type Database = {
           ui_preferences?: Json | null
           updated_at?: string
           user_id?: string
+          view_mode?: string | null
           weekly_gross_income?: number | null
           widget_bg_refresh?: boolean
           username?: string | null

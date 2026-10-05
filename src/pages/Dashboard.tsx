@@ -28,6 +28,9 @@ import { generateScheduledEvents, getUpcomingEvents, formatDateShort, PROJECTION
 import { toScheduledObligations } from '@/lib/upcoming-obligations';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDashboardLayout } from '@/hooks/useDashboardLayout';
+import { useViewMode } from '@/hooks/useViewMode';
+import { ViewModeSwitch } from '@/components/shared/ViewModeSwitch';
+import { simpleHomeWidgets } from '@/lib/view-mode';
 import {
   buildPayConfig,
   getNextPaycheckDate,
@@ -209,7 +212,11 @@ export default function Dashboard() {
    * which is a stronger guarantee than the append ever gave — and it is measurable, which the
    * append was not.
    */
-  const widgetsToRender = visibleWidgets;
+  // Simple view (ask 7515c3fa, docs/simple-view/PROPOSAL.md): the same widgets in the same order,
+  // fewer of them. Advanced is the stack as it always was.
+  const { mode: viewMode, setMode: setViewMode } = useViewMode();
+  const isSimple = viewMode === 'simple';
+  const widgetsToRender = isSimple ? simpleHomeWidgets(visibleWidgets) : visibleWidgets;
 
   // Signal Swift cover that the dashboard has mounted and is ready to paint.
   useEffect(() => {
@@ -988,6 +995,7 @@ export default function Dashboard() {
             onMonthEndClick={openMonthEndCalc}
             safeToSpend={safeToSpend}
             onSafeToSpendClick={openSafeToSpendCalc}
+            compact={isSimple}
           />
         );
 
@@ -1402,13 +1410,13 @@ export default function Dashboard() {
               with the panel pills directly beneath, which have always been centred. At sm+ the
               parent is a `justify-between` row again and the buttons belong at the end. */}
           <div className="flex flex-row items-center justify-center sm:justify-end gap-1.5 shrink-0">
-            <button
+            {!isSimple && (<button
               onClick={() => setCustomizing(true)}
               className="flex items-center justify-center gap-1.5 bg-secondary border border-border px-2.5 py-1.5 text-[11px] font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
               <LayoutDashboard size={12} /> Customize
-            </button>
+            </button>)}
 
             {(isPremium || isDemo) && (
               <button
@@ -1445,6 +1453,9 @@ export default function Dashboard() {
             <SurfaceGuide surface="dashboard" />
           </div>
         </div>
+        <div className="flex justify-center sm:justify-end">
+          <ViewModeSwitch mode={viewMode} onChange={setViewMode} />
+        </div>
       </div>
 
       {/* What the accounts add up to, above the panel switcher so it is on screen for Overview,
@@ -1459,7 +1470,7 @@ export default function Dashboard() {
         dismissedMonth={shortMonthsDismissed}
         onDismiss={setShortMonthsDismissed}
       />
-      <DashboardOverviewStrip
+      {!isSimple && <DashboardOverviewStrip
         loading={overviewStripLoading}
         empty={accounts.length === 0
           && netWorthBreakdown.assets.length === 0
@@ -1474,7 +1485,7 @@ export default function Dashboard() {
         ccLimit={accountSummary.ccLimit}
         onNetWorthClick={openNetWorthCalc}
         onLiquidCashClick={openLiquidCashCalc}
-      />
+      />}
 
       {/* The panel row and the panel it switches are ONE group (`stack-row`): a control row
           belongs to the content below it, so it reads as that content's label instead of as a
@@ -1626,6 +1637,13 @@ export default function Dashboard() {
       <ErrorBoundary variant="widget" label="Next lesson">
         <NextLessonRow />
       </ErrorBoundary>
+      {isSimple && (
+        <button type="button" onClick={() => setViewMode('advanced')}
+          className="w-full text-left text-sm font-semibold text-primary py-3 border-t border-border/40 btn-press hover:underline"
+          data-testid="show-advanced">
+          Show advanced detail ›
+        </button>
+      )}
       </div>
       </div>
       )}
