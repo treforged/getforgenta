@@ -118,8 +118,8 @@ verify_jwt = false
 [functions.newsletter-digest]
 verify_jwt = false
 
-[functions.publish-slot]
-verify_jwt = false
+# [functions.publish-slot] was removed 2026-10-05: no source exists in this repo, and
+# `supabase start` refuses to run while config names a function it cannot read.
 
 # Settles OG free years at the anniversary. Guarded by CRON_SECRET like the rest
 # of this block; there is no user path into it at all, and it grants money, so

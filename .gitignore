@@ -128,3 +128,4 @@ landing-first-screen-*.png
 # Local Forgenta copy (ask d5c183b3): install log and Tre's exported rows NEVER get committed.
 scripts/install-local-stack.log
 local-stack/
+scripts/block-local-stack-inbound.log
