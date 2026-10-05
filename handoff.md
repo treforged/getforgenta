@@ -33,6 +33,8 @@ R-NOW86 (10-05 ~04:30 ET, Ada getforgenta-1f, OVERDRIVE). Crons RE-ARMED (sessio
     one-shot 06:13 ET; 9b4110d9 = DB stall probe :17/:47 until 23:16Z (08:17Z OK, auth 0.41s rest 0.62s).
     [x] STANDING walk:empty PASS 10/10 (0 findings, 0 unstable) + check:one-banner PASS (bank -> 2FA -> clear), throwaway
     walk-empty-10050818@forgenta.test (ab999d5b) made in SQL, DELETED, read back users/identities/profiles 0/0/0.
+    [x] check:light-contrast (phone 390, ALREADY EXISTS - my 'no light phone gate' premise was wrong) PASS 477/0,
+    pixel control discriminated (1.34). Probes 08:17Z/08:56Z OK. e74da89c re-test: 0 widget rows since 10-04 23:25Z.
 R-NOW85 (10-05 ~04:05 ET, Ada getforgenta-d4, OVERDRIVE). START HERE:
     1. [x] d5c183b3 OFFLINE STACK DONE (Tre "1. yes"). `npx supabase start --workdir local-stack/sb -x edge-runtime`
        (schema-only prod dump; repo migrations cannot build from zero), then `npm run dev:offline` (:8081, vite mode
@@ -13277,7 +13279,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 04:17 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 04:56 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13296,6 +13298,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+b2c84099 [handoff]: R-NOW86 - crons re-armed, walk:empty + one-banner PASS on a deleted throwaway
 ba720b82 [handoff]: R-NOW85 close-out at the 175-call gate
 9c952803 [handoff]: standing walk clean, af1b22fe contrast fix
 af1b22fe [theme]: green TEXT gets its own token, lighter in dark mode, so it clears AA over the glow
@@ -13303,7 +13306,6 @@ af1b22fe [theme]: green TEXT gets its own token, lighter in dark mode, so it cle
 dc6603ea [debt]: one promo summary line per card; Debt page sections fill their rows
 e1f12d00 [local-stack]: dev:offline runs the app on the local stack; check:offline proves no prod calls
 4931731a [local-stack]: firewall-block the stack's ports; drop a config entry with no source
-9f3543d6 [handoff]: R-NOW84 close-out on Tre's order; track db-stall probe
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
