@@ -1,6 +1,20 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW7 (2026-10-06 ~01:30 ET, Ada -> successor). START HERE, IN ORDER:
+  1. RE-ARM eb7282e9 Play ship fallback: CronCreate '39 6 6 10 *' one-shot (my e7f2fea8 dies with this tab), then
+     follow `ask show eb7282e9` at 06:39 ET.
+  2. FINISH ask 2fb9bc69 slice 1 - UNCOMMITTED IN THE TREE (backup backups/2026-10-06_*/):
+     src/pages/Onboarding.tsx (buildSteps: every tier gets 'bank' second; free gets 'premium' before 'finish';
+     seePlan now goes to steps[indexOf('goals')+1]), src/components/onboarding/BankConnectStep.tsx (`free` prop,
+     testid free-first-bank), PremiumUpsellStep.tsx (comment), src/pages/__tests__/Onboarding.funnel.test.ts
+     (15/15, red on old order), scripts/walk-first-run-real.mjs (asserts the free-bank line + pitch after save),
+     docs/competitors-onboarding-nav-2026-10-06.md. tsc 0.
+     TODO: (a) make a throwaway @forgenta.test in SQL (auth.users + auth.identities, crypt) and run
+     `FIRST_RUN_EMAIL=... FIRST_RUN_PASSWORD=... npm run walk:first-run` -> all checks green; also REOPEN=1; delete the
+     user and prove 0 rows. (b) npm run check:first-save (it may press the old order - update it). (c) test:tz, lint.
+     (d) commit with Release-Note, push, verify 0/0. (e) ask done 2fb9bc69 slice 1; items 2-4 of the doc stay open.
+  3. The doc's item 4 (Plan/Garage bottom-bar slot) is a question for Tre via Sam - not a desk change.
 R-NOW6 (2026-10-06 ~00:40 ET, Ada). START HERE:
   1. eb7282e9 Play fallback 06:39 ET today: armed in THIS tab (CronCreate e7f2fea8); any other tab re-arms or does it by hand.
   2. [x] 0ac9c4b3 af621263 - Avg Monthly Spend reads the bank (check:avg-spend). Sam's question answered: ledger-without-bank
@@ -13404,7 +13418,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 00:23 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 00:48 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13424,14 +13438,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+b48fce38 [handoff]: R-NOW6 - Spent so far in both views (9321fc1f)
+9321fc1f [budget]: "Spent so far" shows in Advanced too, at the top of the Plan panel (e1b0fffc)
+6fecd9a3 [budget]: "Spent so far" never nets a paycheck against spending (e1b0fffc (c))
 7aef1ef5 [handoff]: R-NOW6 - cash-flow bars shipped (844dae27)
 844dae27 [forecast]: Cash Flow Overview reads past months from your bank, income and spending together (01979820)
 65ffed78 [handoff]: R-NOW6 - avg spend reads the bank (af621263); next cash-flow bars
 af621263 [analytics]: Avg Monthly Spend reads your bank, not only hand-entered charges (0ac9c4b3)
 eecc0263 [test]: check:spent-of-planned also measures 1440x900 (PASS both widths)
-de742a30 [handoff]: R-NOW5 - spent-of-planned shipped (7c6ce402, b179d250); eb7282e9 armed as e7f2fea8
-b179d250 [budget]: "Spent so far" leaves debt payments out on both sides (e1b0fffc (c))
-7c6ce402 [budget]: Simple view shows what you have spent this month against your plan (e1b0fffc (c))
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
