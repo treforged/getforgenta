@@ -1,6 +1,17 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW15 (2026-10-06 ~15:35 ET, Ada). START HERE:
+  1. ROOT CAUSE FOUND, not the Stripe list: user_subscriptions.purchase_provider DEFAULTS to 'stripe', and
+     decideIntroEligibility read any non-null value as ever-subscribed -> 6 free users (no sub id) were ineligible,
+     plus the probe. FIXED in 394158ee (pushed, 0/0): only apple/google count; Stripe history also ignores
+     incomplete/incomplete_expired. test:tz 6174 x3, tsc 0, deno check OK, red 2 ways.
+     NOT DEPLOYED. Tre's yes arrived RELAYED by Sam ("1. i approve, tell her"); Ada asked Sam to have Tre type it
+     in Ada's tab. On his yes: deploy create-checkout (supabase functions deploy create-checkout --agent no),
+     diff deployed vs HEAD, then re-run the offer probe on intro-probe-1006@forgenta.test (d76ee8bb) - expect
+     eligible:true - THEN delete that user (auth.identities, user_subscriptions, auth.users; prove 0 rows each).
+  2. CronCreate ac255c92 = 10-07 11:37 no-save-nudge read (session-only; re-arm if this tab dies).
+  3. e1b0fffc standing.
 R-NOW14 (2026-10-06 ~15:05 ET, Ada -> successor). START HERE, IN ORDER:
   1. create-checkout REDEPLOYED with 2b0ace20 (Tre: "1. yes deplow"), tree == HEAD 8f63c441. Probe re-run now reads
      409 reason 'ever_subscribed' for BOTH plans on intro-probe-1006@forgenta.test (user d76ee8bb), whose only Stripe
@@ -13522,7 +13533,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 14:54 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 15:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13542,6 +13553,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+63e47901 [handoff]: R-NOW14 - create-checkout redeployed; probe reads ever_subscribed after an abandoned checkout (open)
 8f63c441 [handoff]: ASC intro offers live
 6d729c10 [handoff]: intro comp bug fixed (2b0ace20), redeploy pending; probe user to delete
 2b0ace20 [premium]: one abandoned checkout no longer costs a free user the intro offer
@@ -13549,7 +13561,6 @@ c56d6320 [handoff]: create-checkout deployed (Tre's yes); live offer call fails 
 369d086b [handoff]: R-NOW13 - $0.99/$9.99 shipped, banks header + free-notice fixes
 d0bc47d5 [premium]: intro offer is $0.99/mo or $9.99 for the first year on every platform (852772a5)
 2258f534 [dashboard]: "first bank connection is free" stays silent once any connection exists
-3568c05f [accounts]: the Linked Banks header stops reading healthy when a bank's sync is paused
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
