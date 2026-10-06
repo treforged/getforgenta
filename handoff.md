@@ -1,6 +1,13 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW11 (2026-10-06 ~12:45 ET, Ada). R-NOW10 items (1) and (2) are DONE:
+  - (1) walk:empty on throwaway empty-walk-1006 (e8dbf157) found "$0.00 lowest point" on the Forecast Simple summary
+      (every new user, since new accounts start Simple). Fixed and pushed: Forecast.tsx hides it on noInputs. Red 1 finding,
+      green 10/10. check:one-banner PASS. Account deleted, users/identities/profiles 0/0/0, deck-walk control 1.
+  - (2) CronCreate one-shot 5041ac9e fires 10-07 11:37 local. IT IS SESSION-ONLY: if this tab dies, a successor must
+      re-arm it (read cron.job_run_details for no-save-nudge-daily + net._http_response; tell Sam candidates/sent/failures).
+  NEXT: (3) e1b0fffc standing. (4) ff52631d waits on Tre.
 R-NOW10 (2026-10-06 ~11:10 ET, Ada). R-NOW9 IS DONE. State:
   - 974e9dba + b4eea1f8: onboarding "Save what I have - add the rest later" on Expenses/Debts/Savings (no bank, income in);
     finish shows an add-bills hint instead of "Available after expenses" when no bills. check:first-save ARM E.
