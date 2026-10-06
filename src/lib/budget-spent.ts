@@ -267,3 +267,13 @@ export function computeMonthIncomeCents(p: {
 
   return total;
 }
+
+/**
+ * The category a bank row takes when it is MATCHED to a budget rule. An income rule's payment is
+ * 'Income' (not spending) whatever category the rule carries - measured 2026-10-05: Tre's $814.97
+ * paycheck is linked to an income rule filed under 'Other', and counting it there netted his real
+ * 'Other' spending to zero.
+ */
+export function matchedRuleCategory(rule: { category: string; rule_type?: string | null }): string {
+  return rule.rule_type === 'income' ? 'Income' : rule.category;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { averageMonthlySpentCents, buildSpentRows, computeMonthIncomeCents, computeMonthSpent, resolveBankCategory, type MonthSpentInput, type SpentBankRow, type SpentLedgerRow } from '../budget-spent';
+import { averageMonthlySpentCents, buildSpentRows, computeMonthIncomeCents, matchedRuleCategory, computeMonthSpent, resolveBankCategory, type MonthSpentInput, type SpentBankRow, type SpentLedgerRow } from '../budget-spent';
 
 // Drafted by the free tier (groq gpt-oss-120b), corrected in review: 4, 7 and 8 were rewritten.
 const base: MonthSpentInput = {
@@ -299,5 +299,19 @@ describe('computeMonthIncomeCents', () => {
   });
   it('three string amounts of -0.10 are exactly 30 cents', () => {
     expect(computeMonthIncomeCents({ ...ibase, bank: ['9', '10', '11'].map(id => b(id, '2026-09-15', '-0.10', 'INCOME')) })).toBe(30);
+  });
+});
+
+describe('matchedRuleCategory', () => {
+  it('an income rule is Income whatever its category, so its paycheck never nets against spending', () => {
+    expect(matchedRuleCategory({ category: 'Other', rule_type: 'income' })).toBe('Income');
+    expect(matchedRuleCategory({ category: 'Bills', rule_type: 'expense' })).toBe('Bills');
+    expect(matchedRuleCategory({ category: 'Rent' })).toBe('Rent');
+    // Tre's October shape: an $814.97 paycheck matched to an 'Other' income rule beside $31.03 of Other spending.
+    const r = computeMonthSpent({ ...base,
+      bank: [b('pay', '2026-10-02', -814.97, 'INCOME'), b('fee', '2026-10-04', 31.03, 'BANK_FEES')],
+      matchedCategory: new Map([['pay', matchedRuleCategory({ category: 'Other', rule_type: 'income' })]]),
+      overrides: new Map([['fee', 'Other']]) });
+    expect(r.byCategory).toEqual({ Other: 3103 });
   });
 });

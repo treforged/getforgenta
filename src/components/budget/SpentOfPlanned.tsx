@@ -18,11 +18,11 @@ import { useSyncedTransactions, useSyncedTransactionReviewsQuery, useTransaction
 import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { findExclusiveReview } from '@/lib/synced-transaction-review';
 import { detectTransferPairs, indexPairsByLeg } from '@/lib/transfer-pair-detection';
-import { computeMonthSpent, buildSpentRows } from '@/lib/budget-spent';
+import { computeMonthSpent, buildSpentRows, matchedRuleCategory } from '@/lib/budget-spent';
 import { toLocalDateStr } from '@/lib/scheduling';
 
 interface Props {
-  rules: readonly { id: string; category: string }[];
+  rules: readonly { id: string; category: string; rule_type?: string | null }[];
   plannedRules: readonly { category: string; amount: number }[];
 }
 
@@ -68,7 +68,7 @@ const SpentOfPlanned = ({ rules, plannedRules }: Props) => {
     matchedIndex.forEach(v => {
       if (!v.suppressOnly && v.transactionId) {
         const rule = rules.find(r => r.id === v.ruleId);
-        if (rule) map.set(v.transactionId, rule.category);
+        if (rule) map.set(v.transactionId, matchedRuleCategory(rule));
       }
     });
     return map;
