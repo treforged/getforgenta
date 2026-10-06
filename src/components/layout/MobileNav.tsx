@@ -116,7 +116,9 @@ export default function MobileNav() {
               <div className="relative">
                 <item.icon size={20} strokeWidth={active ? 2.2 : 1.8} />
                 {item.highlight && !active && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full" />
+                  // Out on the corner with a ring in the bar's colour, the badge convention: at
+                  // -top-0.5/-right-0.5 the dot sat ON the Landmark's roof and read as part of the glyph.
+                  <span data-testid="nav-highlight-dot" className="absolute -top-1 -right-1.5 w-2 h-2 bg-primary rounded-full ring-2 ring-background" />
                 )}
                 {/* A NUMBER, not a dot, and it goes over the Transactions icon. The label has no
                     room to carry it at these widths (see the block above), so the count rides the

@@ -257,7 +257,8 @@ export default function Sidebar() {
                   <span
                     aria-hidden="true"
                     data-testid="rail-highlight-dot"
-                    className={cn('absolute top-0 right-0 w-2 h-2 bg-primary rounded-full', !collapsed && RAIL_ONLY)}
+                    // The ring separates it from the glyph; a ring is a box-shadow, so it adds no scroll width.
+                    className={cn('absolute top-0 right-0 w-2 h-2 bg-primary rounded-full ring-2 ring-sidebar', !collapsed && RAIL_ONLY)}
                   />
                 )}
                 {badge !== null && (

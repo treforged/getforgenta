@@ -372,6 +372,28 @@ if (!bar.found) {
   }
 }
 
+// THE HIGHLIGHT DOT SITS ON THE ICON'S CORNER, NOT ON THE GLYPH (2026-10-06). At -top-0.5/-right-0.5
+// its centre fell INSIDE the 20px icon box, on the Landmark's roof, and read as part of the icon.
+const dot = await phone.evaluate(() => {
+  const d = document.querySelector('[data-testid="nav-highlight-dot"]');
+  const svg = d?.parentElement?.querySelector('svg');
+  if (!d || !svg) return { found: false };
+  const a = d.getBoundingClientRect(); const b = svg.getBoundingClientRect();
+  const cx = a.left + a.width / 2; const cy = a.top + a.height / 2;
+  return { found: true, outside: cx > b.right || cy < b.top, cx: Math.round(cx - b.right), cy: Math.round(b.top - cy),
+    ring: getComputedStyle(d).boxShadow !== 'none' };
+});
+if (!dot.found) {
+  failures.push('CONTROL FAILED: the Debt highlight dot or its icon was not found in the phone bar, so its position was not measured.');
+} else {
+  note(`highlight dot centre: ${dot.cx}px right of the icon box, ${dot.cy}px above it, ring=${dot.ring}`);
+  // A FRAME of the dot, because "outside the box" says nothing about whether it LOOKS separate.
+  const dotBox = await phone.locator('[data-testid="nav-highlight-dot"]').boundingBox();
+  if (dotBox) await phone.screenshot({ path: 'test-results/nav-highlight-dot.png', clip: { x: dotBox.x - 22, y: dotBox.y - 6, width: 40, height: 34 } });
+  if (!dot.outside) failures.push(`the Debt highlight dot's centre sits INSIDE its icon's box (${dot.cx}px, ${dot.cy}px), on the glyph. Move it to the corner.`);
+  if (!dot.ring) failures.push('the Debt highlight dot has no ring, so nothing separates it from the glyph.');
+}
+
 // 1 - THE ABSENCES, now that the selector is proven able to find it.
 for (const path of NO_BURGER) {
   if (!(await go(phone, path))) continue;

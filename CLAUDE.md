@@ -435,7 +435,8 @@ section states reasoning, not measurement, and says so.
   Security's all-devices control; that the bottom bar is a FLOATING PILL inset from all three
   edges; that **content clears it** (the bar's footprint and `DashboardLayout`'s bottom reserve
   live in different files and nothing makes them agree); and that the desktop Settings button
-  renders, since the rail has no Settings row.
+  renders, since the rail has no Settings row. Since 2026-10-06 it also requires the phone bar's Debt highlight dot to sit OUTSIDE
+  its icon's box with a ring (it sat on the Landmark's roof), and saves `test-results/nav-highlight-dot.png`.
   ⚠️ **EVERY ABSENCE IS PRECEDED BY A POSITIVE CONTROL**, because a zero from a broken selector
   and a zero from a correct app are the same zero — three separate control failures in this
   gate's first runs were all the instrument, not the app (a selector demanding an `<svg>` from a
