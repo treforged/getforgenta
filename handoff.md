@@ -5,7 +5,8 @@ R-NOW3 (2026-10-05 ~22:00 ET, Ada). Tre meant PARTNER linking. Tested end to end
   works = invite+email, free 403, accept via link, both linked, desktop partner view. FIXED + pushed: c2e35e99 phone entry
   (check:partner-view), 8deabd10 code survives /auth+/onboarding (check:invite-resume, src/lib/pending-invite.ts),
   e7c2dd85 blank inviter name (partner-link + friend-link DEPLOYED); 531cc678 own-account notices hidden in partner view.
-  NEXT: STANDING e1b0fffc (a) Finish sooner card in Advanced Debt.
+  [x] e1b0fffc (a) 60418be5 Finish sooner in Advanced + row layout; 9e179cba desktop rail closes after a mouse click
+  (check:rail-click). NEXT e1b0fffc: (c) spent-of-planned bar (check budget-month-totals.ts first).
   eb7282e9 wake still armed in this session (f9096417, 06:39 ET 10-06).
 R-NOW2 (2026-10-05 ~21:10 ET, Ada). DONE: 336b096c shipped 876e06c4 (check:loan-chart, red 3 -> green 1). Account linking
   answered: 10 connections/4 users, nightly sync 13:00Z today OK, last NEW link 09-05 (Robinhood), 0 link-token calls in 24h;
