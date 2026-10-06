@@ -134,7 +134,6 @@ try {
     .waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
   await shot('premium');
   await press(/^No thanks$/);
-  await press(/stay on free/i);
   finishShown = await page.getByText(/Your profile is set/i).first()
     .waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
   await shot('finish');

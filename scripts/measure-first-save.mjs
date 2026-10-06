@@ -216,8 +216,6 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
   // The pitch's buttons only navigate; the press log shows they write nothing.
   await shot('premium-1');
   await press('button', /^No thanks$/, 'No thanks');
-  await shot('premium-2');
-  await press('button', /stay on free/i, "I'll stay on free");
 
   // ASSERT THE SCREEN, NOT THE ROW: the finish screen must be on screen, and must be there only
   // AFTER the save - which the press log already orders.

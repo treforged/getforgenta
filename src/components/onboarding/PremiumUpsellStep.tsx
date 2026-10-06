@@ -5,15 +5,15 @@
 // 2026-09-06, so free accounts now get the bank step too and see this after the manual steps
 // (ask 2fb9bc69). Declining moves on to the finish - nobody is blocked.
 
-import { useState } from 'react';
 // DERIVED, NEVER TYPED. Until 2026-09-18 these read "Up to 3" and "manual-only on free"
 // against an enforced 10 and 1 — see src/lib/plan-limits.ts for what that cost.
 import { FREE_LINK_LIMIT, PREMIUM_MAX_LINKED } from '@/lib/plan-limits';
 import { Check, Crown, Zap } from 'lucide-react';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
 
-type UpsellStage = 'first' | 'second';
-
+// ONE screen, not two (Sam, 2026-10-06, ask 579f2b33). A second "Are you sure? Here's what you'd be
+// missing" screen used to follow "No thanks": an extra press for every free user, in the funnel where
+// 11 of 28 users saved nothing. "No thanks" now moves straight on.
 export default function PremiumUpsellStep({
   onUpgrade,
   onDecline,
@@ -21,11 +21,7 @@ export default function PremiumUpsellStep({
   onUpgrade: () => void;
   onDecline: () => void;
 }) {
-  const [stage, setStage] = useState<UpsellStage>('first');
-
-  return stage === 'first'
-    ? <FirstUpsell onUpgrade={onUpgrade} onDecline={() => setStage('second')} />
-    : <SecondUpsell onUpgrade={onUpgrade} onDecline={onDecline} />;
+  return <FirstUpsell onUpgrade={onUpgrade} onDecline={onDecline} />;
 }
 
 function FirstUpsell({
@@ -38,7 +34,7 @@ function FirstUpsell({
   const highlights = [
     'Auto-sync bank balances every morning',
     ...(AI_ADVISOR_ENABLED ? ['AI Advisor — ask anything about your money'] : []),
-    `Up to ${PREMIUM_MAX_LINKED} linked accounts with real transaction import`,
+    `Up to ${PREMIUM_MAX_LINKED} linked accounts vs. ${FREE_LINK_LIMIT} on free`,
     'Advanced 60-month cash flow forecast',
     'Export reports as PDF or CSV',
   ];
@@ -82,54 +78,6 @@ function FirstUpsell({
           style={{ borderRadius: 'var(--radius)' }}
         >
           No thanks
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SecondUpsell({
-  onUpgrade,
-  onDecline,
-}: {
-  onUpgrade: () => void;
-  onDecline: () => void;
-}) {
-  const perks = [
-    'Auto-sync every morning — wake up to fresh balances',
-    ...(AI_ADVISOR_ENABLED ? ['AI Advisor — ask your money anything, get real answers'] : []),
-    `Up to ${PREMIUM_MAX_LINKED} linked accounts vs. ${FREE_LINK_LIMIT} on free`,
-    'Advanced 60-month forecast with Plaid data',
-    'Cancel anytime',
-  ];
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm font-semibold">Are you sure? Here's what you'd be missing:</p>
-
-      <ul className="space-y-2">
-        {perks.map(perk => (
-          <li key={perk} className="flex items-start gap-2 text-xs text-muted-foreground">
-            <Check size={11} className="text-primary mt-0.5 shrink-0" />
-            {perk}
-          </li>
-        ))}
-      </ul>
-
-      <div className="flex gap-2">
-        <button
-          onClick={onUpgrade}
-          className="flex-1 py-2.5 bg-primary text-primary-foreground text-xs font-semibold btn-press"
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          Upgrade now
-        </button>
-        <button
-          onClick={onDecline}
-          className="flex-1 py-2.5 border border-border text-xs text-muted-foreground hover:text-foreground btn-press transition-colors"
-          style={{ borderRadius: 'var(--radius)' }}
-        >
-          I'll stay on free
         </button>
       </div>
     </div>
