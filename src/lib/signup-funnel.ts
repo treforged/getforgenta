@@ -104,6 +104,22 @@ export function toErrorCode(raw: unknown): string {
 }
 
 /**
+ * How long a sign-in sheet was open before it reported "cancelled", measured ON THE PHONE.
+ *
+ * The rows' created_at is SERVER insert time, so the gap between tap_apple and auth_error says
+ * nothing about the sheet: on 10-01..10-06 five iOS cancels landed 0.2-0.3 s after their tap on
+ * the server clock, which would be an instant native failure if true, and a delayed first insert
+ * if not. Under 1 s no person has pressed Cancel, so that bucket is a failure labelled as a cancel.
+ * Buckets, not milliseconds: detail is limited to [a-z0-9_]{0,40} and a coarse value is enough.
+ */
+export function cancelDetail(elapsedMs: number): string {
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return 'user_cancelled';
+  if (elapsedMs < 1000) return 'user_cancelled_lt1s';
+  if (elapsedMs < 5000) return 'user_cancelled_1to5s';
+  return 'user_cancelled_gt5s';
+}
+
+/**
  * Records a funnel step if tracking is allowed and the step has not
  * already been sent for this page lifetime (auth_error is limited to 5).
  */

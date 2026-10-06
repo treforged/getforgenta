@@ -19,7 +19,7 @@ vi.mock('@/lib/analytics', () => ({ hasTrackingOptOutSignal: optOut }));
 vi.mock('@/lib/consent-prefs', () => ({ loadConsent: loadConsentMock }));
 vi.mock('@capacitor/core', () => ({ Capacitor: { getPlatform } }));
 
-import { recordFunnelStep, toErrorCode, funnelEnv, funnelInstallId, FUNNEL_INSTALL_ID_KEY, __resetFunnelForTests } from '../signup-funnel';
+import { cancelDetail, recordFunnelStep, toErrorCode, funnelEnv, funnelInstallId, FUNNEL_INSTALL_ID_KEY, __resetFunnelForTests } from '../signup-funnel';
 
 beforeEach(() => {
   fromMock.mockClear();
@@ -193,5 +193,22 @@ describe('funnelInstallId', () => {
     const id = funnelInstallId();
     expect(id).toMatch(UUID);
     expect(localStorage.getItem(FUNNEL_INSTALL_ID_KEY)).toBe(id);
+  });
+});
+
+describe('cancelDetail', () => {
+  it('buckets the on-phone time a sign-in sheet was open before it said cancelled', () => {
+    expect(cancelDetail(240)).toBe('user_cancelled_lt1s');
+    expect(cancelDetail(999)).toBe('user_cancelled_lt1s');
+    expect(cancelDetail(1000)).toBe('user_cancelled_1to5s');
+    expect(cancelDetail(4999)).toBe('user_cancelled_1to5s');
+    expect(cancelDetail(5000)).toBe('user_cancelled_gt5s');
+  });
+  it('falls back to the plain code for a clock that went backwards or is not a number', () => {
+    expect(cancelDetail(-5)).toBe('user_cancelled');
+    expect(cancelDetail(Number.NaN)).toBe('user_cancelled');
+  });
+  it('fits the database check on detail: [a-z0-9_]{0,40}', () => {
+    for (const ms of [0, 2000, 60000]) expect(cancelDetail(ms)).toMatch(/^[a-z0-9_]{0,40}$/);
   });
 });

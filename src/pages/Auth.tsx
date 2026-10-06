@@ -11,7 +11,7 @@ import { Browser } from '@capacitor/browser';
 import { AuthSession } from '@/lib/auth-session';
 import { debugLog } from '@/lib/debugLog';
 import { trackSignUp } from '@/lib/analytics';
-import { recordFunnelStep, toErrorCode } from '@/lib/signup-funnel';
+import { cancelDetail, recordFunnelStep, toErrorCode } from '@/lib/signup-funnel';
 import { Eye, EyeOff } from 'lucide-react';
 import { inboxLinkFor } from '@/lib/inbox-link';
 import { getTrustedDeviceId, isDeviceTrusted, TRUSTED_DEVICE_KEY, type TrustedDevice } from '@/lib/trusted-device';
@@ -278,6 +278,7 @@ export default function Auth() {
 
   const handleOAuthSignIn = async (provider: 'google' | 'apple') => {
     setLoading(true);
+    const tappedAt = Date.now();
     recordFunnelStep(provider === 'google' ? 'tap_google' : 'tap_apple', { method: provider, detail: mode });
     const redirectTo = Capacitor.isNativePlatform()
       ? 'com.treforged.forged://auth-callback'
@@ -450,7 +451,7 @@ export default function Auth() {
       const msg = err instanceof Error ? err.message : '';
       if (msg === 'User cancelled' || msg === 'cancelled') {
         // User dismissed — no error toast
-        recordFunnelStep('auth_error', { method: provider, detail: 'user_cancelled' });
+        recordFunnelStep('auth_error', { method: provider, detail: cancelDetail(Date.now() - tappedAt) });
       } else if (msg.toLowerCase().includes('already registered') || msg.toLowerCase().includes('email already in use')) {
         toast.error('An account already exists with this email. Sign in with your password or reset it using "Forgot password?".');
       } else {
