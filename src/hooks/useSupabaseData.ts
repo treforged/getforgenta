@@ -537,7 +537,7 @@ export function useCarFunds() {
 // below — the two must never be merged, or the app appears to invent transactions nobody entered.
 export type SyncedTransactionRow = Pick<
   Tables<'synced_transactions'>,
-  'id' | 'account_id' | 'amount' | 'date' | 'pending' | 'name' | 'merchant_name'
+  'id' | 'account_id' | 'amount' | 'date' | 'pending' | 'name' | 'merchant_name' | 'category'
 >;
 
 /** Slack either side of the month, ≥ the matcher's DATE_WINDOW_DAYS so no candidate is cut off. */
@@ -569,7 +569,7 @@ export function useSyncedTransactions(monthKey: string) {
       const to = pad(new Date(year, month, SYNCED_TXN_FETCH_SLACK_DAYS));
       const { data, error } = await supabase
         .from('synced_transactions')
-        .select('id, account_id, amount, date, pending, name, merchant_name')
+        .select('id, account_id, amount, date, pending, name, merchant_name, category')
         .eq('user_id', viewedUserId ?? user.id)
         .eq('pending', false)
         .gte('date', from)

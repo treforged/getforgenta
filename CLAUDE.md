@@ -334,6 +334,11 @@ section states reasoning, not measurement, and says so.
 - `npm run check:loan-chart` - Debt > Auto Loans draws the payoff graph ONCE (ask 336b096c) at 390 and 1440, signed in:
   car_funds answered in-browser with 2 loans (writes aborted); control = both names render; then exactly 1 chart.
   Red on the pre-fix LoanCard (3 charts = trajectory + one per loan). Other loan tabs grep-verified to draw only the trajectory.
+- `npm run check:spent-of-planned` - Budget Simple's "Spent so far" card (e1b0fffc (c)) at 390x844, signed in: profile READ rewritten
+  to Simple, the month's synced_transactions read ANSWERED in-browser (writes aborted). Must read "$42.34 of $X planned" with Dining
+  $12.34 and Shopping $30.00 ($50 less a $20 refund); a $500 TRANSFER_OUT and a $900 LOAN_PAYMENTS row must not count. VIEW_MODE=advanced:
+  no card. Red with the provider exclusion removed ($1,442.34, exit 1). SPENT reads BANK rows: measured 10-05, bank charges never reach
+  `transactions` (it holds future one-offs). Rules + 18 unit tests: src/lib/budget-spent.ts (red under 4 mutants).
 - `npm run check:partner-view` - a PHONE can open the partner's budget (ask 07351a98): at 390, partner_links answered in-browser
   with one active link (writes aborted); control = "Linked with"; "View their budget" must be visible and PRESSING it must land on
   /dashboard with the PARTNER VIEW banner. Red on the pre-fix card (0 buttons; the only switch was the desktop sidebar).

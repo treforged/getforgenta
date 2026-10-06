@@ -21,6 +21,7 @@ import {
 import { getDayName, describeBiweeklyAnchor } from '@/lib/scheduling';
 import { categoryFieldOptions } from '@/components/shared/CategoryOptions';
 import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
+import SpentOfPlanned from '@/components/budget/SpentOfPlanned';
 import { CURRENT_MONTH_LABEL, isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
@@ -1457,6 +1458,14 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
           rather than moved: it was `debtSafeToPay`, which the Dashboard already shows as SAFE
           TO PAY. The allocation donut below divides up the same five totals and stays here. */}
 
+
+      {/* Spent of planned (ask e1b0fffc (c)): Simple only, per docs/simple-view/PROPOSAL.md:52. */}
+      {simple && (
+        <SpentOfPlanned
+          rules={[...incomeRules, ...fixedRules, ...variableRules, ...debtRules, ...transferRules]}
+          plannedRules={[...fixedRules, ...variableRules].filter(r => r.active).map(r => ({ category: r.category, amount: toCurrentMonthAmount(r) }))}
+        />
+      )}
 
       {/* Budget Allocation Bar — current month only, distinct colors */}
       <div className={`card-forged p-4 sm:p-5 flex flex-col ${incomeSectionCollapsed || simple ? 'lg:col-span-2' : ''}`}>
