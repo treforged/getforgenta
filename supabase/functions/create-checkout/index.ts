@@ -9,6 +9,7 @@ import {
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createTracer, hashId } from "../_shared/tracer.ts";
 import { stripHtmlTags } from "../_shared/sanitize.ts";
+import { decideIntroEligibility, introCouponFor } from "../_shared/intro-eligibility.ts";
 
 const PAYLOAD_SIZE_LIMIT = 2048;
 
@@ -24,7 +25,18 @@ const bodySchema = z.object({
   return_url: z.string().url('return_url must be a valid URL').max(2000).optional(),
   plan: z.enum(['monthly', 'yearly']).default('yearly'),
   ui_mode: z.enum(['hosted', 'embedded']).default('embedded'),
+  // First-year intro offer (ask a6375f1c). Opt-in: without it, checkout is exactly what it was.
+  intro: z.boolean().default(false),
+  // 'offer' answers "may this user see the intro offer?" for the paywall, and creates nothing.
+  action: z.enum(['checkout', 'offer']).default('checkout'),
 }).strict();
+
+// The intro coupons are created in Stripe by hand (monthly: $8.99 off, repeating 12 months;
+// yearly: $79.99 off, once). Unset means the offer is OFF for that plan - fail closed.
+const INTRO_COUPONS = {
+  monthly: Deno.env.get("STRIPE_INTRO_COUPON_MONTHLY") ?? null,
+  yearly: Deno.env.get("STRIPE_INTRO_COUPON_YEARLY") ?? null,
+};
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -100,7 +112,7 @@ Deno.serve(async (req) => {
     }
 
     // Reject malformed JSON and unexpected fields
-    let parsed: { return_url?: string; plan?: 'monthly' | 'yearly'; ui_mode?: 'hosted' | 'embedded' } = {};
+    let parsed: { return_url?: string; plan?: 'monthly' | 'yearly'; ui_mode?: 'hosted' | 'embedded'; intro?: boolean; action?: 'checkout' | 'offer' } = {};
     if (rawBody.trim()) {
       let json: unknown;
       try {
@@ -139,10 +151,46 @@ Deno.serve(async (req) => {
     });
     const { data: existingSub } = await supabase
       .from("user_subscriptions")
-      .select("stripe_customer_id")
+      .select("stripe_customer_id, stripe_subscription_id, apple_original_transaction_id, purchase_provider, plan, subscription_status, is_comp")
       .eq("user_id", userId)
       .maybeSingle();
     dbSelectSpan.end("OK");
+
+    // ── Intro offer: new subscribers only (decision 994dbd43) ──────────────
+    // The Stripe history read runs only when the offer is in play, and a failed read THROWS (500):
+    // "could not tell" must never be read as "never subscribed".
+    const wantsIntro = parsed.intro === true || parsed.action === 'offer';
+    let stripeEverSubscribed = false;
+    if (wantsIntro && existingSub?.stripe_customer_id) {
+      const histRes = await fetch(
+        `https://api.stripe.com/v1/subscriptions?customer=${encodeURIComponent(existingSub.stripe_customer_id)}&status=all&limit=1`,
+        { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } },
+      );
+      if (!histRes.ok) throw new Error(`Stripe subscription history error ${histRes.status}`);
+      const hist = await histRes.json();
+      stripeEverSubscribed = Array.isArray(hist?.data) && hist.data.length > 0;
+    }
+    const introDecision = decideIntroEligibility(existingSub ?? null, stripeEverSubscribed);
+
+    if (parsed.action === 'offer') {
+      rootSpan.end("OK");
+      return new Response(JSON.stringify({
+        eligible: introDecision.eligible,
+        monthly: introDecision.eligible && introCouponFor('monthly', INTRO_COUPONS) !== null,
+        yearly: introDecision.eligible && introCouponFor('yearly', INTRO_COUPONS) !== null,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const plan = parsed.plan ?? 'yearly';
+    const introCoupon = parsed.intro ? introCouponFor(plan, INTRO_COUPONS) : null;
+    if (parsed.intro && (!introDecision.eligible || !introCoupon)) {
+      // Never fall through to a full-price checkout the user did not choose.
+      rootSpan.end("ERROR", new Error("intro_not_available"));
+      return new Response(JSON.stringify({
+        error: "intro_not_available",
+        reason: introDecision.reason ?? "not_configured",
+      }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     let customerId = existingSub?.stripe_customer_id;
 
@@ -204,13 +252,21 @@ Deno.serve(async (req) => {
 
     const sessionParams = new URLSearchParams({
       customer: customerId,
-      "line_items[0][price]": PRICE_IDS[parsed.plan ?? 'yearly'],
+      "line_items[0][price]": PRICE_IDS[plan],
       "line_items[0][quantity]": "1",
       mode: "subscription",
       allow_promotion_codes: "true",
       payment_method_collection: "if_required",
       "metadata[supabase_user_id]": userId,
     });
+
+    if (introCoupon) {
+      // Stripe refuses `discounts` together with `allow_promotion_codes`, and the intro IS the discount.
+      sessionParams.delete("allow_promotion_codes");
+      sessionParams.set("discounts[0][coupon]", introCoupon);
+      sessionParams.set("metadata[intro_offer]", plan);
+      sessionParams.set("subscription_data[metadata][intro_offer]", plan);
+    }
 
     if (isEmbedded) {
       sessionParams.set("ui_mode", "embedded");
