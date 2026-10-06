@@ -12,7 +12,11 @@ R-NOW13 (2026-10-06 ~13:30 ET, Ada). R-NOW12 items 2-4 DONE:
   - Tre "1. yes" (852772a5): intro is $0.99/$9.99 EVERYWHERE. d0bc47d5 INTRO_CENTS 99/999. Coupons: 900 rep 12mo / 8000 once.
   - create-checkout DEPLOYED 10-06 (Tre's yes in Ada's tab), CLI v2.115, tree == HEAD d0bc47d5. Live: no token 401;
     walk offer 200 {eligible:false} (walk is comp); intro checkout 409 reason comp. Fails closed; coupons still absent.
-  NEXT: (1) once Sam's coupons + secrets exist, re-run check:intro-offer and an offer call from a NON-comp test account.
+  - Coupons live (intro-monthly-099 / intro-yearly-999). Probe user intro-probe-1006@forgenta.test (d76ee8bb, pw in
+    Ada's session only): offer true/true, monthly intro checkout 200 (cs_live, no charge), then yearly 409 'comp' -
+    is_comp defaults TRUE. Fixed in 2b0ace20 (comp = is_comp AND plan premium), pushed, NOT DEPLOYED (Tre's yes needed).
+  NEXT: (1) on Tre's yes: deploy create-checkout, re-run the probe (yearly must be 200 too), then DELETE the probe user
+      (auth.users + identities + user_subscriptions; prove 0 rows). Sam confirms the 2 price ids are $9.99/$89.99.
   (2) CronCreate d9e48030 fires 10-07 11:37 (session-only; re-arm if this tab dies). (3) e1b0fffc standing.
 R-NOW12 (2026-10-06 ~15:00 ET, Ada -> successor). START HERE, IN ORDER:
   1. a6375f1c INTRO OFFER (Tre, decision 994dbd43; ahead of e1b0fffc). Server half SHIPPED, NOT DEPLOYED: 680d11f1
