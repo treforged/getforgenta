@@ -15,6 +15,8 @@ R-NOW13 (2026-10-06 ~13:30 ET, Ada). R-NOW12 items 2-4 DONE:
   - Coupons live (intro-monthly-099 / intro-yearly-999). Probe user intro-probe-1006@forgenta.test (d76ee8bb, pw in
     Ada's session only): offer true/true, monthly intro checkout 200 (cs_live, no charge), then yearly 409 'comp' -
     is_comp defaults TRUE. Fixed in 2b0ace20 (comp = is_comp AND plan premium), pushed, NOT DEPLOYED (Tre's yes needed).
+  - ASC intro offers LIVE (Sam 10-06): monthly 6767639026 pay-as-you-go $0.99 x12; annual 6767639195 pay-up-front $9.99.
+    Native paywall copy (7c503ea2) is JS, so it reaches phones via Vercel. Play offers next (Sam).
   NEXT: (1) on Tre's yes: deploy create-checkout, re-run the probe (yearly must be 200 too), then DELETE the probe user
       (auth.users + identities + user_subscriptions; prove 0 rows). Sam confirms the 2 price ids are $9.99/$89.99.
   (2) CronCreate d9e48030 fires 10-07 11:37 (session-only; re-arm if this tab dies). (3) e1b0fffc standing.
@@ -13505,7 +13507,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 14:22 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 14:39 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13525,14 +13527,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+6d729c10 [handoff]: intro comp bug fixed (2b0ace20), redeploy pending; probe user to delete
+2b0ace20 [premium]: one abandoned checkout no longer costs a free user the intro offer
+c56d6320 [handoff]: create-checkout deployed (Tre's yes); live offer call fails closed
 369d086b [handoff]: R-NOW13 - $0.99/$9.99 shipped, banks header + free-notice fixes
 d0bc47d5 [premium]: intro offer is $0.99/mo or $9.99 for the first year on every platform (852772a5)
 2258f534 [dashboard]: "first bank connection is free" stays silent once any connection exists
 3568c05f [accounts]: the Linked Banks header stops reading healthy when a bank's sync is paused
 df382a39 [handoff]: R-NOW13 - broken bank link prompts shipped (6d974248, bd3ba569)
-bd3ba569 [dashboard]: a stopped bank sync shows a banner on Home, ahead of the statement-consent ask
-6d974248 [accounts]: a bank link that needs a sign-in says so - syncing has stopped
-c5ed602e [handoff]: R-NOW13 - intro offer web + native shipped, console list with Sam (e9a278bd)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
