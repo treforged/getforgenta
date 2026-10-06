@@ -8,6 +8,13 @@ R-NOW20 (2026-10-06 ~17:30 ET, Ada). R-NOW19 items 1-2 DONE:
   - Fallback ran: competitor-edge, 1,079 rival complaints -> docs/competitor-edge-budgeting-2026-10-06.md
     (5264a147). Lead: surprise charges 174 (92 trial/cancel). Ad angle went to Ruby via Sam.
   - cc79cb6e (renewal reminder) BLOCKED until 2027-09-01: Apple already notifies; Stripe toggle state unknown.
+  - Later the same evening: ea984968 (iOS sign-in cancels now carry a phone-side bucket _lt1s/_1to5s/_gt5s;
+    no root cause proven), fc402db4 (free-link grant write no longer swallows its error; plaid-exchange-token
+    v66 deployed, contents checked), 36c86846 (demo_signup_tap funnel step, migration live).
+    e21772b8 blocked on 493aa023 (Tre: one real bank link on a fresh free account). Session crons 5f8a0ec7
+    (cancel buckets) and b63524bf (grant row) check twice a day - RE-ARM them if this tab is gone.
+  - Landing->signup (30d prod): web 22 first-screen -> 3 actions -> 0; iOS 9 -> 7 -> 1. No step provable;
+    landing_viewed began 10-06. Read again 10-20 (a640c0d7).
   NEXT: the next e1b0fffc improvement; items in R-NOW19 #3 are still waiting on others.
 R-NOW19 (2026-10-06 ~18:45 ET, Ada -> successor; handoff gate at 179 calls). START HERE, IN ORDER:
   1. RE-ARM the 10-07 11:37 no-save-nudge read FIRST (CronCreate one-shot "37 11 7 10 *"): read cron.job_run_details
@@ -13580,34 +13587,39 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 16:57 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 18:01 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (11 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
+ M src/components/shared/DemoBanner.tsx
+ M src/components/shared/__tests__/DemoSession.test.tsx
+ M src/lib/signup-funnel.ts
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
 ?? press-walk-frames/
+?? supabase/migrations/20261006c_signup_funnel_demo_signup.sql
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+fc402db4 [bank-link]: the free-link grant write reports its own failure instead of swallowing it
+ea984968 [auth]: time sign-in cancels on the phone, so an instant failure stops reading as a cancel
+ac37a012 [handoff]: R-NOW20 - funnel unmeasurable (2 of 28 tracked), competitor-edge done, renewal reminder parked
+5264a147 docs: competitor-edge read of 5 budgeting apps - surprise charges lead (174 of 1,079 complaints)
+edf55348 [handoff]: R-NOW19 - successor resume queue: re-arm nudge read, Sam's onboarding-funnel slice
 5583c794 [handoff]: R-NOW18 - live intro gate, walk green, Android sign-in premise likely robots
 ca4ca61a test: check:intro-offer-live - the intro offer against the DEPLOYED create-checkout
 17cc12d0 [handoff]: R-NOW17 - testimonial grant, landing social proof live, CSP lesson in the gate notes
-103eb77c [landing]: let the browser read Apple's rating - add itunes.apple.com to connect-src
-55ed0356 [landing]: live App Store rating beside the badges + landing-to-download counting (ask 4f473837)
-3a746e14 [premium]: staff-only 3-month comp for an approved video testimonial (ask a868f7c3)
-626e6b52 test: gate the intro offer against the table's REAL column defaults
-d05e351d [handoff]: R-NOW16 - create-checkout v78 live, probe eligible, probe user deleted
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
