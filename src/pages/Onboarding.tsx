@@ -8,6 +8,7 @@
 // completion is recorded in one place (`src/lib/onboarding-state.ts`). The checklist stays: it is a
 // nudge, not a flow, and it reads the same store.
 
+import { PREMIUM_MAX_LINKED } from '@/lib/plan-limits';
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
@@ -773,17 +774,19 @@ export default function Onboarding() {
                   <span className="text-xs font-semibold">Unlock automatic tracking with Premium</span>
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  Connect your bank accounts with Plaid for <strong className="text-foreground">automatic transaction import</strong>,
-                  daily balance updates, and real-time net worth — no manual entry.
+                  Your first bank link is free. Premium <strong className="text-foreground">syncs it every morning</strong> and
+                  links up to {PREMIUM_MAX_LINKED} accounts, so balances and net worth stay current with no manual entry.
                 </p>
-                {/* EVERY ITEM HERE MUST BE SOMETHING PREMIUM ACTUALLY ENFORCES. "Unlimited history"
-                    sat here until 2026-09-18 and was VACUOUS rather than merely undocumented: no
+                {/* EVERY ITEM HERE MUST BE SOMETHING PREMIUM ACTUALLY ENFORCES. "Plaid bank connection" sat
+                    here until 2026-10-06, but the first link is free (FREE_LINK_LIMIT); premium buys the
+                    daily sync (plaid-sync-all reads premium users only) and the extra links. "Unlimited history"
+                    sat here until 2026-09-18, and it was VACUOUS rather than merely undocumented: no
                     plan-bounded history query exists anywhere in src/, so free users already had it
                     and an upgrader received nothing new. Tre approved replacing it (abd764bf).
                     "Full payoff forecast" is measured - CreditCardEngine.tsx:2271 shows a free
                     account 3 months of year 1 and nothing after. */}
                 <div className="grid grid-cols-2 gap-2 text-[10px]">
-                  {['Auto-sync transactions', 'Plaid bank connection', 'Full payoff forecast', 'Priority support'].map(f => (
+                  {['Auto-sync transactions', `Up to ${PREMIUM_MAX_LINKED} bank links`, 'Full payoff forecast', 'Priority support'].map(f => (
                     <div key={f} className="flex items-center gap-1 text-muted-foreground">
                       <Shield size={9} className="text-primary shrink-0" /> {f}
                     </div>
