@@ -8,7 +8,9 @@ R-NOW8 (2026-10-06 ~01:45 ET, Ada). START HERE:
      check:first-save re-ordered + green both arms, test:tz 6087 x3, lint 0 errors.
   3. [x] 2346ca8b finish card no longer sells "Plaid bank connection" as Premium (first link is free).
      [x] d53dbbe1 b3c12107 "Who is this budget for?" + Budget together card -> /account?partner=invite (check:first-save ARM C).
-     NEXT: 474649b8 (review card on Home, design pass).
+     [x] 653a6be6 pitch line no longer says "Connect your bank once".
+     [-] 474649b8 dropped: the Transactions tab already badges the review count (MobileNav:62, Sidebar:89).
+     Pushes today: 6 with src changes. BATCH further commits (GitHub Actions budget rule).
   4. 6cdc485c is the Plan/Garage bottom-bar question for Tre via Sam - not a desk change.
 R-NOW6 (2026-10-06 ~00:40 ET, Ada). START HERE:
   1. eb7282e9 Play fallback 06:39 ET today: armed in THIS tab (CronCreate e7f2fea8); any other tab re-arms or does it by hand.
