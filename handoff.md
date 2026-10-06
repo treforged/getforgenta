@@ -1,6 +1,13 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW18 (2026-10-06 ~18:30 ET, Ada). Since R-NOW17:
+  - ca4ca61a check:intro-offer-live (deployed function, walk account; red via provider 'apple', restored).
+  - Full walk green: walk:routes 27/27, walk:press 401/165/165, stub 13/13 + 13/13.
+  - a6375f1c: web + iOS live; ONLY Play Console offers left (Sam e9a278bd).
+  - 0c15746d Android "0 sign-ups": BLOCKED, premise likely false - all 16 Android flows never reached the provider
+    callback and closed in ~2 s, robot-shaped sessions (Play pre-launch). Needs one real Android sign-in to prove.
+  NEXT: cron ac255c92 10-07 11:37 nudge read; e1b0fffc standing.
 R-NOW17 (2026-10-06 ~17:30 ET, Ada). Shipped since R-NOW16, all pushed 0/0:
   - 626e6b52 defaults gate for the intro offer (red on both old bugs).
   - 3a746e14 a868f7c3 DONE: grant_testimonial_reward(uuid, ref) service-role only, once per user, 3 months, hourly
@@ -13551,16 +13558,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 15:42 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 16:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13571,14 +13579,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+17cc12d0 [handoff]: R-NOW17 - testimonial grant, landing social proof live, CSP lesson in the gate notes
+103eb77c [landing]: let the browser read Apple's rating - add itunes.apple.com to connect-src
+55ed0356 [landing]: live App Store rating beside the badges + landing-to-download counting (ask 4f473837)
+3a746e14 [premium]: staff-only 3-month comp for an approved video testimonial (ask a868f7c3)
+626e6b52 test: gate the intro offer against the table's REAL column defaults
 d05e351d [handoff]: R-NOW16 - create-checkout v78 live, probe eligible, probe user deleted
 2a59d7e8 [handoff]: R-NOW15 - intro root cause is the purchase_provider default (394158ee), deploy awaits Tre in Ada's tab
 394158ee [premium]: purchase_provider's 'stripe' default no longer costs free users the intro offer
-63e47901 [handoff]: R-NOW14 - create-checkout redeployed; probe reads ever_subscribed after an abandoned checkout (open)
-8f63c441 [handoff]: ASC intro offers live
-6d729c10 [handoff]: intro comp bug fixed (2b0ace20), redeploy pending; probe user to delete
-2b0ace20 [premium]: one abandoned checkout no longer costs a free user the intro offer
-c56d6320 [handoff]: create-checkout deployed (Tre's yes); live offer call fails closed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
