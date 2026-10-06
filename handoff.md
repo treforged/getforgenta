@@ -1,6 +1,13 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW6 (2026-10-06 ~00:40 ET, Ada). START HERE:
+  1. eb7282e9 Play fallback 06:39 ET today: armed in THIS tab (CronCreate e7f2fea8); any other tab re-arms or does it by hand.
+  2. [x] 0ac9c4b3 af621263 - Avg Monthly Spend reads the bank (check:avg-spend). Sam's question answered: ledger-without-bank
+     is BY DESIGN (forecast double-count guard); only actual-spend readers were wrong.
+  3. NEXT: the new ask for the cash-flow BARS (income + expenses from the bank together) - `ask list --owner Ada`.
+  Simple proposal items all exist (Upcoming This Week carries card/vehicle/plan payments, Dashboard.tsx:386-389;
+  Debt 'Interest this month' DebtHero.tsx:75). check:spent-of-planned now covers 1440 too.
 R-NOW5 (2026-10-05 ~23:55 ET, Ada). START HERE:
   1. eb7282e9 Play ship fallback 06:39 ET 10-06 is armed in THIS tab (CronCreate e7f2fea8). A tab that is not this one
      must re-arm it ('39 6 6 10 *') or do it by hand at that time - steps in `ask show eb7282e9`.
@@ -13392,7 +13399,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 22:57 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 23:37 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13412,14 +13419,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+de742a30 [handoff]: R-NOW5 - spent-of-planned shipped (7c6ce402, b179d250); eb7282e9 armed as e7f2fea8
+b179d250 [budget]: "Spent so far" leaves debt payments out on both sides (e1b0fffc (c))
+7c6ce402 [budget]: Simple view shows what you have spent this month against your plan (e1b0fffc (c))
+9a0bdfef [handoff]: R-NOW4 - successor brief: re-arm eb7282e9, spent-of-planned design facts
 73e1045a [handoff]: R-NOW3 - Finish sooner in Advanced + rail click fix shipped; next spent-of-planned
 60418be5 [debt]: "Finish sooner" shows in the Advanced view too, and its rows fit any phone (e1b0fffc)
 9e179cba [rail]: the desktop sidebar closes after a mouse click instead of staying open over the page
 46bfd8dc [handoff]: R-NOW3 - partner view notices shipped; next Finish sooner in Advanced
-531cc678 [partner]: the partner's budget no longer shows the viewer's own-account notices (ask 3201f66a)
-11a87c07 [handoff]: R-NOW3 - partner linking tested, 3 fixes shipped; next: partner view write controls
-e7c2dd85 [invites]: an invite from someone with no display name says "A Forgenta member" (ask b6b27be2)
-8deabd10 [invites]: a partner or friend invite code survives sign-up and onboarding (ask 4f623f93)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
