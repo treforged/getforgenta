@@ -1,6 +1,21 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW14 (2026-10-06 ~15:05 ET, Ada -> successor). START HERE, IN ORDER:
+  1. create-checkout REDEPLOYED with 2b0ace20 (Tre: "1. yes deplow"), tree == HEAD 8f63c441. Probe re-run now reads
+     409 reason 'ever_subscribed' for BOTH plans on intro-probe-1006@forgenta.test (user d76ee8bb), whose only Stripe
+     activity is ONE ABANDONED embedded checkout (no payment). HYPOTHESIS, UNVERIFIED: the abandoned session left an
+     `incomplete`/`incomplete_expired` subscription, and create-checkout's history read (status=all, limit=1) counts it.
+     Check: SQL the row (stripe_subscription_id? purchase_provider?) - the handoff gate blocked this read. If the row is
+     clean, it is the Stripe list. Fix = count only subscriptions that ever reached active/trialing/past_due/canceled
+     (exclude incomplete, incomplete_expired) in create-checkout + a unit test; that needs Tre's deploy yes again.
+     Same bug class as 2b0ace20: one abandoned checkout must not cost a free user the offer.
+     Probe script: scratchpad offer-probe.mjs is session-only - rebuild from check-rewards-save.mjs sign-in; pw is
+     'IntroProbe-1006-x9' (throwaway @forgenta.test, delete after).
+  2. Then DELETE the probe user: auth.identities, user_subscriptions, auth.users for d76ee8bb; prove 0 rows each.
+  3. Play Console intro offers: Sam, blocked (subscription page redirects to app list).
+  4. CronCreate d9e48030 (10-07 11:37 no-save-nudge read) DIES with this session - re-arm it (see R-NOW11).
+  5. e1b0fffc standing. Gates added today: check:intro-offer, check:relink-prompt.
 R-NOW13 (2026-10-06 ~13:30 ET, Ada). R-NOW12 items 2-4 DONE:
   - de726b9f web paywall intro offer + gate `npm run check:intro-offer` (PASS; red 3 ways; test:tz 6141 x3).
   - 7c503ea2 native paywall: src/lib/native-intro-offer.ts (iOS needs eligibility 2, Android trusts introPrice) +
@@ -13507,7 +13522,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 14:39 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 14:54 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13527,6 +13542,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8f63c441 [handoff]: ASC intro offers live
 6d729c10 [handoff]: intro comp bug fixed (2b0ace20), redeploy pending; probe user to delete
 2b0ace20 [premium]: one abandoned checkout no longer costs a free user the intro offer
 c56d6320 [handoff]: create-checkout deployed (Tre's yes); live offer call fails closed
@@ -13534,7 +13550,6 @@ c56d6320 [handoff]: create-checkout deployed (Tre's yes); live offer call fails 
 d0bc47d5 [premium]: intro offer is $0.99/mo or $9.99 for the first year on every platform (852772a5)
 2258f534 [dashboard]: "first bank connection is free" stays silent once any connection exists
 3568c05f [accounts]: the Linked Banks header stops reading healthy when a bank's sync is paused
-df382a39 [handoff]: R-NOW13 - broken bank link prompts shipped (6d974248, bd3ba569)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
