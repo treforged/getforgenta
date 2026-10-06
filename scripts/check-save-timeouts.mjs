@@ -16,6 +16,8 @@
  *   HOLD-SKIP   "Skip setup" with its profile write held: the user must get "We couldn't save that"
  *               and stay on /onboarding.
  * Each arm has a control that the write really was held, or its pass would prove nothing.
+ *   RELOAD      (ask b3f0bbcc) reload on Expenses: the wizard must reopen ON Expenses with the income
+ *               kept. It used to keep the answers and reopen on Welcome.
  *
  * PROVEN RED 2026-10-06 against the unbounded writes (boundedWrite returning the raw query).
  * Takes ~1 min: each hold waits out SAVE_WAIT_MS (15 s).
@@ -101,7 +103,8 @@ async function runArm(browser, name, hold, drive) {
   const checks = await drive(page, press, st);
   await page.screenshot({ path: join(OUT, `${name}.png`) });
   await ctx.close();
-  return { name, checks: [[`the write really was held (control)`, st.held >= 1, `held=${st.held}`], ...checks] };
+  const control = st.noHold ? [] : [[`the write really was held (control)`, st.held >= 1, `held=${st.held}`]];
+  return { name, checks: [...control, ...checks] };
 }
 
 // Welcome -> Goals, optionally typing Rent on the expenses step.
@@ -165,6 +168,33 @@ try {
         ['the user stays on /onboarding', stayed, `path=${new URL(page.url()).pathname}`],
       ];
     }));
+
+  // RELOAD (ask b3f0bbcc): not a held write - a reload on Expenses must reopen ON Expenses with the
+  // income still there. The wizard used to keep the answers and reopen on Welcome. No write is held,
+  // so this arm's control is that the walk really reached Expenses before the reload.
+  arms.push(await runArm(browser, 'RELOAD', () => false, async (page, press, st) => {
+    st.noHold = true;
+    await page.getByLabel('What should we call you?', { exact: false }).first().fill('Walk Tester');
+    await press(/^Continue/);
+    await press(/Skip for now/);
+    await page.getByText(/Income & Paycheck/i).first().waitFor({ timeout: 10000 });
+    await page.getByLabel('Gross per paycheck', { exact: false }).first().fill('1875');
+    await press(/^Continue/);
+    const reachedExpenses = await seen(page, /Monthly Expenses/, 8000);
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    const onExpenses = await seen(page, /Monthly Expenses/, 15000);
+    const onWelcome = await page.getByText(/Welcome to Forgenta/i).first().isVisible().catch(() => false);
+    // Back from Expenses is Income. On a wrong reopen there is no Back to press, so read nothing.
+    if (onExpenses && !onWelcome) await press(/^Back/);
+    const income = onExpenses && !onWelcome
+      ? await page.getByLabel('Gross per paycheck', { exact: false }).first().inputValue().catch(() => '')
+      : '(not reached)';
+    return [
+      ['reached Expenses before the reload (control)', reachedExpenses, `reached=${reachedExpenses}`],
+      ['the reload reopens on Expenses, not Welcome', onExpenses && !onWelcome, `expenses=${onExpenses} welcome=${onWelcome}`],
+      ['the income typed before the reload is still there', income === '1875', `income="${income}"`],
+    ];
+  }));
 } catch (err) {
   walkError = err.message.split('\n')[0];
 } finally {
@@ -184,6 +214,6 @@ for (const a of arms) {
   }
 }
 console.log(`\narms examined: ${arms.length}  checks failed: ${failed}   frames: ${OUT}`);
-if (arms.length !== 3) fail(2, `${arms.length} of 3 arms ran.`);
+if (arms.length !== 4) fail(2, `${arms.length} of 4 arms ran.`);
 if (failed) fail(1, `${failed} check(s) failed.`);
 console.log('OK - every held write ended in a message, never a spinner.');

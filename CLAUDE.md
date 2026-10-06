@@ -261,6 +261,8 @@ section states reasoning, not measurement, and says so.
   finishes, says it could not CONFIRM - never "failed", it may have landed), and Skip setup ("We couldn't save that",
   stays on /onboarding). Each arm's control asserts the write really was held. Red on the unbounded writes (5 fail).
   Does NOT cover sign-in's trusted-device read (needs an MFA account; bounded at 4 s, unit-level only) or auth calls.
+  Its RELOAD arm (ask b3f0bbcc) reloads on Expenses and requires the wizard to reopen ON Expenses with the income kept
+  (it used to keep the answers and reopen on Welcome). Red on the old init (welcome=true, 2 fail).
 - `npm run check:boot-failure` - a load failure fails LOUD, never black (Tre's black screen, 2026-09-29). Needs
   `npm run build` first; serves dist/ with `vite preview` and loads it in WEBKIT (the iOS engine) at 390x844,
   fully offline. Arms: unblocked app mounts (control); entry script aborted -> "Couldn't load Forgenta" renders

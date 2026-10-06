@@ -128,3 +128,28 @@ describe('buildSteps (ask 2fb9bc69)', () => {
     expect(buildSteps(true)).toEqual([...PREMIUM]);
   });
 });
+
+// Ask b3f0bbcc: a reload reopened the wizard on Welcome while keeping the answers.
+describe('resumeStep', () => {
+  it('reopens on the step the user was on, for every step before the save', async () => {
+    const { resumeStep } = await import('../Onboarding');
+    for (const s of ['welcome', 'bank', 'income', 'expenses', 'debts', 'savings', 'goals']) {
+      expect(resumeStep(s)).toBe(s);
+    }
+  });
+  it('never reopens on a step after the save, or on junk', async () => {
+    const { resumeStep } = await import('../Onboarding');
+    for (const s of ['premium', 'finish', 'nonsense', '', null]) expect(resumeStep(s)).toBe('welcome');
+  });
+});
+
+describe('onboarding resume point storage', () => {
+  it('is stamped with the user id and cleared with the draft', async () => {
+    const { readOnboardingStep, writeOnboardingStep, clearOnboardingDraft } = await import('@/lib/onboarding-draft');
+    writeOnboardingStep('user-a', 'expenses');
+    expect(readOnboardingStep('user-a')).toBe('expenses');
+    expect(readOnboardingStep('user-b')).toBeNull();
+    clearOnboardingDraft();
+    expect(readOnboardingStep('user-a')).toBeNull();
+  });
+});

@@ -32,6 +32,8 @@ import {
 import {
   clearOnboardingDraft,
   readOnboardingDraft,
+  readOnboardingStep,
+  writeOnboardingStep,
   writeOnboardingDraft,
 } from '@/lib/onboarding-draft';
 import BankConnectStep, { BankLinkedHint } from '@/components/onboarding/BankConnectStep';
@@ -53,6 +55,15 @@ type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | '
 
 /** The steps that ask for numbers by hand — the ones a linked bank makes optional. */
 const MANUAL_STEPS: Step[] = ['income', 'expenses', 'debts', 'savings', 'goals'];
+
+/**
+ * The steps a reload may reopen on (ask b3f0bbcc). Never 'premium' or 'finish': both come after the
+ * save, which clears the resume point, and reopening on either would claim a save nobody made.
+ */
+const RESUMABLE_STEPS: readonly Step[] = ['welcome', 'bank', ...MANUAL_STEPS];
+export function resumeStep(stored: string | null): Step {
+  return (RESUMABLE_STEPS as readonly string[]).includes(stored ?? '') ? (stored as Step) : 'welcome';
+}
 
 /**
  * EVERY tier is asked to link a bank second (ask 2fb9bc69, Tre 10-06: "look for more to copy/improve
@@ -225,7 +236,7 @@ export default function Onboarding() {
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [step, setStep] = useState<Step>('welcome');
+  const [step, setStep] = useState<Step>(() => resumeStep(readOnboardingStep(user?.id)));
   // A draft is only ever this user's own unsent answers (`onboarding-draft.ts`), and it wins over
   // the metadata prefill: what they typed beats what the identity provider guessed. Read once, in
   // the initializer — `ProtectedRoute` has already resolved auth by the time this mounts.
@@ -305,6 +316,11 @@ export default function Onboarding() {
   useEffect(() => {
     writeOnboardingDraft(user?.id, data);
   }, [data, user?.id]);
+
+  // The resume point, beside the answers. Only steps before the save are recorded (resumeStep).
+  useEffect(() => {
+    if ((RESUMABLE_STEPS as readonly string[]).includes(step)) writeOnboardingStep(user?.id, step);
+  }, [step, user?.id]);
 
   // Every step the user reaches is recorded, including the first — otherwise someone who opens the
   // wizard and closes it immediately is indistinguishable from someone who never opened it.
