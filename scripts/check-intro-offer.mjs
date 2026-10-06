@@ -5,7 +5,7 @@
  * The server decides eligibility (`create-checkout` with action:'offer'), so this gate ANSWERS that call in the
  * browser (route.fulfill) and asserts what the page shows and what it sends. user_subscriptions is answered as
  * empty, so the walk account reads as a free user whatever its real row says.
- * ASSERTS: offer on -> the price block shows $10.00 and "Then $89.99/yr" (Yearly), $1.00 and "Then $9.99/mo"
+ * ASSERTS: offer on -> the price block shows $9.99 and "Then $89.99/yr" (Yearly), $0.99 and "Then $9.99/mo"
  * after pressing Monthly; no "SAVE 25%"; NO struck-through text anywhere (no "was" price, ask 599911a7);
  * pressing Get Monthly sends intro:true; a 409 shows the "not available" toast and the page drops the offer.
  * CONTROLS: offer off -> no offer block, "$89.99" and "SAVE 25%" show; a 400 (old deployed function) -> no offer.
@@ -155,7 +155,7 @@ try { await priceBlock.waitFor({ state: 'visible', timeout: 10000 }); }
 catch { await done(1, 'the server offered the intro price and the page did not show it.'); }
 const yearly = await priceBlock.innerText();
 console.log(`offer yearly: ${JSON.stringify(yearly)}`);
-if (!yearly.includes('$10.00') || !yearly.includes('Then $89.99/yr')) await done(1, `yearly offer block reads ${JSON.stringify(yearly)}.`);
+if (!/^\$9\.99(?![\d/])/.test(yearly) || !yearly.includes('Then $89.99/yr')) await done(1, `yearly offer block reads ${JSON.stringify(yearly)}.`);
 const offered = await bodyText();
 const nStruck = await struck();
 console.log(`offer: SAVE 25% ${offered.includes('SAVE 25%')}, struck-through elements ${nStruck}`);
@@ -165,7 +165,7 @@ await page.getByRole('button', { name: 'Monthly', exact: true }).click();
 await page.waitForTimeout(400);
 const monthly = await priceBlock.innerText();
 console.log(`offer monthly: ${JSON.stringify(monthly)}`);
-if (!monthly.includes('$1.00') || !monthly.includes('Then $9.99/mo')) await done(1, `monthly offer block reads ${JSON.stringify(monthly)}.`);
+if (!/^\$0\.99\/mo/.test(monthly) || !monthly.includes('Then $9.99/mo')) await done(1, `monthly offer block reads ${JSON.stringify(monthly)}.`);
 await priceBlock.evaluate(e => e.scrollIntoView({ block: 'center' }));
 await page.waitForTimeout(300);
 await page.screenshot({ path: 'test-results/intro-offer-390.png' });
@@ -183,4 +183,4 @@ for (let i = 0; i < 32 && !gone; i += 1) { gone = (await priceBlock.count()) ===
 const after = await bodyText();
 console.log(`after 409: testid gone ${gone}, $9.99 shown ${after.includes('$9.99')}, other writes aborted ${aborted}`);
 if (!gone || !after.includes('$9.99')) await done(1, 'after a 409 the page kept the intro offer instead of the regular price.');
-await done(0, 'PASS: the offer shows $10.00 / $1.00 with "Then" the regular price, no SAVE 25%, nothing struck through; Get sends intro:true; a 409 drops the offer with a message; no offer and an old function both show $89.99. Answered in-browser, nothing reached Stripe.');
+await done(0, 'PASS: the offer shows $9.99 / $0.99 with "Then" the regular price, no SAVE 25%, nothing struck through; Get sends intro:true; a 409 drops the offer with a message; no offer and an old function both show $89.99. Answered in-browser, nothing reached Stripe.');

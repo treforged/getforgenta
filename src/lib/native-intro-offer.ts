@@ -1,5 +1,5 @@
 /**
- * The STORE intro offer on the native paywall (ask a6375f1c): $1/mo for 12 months or $10 for the first year.
+ * The STORE intro offer on the native paywall (ask a6375f1c): $0.99/mo for 12 months or $9.99 for the first year.
  * The stores apply the offer themselves; this only decides what the paywall SAYS. Any doubt reads as no offer.
  * Drafted by the free tier (groq gpt-oss-120b), reviewed by Ada.
  */

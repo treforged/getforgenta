@@ -314,8 +314,8 @@ section states reasoning, not measurement, and says so.
   PATCH with card_rewards {base_pct 2, categories {gas 3}}. Also measures the first row of rate boxes lines up (spread 0).
   Red under: Save dropping categories, a dead "Use these rates", and the old inline-span markup (6.3px spread).
 - `npm run check:intro-offer` - the WEB paywall's first-year intro offer (ask a6375f1c) at 390x844, signed in. Answers
-  `create-checkout` in-browser (nothing reaches Stripe) and `user_subscriptions` as empty (reads as free). Offer on: $10.00 /
-  $1.00 with "Then $89.99/yr" / "Then $9.99/mo", no SAVE 25%, NO struck-through text (no "was" price, ask 599911a7); Get sends
+  `create-checkout` in-browser (nothing reaches Stripe) and `user_subscriptions` as empty (reads as free). Offer on: $9.99 /
+  $0.99 (Tre, ask 852772a5) with "Then $89.99/yr" / "Then $9.99/mo", no SAVE 25%, NO struck-through text (no "was" price, ask 599911a7); Get sends
   intro:true; a 409 shows a message and drops the offer. Controls: offer off shows $89.99 + SAVE 25%; a 400 (old deployed
   function) shows no offer. Red three ways (intro flag dropped, a struck "was" price, SAVE 25% kept).
 - `npm run check:relink-prompt` - a BROKEN bank link says so (Accounts > Banks, 390x844, signed in). financial_connections

@@ -1,6 +1,8 @@
 /**
  * Forgenta Premium's first-year intro offer (Tre, 2026-10-06, decision 994dbd43, ask a6375f1c):
- * $1/month for the first 12 months, or $10 up front for the first year, then the regular price.
+ * $0.99/month for the first 12 months, or $9.99 up front for the first year, then the regular price.
+ * Tre first said $1/$10; App Store Connect has no $1.00 USD point, so he chose $0.99/$9.99 on EVERY
+ * platform (ask 852772a5, 2026-10-06: "1. yes") - one price for the ads, and the cheaper of the two.
  * New subscribers only. All money is integer cents. Drafted by the free tier, reviewed by Ada.
  */
 export type Plan = 'monthly' | 'yearly'
@@ -11,8 +13,8 @@ export const REGULAR_CENTS: Readonly<Record<Plan, number>> = {
 } as const
 
 export const INTRO_CENTS: Readonly<Record<Plan, number>> = {
-  monthly: 100,
-  yearly: 1000,
+  monthly: 99,
+  yearly: 999,
 } as const
 
 export const INTRO_MONTHS = 12
