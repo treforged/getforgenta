@@ -1,6 +1,29 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW12 (2026-10-06 ~15:00 ET, Ada -> successor). START HERE, IN ORDER:
+  1. a6375f1c INTRO OFFER (Tre, decision 994dbd43; ahead of e1b0fffc). Server half SHIPPED, NOT DEPLOYED: 680d11f1
+     (create-checkout `intro`/`action:'offer'`, _shared/intro-eligibility.ts, src/lib/intro-offer.ts). The production
+     deploy was REFUSED by the permission check - do not route around it. The deploy is Tre's: list it for Sam.
+  2. UNCOMMITTED in the tree, tsc+lint green, NO rendered gate yet: src/hooks/useIntroOffer.ts + src/pages/Premium.tsx
+     (offer price block data-testid="intro-offer-price", "Then $X" plain text, NO strikethrough, SAVE 25% hidden under the
+     offer, intro:true sent to checkout, 409 -> refetch + toast). Backup: backups/2026-10-06_intro/. NEXT: write
+     scripts/check-intro-offer.mjs (copy check-rewards-save.mjs sign-in; route.fulfill the create-checkout call:
+     offer {monthly:true,yearly:true} -> "$10.00" + "Then $89.99/yr", "$1.00" after pressing Monthly, no element with
+     text-decoration line-through, no "SAVE 25%"; pressing Get must send body.intro===true (fulfill 409, assert toast);
+     offer {false,false} AND a 400 (old function) -> "$89.99", no intro testid). First check the walk account is NOT
+     premium (SQL on user_subscriptions), or the paywall shows "Active". Prove red, run test:tz, commit, push.
+  3. NativePaywall.tsx: show pkg.product.introPrice (priceString + cycles) when present; iOS eligibility via
+     Purchases.checkTrialOrIntroductoryPriceEligibility. Stores apply the offer themselves.
+  4. Console list for Sam (one message): Stripe coupons (monthly $8.99 off, repeating 12 months; yearly $79.99 off,
+     once; USD, scoped to the Premium product) -> set secrets STRIPE_INTRO_COUPON_MONTHLY/_YEARLY; deploy
+     create-checkout; App Store Connect intro offers (monthly: pay-as-you-go 12 x 1 month; yearly: pay-up-front 1 year),
+     $1.00/$10.00 if ASC lists those points else $0.99/$9.99 - UNVERIFIED from here; Play Console offers on both base
+     plans, eligibility "new customer acquisition", $1.00/$10.00 (Play takes exact prices).
+  5. Sam's ask 599911a7: (1) no crossed-out "was" price - true of the web paywall as built; (2) store price points:
+     Play allows $1/$10; App Store unverified. ANSWERED to Sam 2026-10-06.
+  6. CronCreate 5041ac9e (10-07 11:37 no-save-nudge read) DIES with this session - Sam's after-restart list re-arms it;
+     if you are live then, run it yourself (see R-NOW11).
 R-NOW11 (2026-10-06 ~12:45 ET, Ada). R-NOW10 items (1) and (2) are DONE:
   - (1) walk:empty on throwaway empty-walk-1006 (e8dbf157) found "$0.00 lowest point" on the Forecast Simple summary
       (every new user, since new accounts start Simple). Fixed and pushed: Forecast.tsx hides it on noInputs. Red 1 finding,
