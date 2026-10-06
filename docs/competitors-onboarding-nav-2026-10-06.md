@@ -28,7 +28,7 @@ Earlier passes: `navigation-jakobs-law.md` (2026-09-06), `onboarding-inventory-2
    connection is free"; the premium pitch moves to after the save, one step before the finish.
 2. **Copilot's review queue on Home:** new bank charges to confirm/categorise, as a dashboard card (we have the deck in
    Transactions > BankActivity; Home has nothing). Needs a design pass.
-3. **Monarch's partner question** in onboarding ("Do you manage money with a partner?") feeding the existing partner link.
+3. **SHIPPED b3c12107:** **Monarch's partner question** in onboarding ("Do you manage money with a partner?") feeding the existing partner link.
 4. **Navigation:** competitors give a bottom-bar slot to Budget/Spending; ours puts Plan under Transactions and gives a
    top slot to Garage. That is Tre's call (taste/IA), not a desk change - ask once.
 

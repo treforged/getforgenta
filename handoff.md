@@ -6,7 +6,9 @@ R-NOW8 (2026-10-06 ~01:45 ET, Ada). START HERE:
   2. [x] 2fb9bc69 slice 1 SHIPPED 0824bbb0 (pushed, 0/0): every tier links a bank second; free sees "Your first bank
      connection is free" and the premium pitch after the save. walk:first-run REOPEN=1 13/13 (throwaway deleted, 0 rows),
      check:first-save re-ordered + green both arms, test:tz 6087 x3, lint 0 errors.
-  3. NEXT: d53dbbe1 (Monarch partner question in onboarding), then 474649b8 (review card on Home, design pass).
+  3. [x] 2346ca8b finish card no longer sells "Plaid bank connection" as Premium (first link is free).
+     [x] d53dbbe1 b3c12107 "Who is this budget for?" + Budget together card -> /account?partner=invite (check:first-save ARM C).
+     NEXT: 474649b8 (review card on Home, design pass).
   4. 6cdc485c is the Plan/Garage bottom-bar question for Tre via Sam - not a desk change.
 R-NOW6 (2026-10-06 ~00:40 ET, Ada). START HERE:
   1. eb7282e9 Play fallback 06:39 ET today: armed in THIS tab (CronCreate e7f2fea8); any other tab re-arms or does it by hand.
