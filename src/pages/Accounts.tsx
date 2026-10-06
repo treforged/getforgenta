@@ -1,4 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
+import { relinkPrompt } from '@/lib/relink-prompt';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
@@ -1366,8 +1367,11 @@ export default function Accounts({ embedded = false, simple = false }: { embedde
                 // Plaid answered ADDITIONAL_CONSENT_REQUIRED on the last sync (ask 3248738e): the bank
                 // will not share statements until the user allows it in Plaid.
                 const consentRequired = item.provider === 'plaid' && item.liabilities_consent_required;
-                const needsRelink = item.provider === 'plaid'
-                  && (neverSynced || noAccounts || missingLiabilities || consentRequired);
+                const prompt = relinkPrompt({
+                  provider: item.provider, connectionStatus: item.connection_status,
+                  neverSynced, noAccounts, missingLiabilities, consentRequired,
+                });
+                const needsRelink = prompt !== null;
                 return (
                   <div key={item.id} className="space-y-2 border-b border-border/30 last:border-0 pb-2 last:pb-0">
                     <div className="flex items-center justify-between py-2 gap-2 min-w-0">
@@ -1443,20 +1447,16 @@ export default function Accounts({ embedded = false, simple = false }: { embedde
                       </button>
                     </div>
                     {needsRelink && (
-                      <div className="flex items-center justify-between gap-3 bg-gold/10 border border-gold/20 rounded px-3 py-2">
+                      <div data-testid="relink-prompt" className="flex items-center justify-between gap-3 bg-gold/10 border border-gold/20 rounded px-3 py-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <RefreshCw size={12} className="text-gold shrink-0" />
                           <p className="text-xs text-muted-foreground">
-                            {neverSynced || noAccounts
-                              ? 'Sync pulled no accounts — re-link to try again.'
-                              : consentRequired
-                                ? 'Your bank needs your OK to share statements. Allow it to fill in APR, minimum and due date.'
-                                : 'Re-link to auto-populate APR and minimum payment from your bank.'}
+                            {prompt?.message}
                           </p>
                         </div>
                         <PlaidLinkButton
                           relinkItemId={item.plaid_item_id}
-                          label={consentRequired && !neverSynced && !noAccounts ? 'Allow statement data' : 'Re-link'}
+                          label={prompt?.label ?? 'Re-link'}
                           onSuccess={(accts) => handlePlaidSuccess(accts, item.institution_name ?? undefined)}
                           onProcessing={setPlaidSyncing}
                         />

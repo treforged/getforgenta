@@ -318,6 +318,10 @@ section states reasoning, not measurement, and says so.
   $1.00 with "Then $89.99/yr" / "Then $9.99/mo", no SAVE 25%, NO struck-through text (no "was" price, ask 599911a7); Get sends
   intro:true; a 409 shows a message and drops the offer. Controls: offer off shows $89.99 + SAVE 25%; a 400 (old deployed
   function) shows no offer. Red three ways (intro flag dropped, a struck "was" price, SAVE 25% kept).
+- `npm run check:relink-prompt` - a BROKEN bank link says so (Accounts > Banks, 390x844, signed in). financial_connections
+  answered in-browser with one Plaid row: reauth_required must show "sign in again" + Re-link; active must not. Red on the
+  pre-fix row, which ignored connection_status and showed only "Updated Oct 3". Rules + 6 tests: src/lib/relink-prompt.ts.
+  Does NOT cover a Dashboard banner (none yet) or Akoya.
 - `npm run check:card-advisor` - Debt > "Which Card?" (ask 1f3217bb) at 390x844, signed in: `/debt?tab=use` opens the panel
   (testid AND aria-selected), typing 300 turns "Enter an amount" into "Use <card>" - or the no-room line ONLY when every
   card row says "Not enough room" - and pressing Gas sets aria-pressed. Writes nothing. Proven red by hiding the answer
