@@ -7,7 +7,11 @@ R-NOW11 (2026-10-06 ~12:45 ET, Ada). R-NOW10 items (1) and (2) are DONE:
       green 10/10. check:one-banner PASS. Account deleted, users/identities/profiles 0/0/0, deck-walk control 1.
   - (2) CronCreate one-shot 5041ac9e fires 10-07 11:37 local. IT IS SESSION-ONLY: if this tab dies, a successor must
       re-arm it (read cron.job_run_details for no-save-nudge-daily + net._http_response; tell Sam candidates/sent/failures).
-  NEXT: (3) e1b0fffc standing. (4) ff52631d waits on Tre.
+  - (3) e1b0fffc slices shipped: a8bcc49f Plan empty state leads (no "(0%)" donut / "$0.00" tab totals, 54px gap gone;
+      walk:empty reads /budget + percentages, joining React-split text nodes); 8c0bbc04 desktop rail shows ONE selected
+      row (Debt = dot, not fill; check:desktop-rail asserts it, red on old); walk:empty WIDTH=1440 (desktop clean 10/10).
+  NEXT: (3) e1b0fffc standing - candidate seen, NOT taken: new-user Transactions leads with locked Export/Add buttons
+      and a Premium upsell card (pricing surface, leave unless Sam/Tre ask). (4) ff52631d waits on Tre.
 R-NOW10 (2026-10-06 ~11:10 ET, Ada). R-NOW9 IS DONE. State:
   - 974e9dba + b4eea1f8: onboarding "Save what I have - add the rest later" on Expenses/Debts/Savings (no bank, income in);
     finish shows an add-bills hint instead of "Available after expenses" when no bills. check:first-save ARM E.
@@ -13461,7 +13465,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 11:17 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 11:55 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13481,14 +13485,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+b6a782d7 [docs]: walk:empty gate line - reads /budget and percentages, joined text nodes
+a8bcc49f [empty-state]: Plan shows a new user what to add first, not a donut of five "(0%)" and "$0.00 this month"
+1631c871 [handoff]: R-NOW11 - walk:empty fix shipped, no-save-nudge wake armed (session-only)
+30d179ce [empty-state]: Forecast Simple summary no longer shows "$0.00 lowest point" to a new user
+beea2dcc [handoff]: R-NOW10 - resume queue for successor (walk:empty, cron read wake)
+fab89bc9 [guides]: Plan page gets "Plan Guide"; Transactions guide renamed and drops Plan
 5a58a099 [handoff]: R-NOW10 - Plan tab, save-early, win-back + auto follow-up
 a2c2d32f [email]: automatic one-time follow-up for new accounts that save nothing (6d0e50b0)
-57cb9665 [nav]: Plan takes Garage's bottom-bar slot (decision c5e29d9e)
-b4eea1f8 [onboarding]: no "Available after expenses" when no bills were entered
-974e9dba [onboarding]: save what you have from Expenses on, without a bank
-0a5658d2 [handoff]: R-NOW9 - win-back email draft (9d793687) for successor
-eeb63711 [handoff]: R-NOW8 - funnel measured, resume-step fix (54c59fcf)
-54c59fcf [onboarding]: a reload or relaunch reopens setup where the user left it (b3f0bbcc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
