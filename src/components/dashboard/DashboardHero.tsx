@@ -28,6 +28,11 @@ type Props = {
    * WHICH hero is shown — `selectDashboardHero` stays a decision about readings.
    */
   trajectory?: PayoffTrajectory | null;
+  /**
+   * Simple view only (ask e1b0fffc): a link under the payoff date to Debt's "Finish sooner" card.
+   * Off in Advanced, where that card does not render, so the link never lands on nothing.
+   */
+  showFinishSooner?: boolean;
 };
 
 /** Copy for each honest empty state: what is missing, and the one action that fills it. */
@@ -84,7 +89,7 @@ function CashAboveFloorLine({ value, onFloorClick }: { value: number | null; onF
   );
 }
 
-export default function DashboardHero({ state, onFloorClick, trajectory }: Props) {
+export default function DashboardHero({ state, onFloorClick, trajectory, showFinishSooner = false }: Props) {
   if (state.kind === 'payoff') {
     const { payoff, cashAboveFloor, hasOtherDebt } = state;
     const monthLabel = payoff.date.toLocaleString('en', { month: 'short', year: 'numeric' });
@@ -107,6 +112,12 @@ export default function DashboardHero({ state, onFloorClick, trajectory }: Props
           </p>
         )}
         <CashAboveFloorLine value={cashAboveFloor} onFloorClick={onFloorClick} />
+        {showFinishSooner && (
+          <Link to="/debt?tab=cards" data-testid="hero-finish-sooner"
+            className="inline-flex items-center gap-1 mt-3 text-xs font-semibold text-primary hover:underline">
+            See how to finish sooner <ArrowUpRight size={12} />
+          </Link>
+        )}
       </HeroShell>
     );
   }

@@ -1564,7 +1564,7 @@ export default function Dashboard() {
       {/* The hero. Fixed at the top: NOT a `useDashboardLayout` widget, so it is neither
           reorderable nor hideable — it is the one thing the page is for. It keeps a full
           section gap below it; the widgets under it are siblings and sit at `stack-block`. */}
-      <DashboardHero state={heroState} onFloorClick={openFloorCalc} trajectory={heroTrajectory} />
+      <DashboardHero state={heroState} onFloorClick={openFloorCalc} trajectory={heroTrajectory} showFinishSooner={isSimple} />
 
       <div className="stack-block">
 

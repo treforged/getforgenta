@@ -104,9 +104,19 @@ if (process.env.DEMO === '1') {
   for (let i = 0; i < 6 && (await page.locator('div.backdrop-blur-sm, div.modal-overlay').count()); i += 1) {
     await page.keyboard.press('Escape'); await page.waitForTimeout(500);
   }
-  const link = page.locator('a[href="/debt"]:visible').first();
-  if (!(await link.count())) { await browser.close(); fail(2, 'no visible /debt link in demo (control).'); }
-  await link.click();
+  // Home's hero carries a "finish sooner" link in Simple ONLY (the card does not exist in Advanced).
+  const heroLink = page.getByTestId('hero-finish-sooner');
+  const viewTab = (name) => page.getByRole('tab', { name });
+  await viewTab('Advanced').waitFor({ timeout: 30000 }).catch(() => {});
+  if (await viewTab('Advanced').getAttribute('aria-selected') !== 'true') await viewTab('Advanced').click();
+  await page.waitForTimeout(1500);
+  const inAdvanced = await heroLink.count();
+  await viewTab('Simple').click();
+  const inSimple = await heroLink.first().waitFor({ timeout: 15000 }).then(() => 1).catch(() => 0);
+  console.log(`hero link: Advanced ${inAdvanced}, Simple ${inSimple}`);
+  if (inAdvanced !== 0) { await browser.close(); fail(1, 'the hero shows "finish sooner" in Advanced, where the card does not exist.'); }
+  if (inSimple !== 1) { await browser.close(); fail(1, 'the hero has no "finish sooner" link in Simple.'); }
+  await heroLink.first().click();
   const simpleTab = page.getByRole('tab', { name: 'Simple' });
   await simpleTab.waitFor({ timeout: 30000 }).catch(() => {});
   if (await simpleTab.getAttribute('aria-selected') !== 'true') await simpleTab.click();

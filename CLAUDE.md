@@ -313,6 +313,8 @@ section states reasoning, not measurement, and says so.
   monthsSooner (base Jan 2028 vs page Dec 2027) and a dead button, both exit 1. The lever is $X more in
   forecastMonthEvents[1..].nonPaycheckIncome: an income RULE was tried and the engine ignored it (cash identical). Numbers:
   pay-more-payoff.test.ts (6, red two ways) and pay-more-payoff.realData.test.ts (shortcut == full re-render at 4 amounts).
+  The DEMO arm starts on Home: the hero's "See how to finish sooner" link must be ABSENT in Advanced and present in Simple,
+  and pressing it must reach the card (red both ways, exit 1).
 - `npm run measure:detail-load` - an INVENTORY of cards, dollar figures and phone screens per route (ask 7515c3fa).
   VIEW_MODE=simple reads every route in the Simple view; PRESS_ROUTE=/debt presses Simple, Show each account and
   Show advanced detail there and fails if the count does not drop and return. WIDTH=1440 for desktop.
