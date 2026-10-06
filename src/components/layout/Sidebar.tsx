@@ -45,14 +45,14 @@ const navItems = PRIMARY_NAV;
  * a coarse pointer nothing here applies and `collapsed` alone decides, which is correct:
  * there is no hover to expand into on a touch device.
  */
-const RAIL_LABEL = 'fine-pointer:hidden fine-pointer:group-hover:inline fine-pointer:group-focus-within:inline';
+const RAIL_LABEL = 'fine-pointer:hidden fine-pointer:group-hover:inline fine-pointer:group-has-[:focus-visible]:inline';
 
 /**
  * `RAIL_LABEL` for a label row that is itself a FLEX container. The plain constant restores
  * `display: inline` on hover, which would collapse this row's own flex layout - the numeric badge
  * uses `ml-auto` and has nothing to push against once the parent stops being a flex box.
  */
-const RAIL_LABEL_FLEX = 'fine-pointer:hidden fine-pointer:group-hover:flex fine-pointer:group-focus-within:flex';
+const RAIL_LABEL_FLEX = 'fine-pointer:hidden fine-pointer:group-hover:flex fine-pointer:group-has-[:focus-visible]:flex';
 
 /**
  * The mirror of `RAIL_LABEL`: visible ONLY while the rail is narrow on a mouse.
@@ -62,7 +62,7 @@ const RAIL_LABEL_FLEX = 'fine-pointer:hidden fine-pointer:group-hover:flex fine-
  * caller adds it only when `collapsed` is false; when it is true the dot is shown outright, for
  * both pointer kinds.
  */
-const RAIL_ONLY = 'hidden fine-pointer:block fine-pointer:group-hover:hidden fine-pointer:group-focus-within:hidden';
+const RAIL_ONLY = 'hidden fine-pointer:block fine-pointer:group-hover:hidden fine-pointer:group-has-[:focus-visible]:hidden';
 
 export default function Sidebar() {
   const { pathname } = useLocation();
@@ -128,6 +128,10 @@ export default function Sidebar() {
       {/*
         The panel. Out of flow on a mouse, so widening it covers the content rather than pushing it.
 
+        ⚠️ KEYBOARD FOCUS ONLY: `has-[:focus-visible]`, NOT `focus-within` (2026-10-05). A MOUSE click on
+        a rail item leaves that link focused, so `focus-within` held the rail open at 234px over the
+        page after the pointer left - covering text, and taking clicks meant for the page (measured:
+        elementFromPoint at x=150 hit the rail). A click never sets `:focus-visible`; Tab does.
         ⚠️ `focus-within` IS NOT DECORATION — without it this is mouse-only in the literal sense: a
         keyboard user would tab through a column of unlabelled icons and never see a label.
         ⚠️ AND IT CANNOT EAT CLICKS. Only 64px of it is ever on screen unhovered; the extra width
@@ -137,8 +141,8 @@ export default function Sidebar() {
         className={cn(
           "group flex flex-col bg-sidebar border-r border-sidebar-border h-screen transition-all duration-200 overflow-hidden",
           "fine-pointer:absolute fine-pointer:inset-y-0 fine-pointer:left-0 fine-pointer:z-40",
-          "fine-pointer:w-16 fine-pointer:hover:w-52 fine-pointer:focus-within:w-52",
-          "fine-pointer:hover:shadow-xl fine-pointer:focus-within:shadow-xl",
+          "fine-pointer:w-16 fine-pointer:hover:w-52 fine-pointer:has-[:focus-visible]:w-52",
+          "fine-pointer:hover:shadow-xl fine-pointer:has-[:focus-visible]:shadow-xl",
           collapsed ? "w-16" : "w-52"
         )}
       >
@@ -167,7 +171,7 @@ export default function Sidebar() {
         "flex items-center justify-between h-14 border-b border-sidebar-border",
         collapsed
           ? "px-2 gap-1"
-          : "px-3 fine-pointer:px-2 fine-pointer:group-hover:px-3 fine-pointer:group-focus-within:px-3",
+          : "px-3 fine-pointer:px-2 fine-pointer:group-hover:px-3 fine-pointer:group-has-[:focus-visible]:px-3",
       )}>
         <Link
           to={brandTo}
@@ -185,7 +189,7 @@ export default function Sidebar() {
               'object-contain shrink-0',
               collapsed
                 ? 'h-6 w-6'
-                : 'h-[34px] w-[34px] fine-pointer:h-6 fine-pointer:w-6 fine-pointer:group-hover:h-[34px] fine-pointer:group-hover:w-[34px] fine-pointer:group-focus-within:h-[34px] fine-pointer:group-focus-within:w-[34px]',
+                : 'h-[34px] w-[34px] fine-pointer:h-6 fine-pointer:w-6 fine-pointer:group-hover:h-[34px] fine-pointer:group-hover:w-[34px] fine-pointer:group-has-[:focus-visible]:h-[34px] fine-pointer:group-has-[:focus-visible]:w-[34px]',
             )}
             draggable={false}
           />
