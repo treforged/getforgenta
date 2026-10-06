@@ -337,7 +337,7 @@ section states reasoning, not measurement, and says so.
 - `npm run check:spent-of-planned` - Budget Simple's "Spent so far" card (e1b0fffc (c)) at 390x844, signed in: profile READ rewritten
   to Simple, the month's synced_transactions read ANSWERED in-browser (writes aborted). Must read "$42.34 of $X planned" with Dining
   $12.34 and Shopping $30.00 ($50 less a $20 refund); a $500 TRANSFER_OUT and a $900 LOAN_PAYMENTS row must not count. VIEW_MODE=advanced:
-  no card. Red with the provider exclusion removed ($1,442.34, exit 1). SPENT reads BANK rows: measured 10-05, bank charges never reach
+  the same card (both views since 2026-10-06). Red with the provider exclusion removed ($1,442.34, exit 1). SPENT reads BANK rows: measured 10-05, bank charges never reach
   `transactions` (it holds future one-offs). Rules + 18 unit tests: src/lib/budget-spent.ts (red under 4 mutants).
 - `npm run check:avg-spend` - Account > Analytics "Avg Monthly Spend" reads the BANK where it has rows (ask 0ac9c4b3), 1440,
   signed in, full synced_transactions read answered in-browser: must read $400.00 (two months of $1,000, $5,000 transfers

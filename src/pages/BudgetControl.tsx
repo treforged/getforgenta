@@ -1084,6 +1084,14 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
         </div>
       )}
 
+      {/* Spent of planned (ask e1b0fffc (c)), docs/simple-view/PROPOSAL.md:52. Shown in BOTH views: real
+          spending against the plan is not detail - Advanced users (Tre) had no actual-vs-plan view at all.
+          FIRST in the grid and full width, so it never splits the Income | Allocation pair in Advanced. */}
+      <SpentOfPlanned
+        rules={[...incomeRules, ...fixedRules, ...variableRules, ...debtRules, ...transferRules]}
+        plannedRules={[...fixedRules, ...variableRules].filter(r => r.active && r.category !== 'Debt Payments').map(r => ({ category: r.category, amount: toCurrentMonthAmount(r) }))}
+      />
+
       {/* Income & Taxes — auto-saves */}
       {!simple && <div className="card-forged p-4 sm:p-5 space-y-3 sm:space-y-4">
         <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -1459,13 +1467,6 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
           TO PAY. The allocation donut below divides up the same five totals and stays here. */}
 
 
-      {/* Spent of planned (ask e1b0fffc (c)): Simple only, per docs/simple-view/PROPOSAL.md:52. */}
-      {simple && (
-        <SpentOfPlanned
-          rules={[...incomeRules, ...fixedRules, ...variableRules, ...debtRules, ...transferRules]}
-          plannedRules={[...fixedRules, ...variableRules].filter(r => r.active && r.category !== 'Debt Payments').map(r => ({ category: r.category, amount: toCurrentMonthAmount(r) }))}
-        />
-      )}
 
       {/* Budget Allocation Bar — current month only, distinct colors */}
       <div className={`card-forged p-4 sm:p-5 flex flex-col ${incomeSectionCollapsed || simple ? 'lg:col-span-2' : ''}`}>

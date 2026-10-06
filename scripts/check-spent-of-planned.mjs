@@ -4,7 +4,7 @@
 // synced_transactions read is ANSWERED in-browser with known rows, and the ledger read with [] - every write is
 // aborted. Expected: Dining $12.34; Shopping $30.00 (a $50 charge less a $20 refund); a $500 TRANSFER_OUT and a
 // $900 LOAN_PAYMENTS row are NOT spending, so the headline reads $42.34. Positive control: the card mounts.
-// VIEW_MODE=advanced must NOT render the card. Does NOT cover matched-rule categories, user overrides, transfer
+// VIEW_MODE=advanced must render it too (shown in both views since 2026-10-06). Does NOT cover matched-rule categories, user overrides, transfer
 // pairing (unit tests own those: src/lib/__tests__/budget-spent.test.ts), or colour.
 import { readFileSync } from 'node:fs';
 
@@ -129,7 +129,6 @@ for (const VIEW of VIEWS) {
   ${cur.text.slice(0, 160)}
   rows: ${JSON.stringify(cur.rows)}`);
   if (!cur.budget) { await browser.close(); fail(2, `${tag}: CONTROL FAILED - the Budget panel did not render on ${page.url()}.`); }
-  if (MODE !== 'simple') { if (cur.card) failures.push(`${tag}: the card renders in ${MODE}`); await ctx.close(); continue; }
   if (!cur.card) { failures.push(`${tag}: no Spent so far card`); await ctx.close(); continue; }
   if (!/Spent so far/i.test(cur.text) || !/\$42\.34 of \$[\d,]+\.\d\d planned/.test(cur.text)) failures.push(`${tag}: headline is not "$42.34 of $X planned": ${cur.text.slice(0, 120)}`);
   const row = (c) => cur.rows.find((r) => r.startsWith(c)) || '';
@@ -140,4 +139,4 @@ for (const VIEW of VIEWS) {
 }
 await browser.close();
 if (failures.length) fail(1, failures.join('; '));
-console.log(`PASS - ${MODE}: ${MODE === 'simple' ? 'Spent so far reads $42.34 with Dining and Shopping rows' : 'no Spent so far card'}.`);
+console.log(`PASS - ${MODE}: Spent so far reads $42.34 with Dining and Shopping rows.`);
