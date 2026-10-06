@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { SettingsSectionHeading } from './SettingsSection';
-import { useLocation, Link } from 'react-router';
-import { Users, Loader2, CheckCircle, Unlink, Crown } from 'lucide-react';
+import { useLocation, useNavigate, Link } from 'react-router';
+import { Users, Loader2, CheckCircle, Unlink, Crown, Eye } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
+import { useViewedProfile } from '@/contexts/ViewedProfileContext';
 import { FIELD_INPUT } from '@/components/shared/field-classes';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePartnerLink } from '@/hooks/usePartnerLink';
@@ -25,6 +26,8 @@ export function PartnerLink() {
   const { isDemo } = useDemo();
   const { isPremium } = useSubscription();
   const { search } = useLocation();
+  const navigate = useNavigate();
+  const { switchTo } = useViewedProfile();
   const {
     loading, error, refetch, activeLink, pendingInvite, partnerUserId, partnerLabel,
     invite, accept, revoke,
@@ -104,7 +107,7 @@ export function PartnerLink() {
                 Linked with {partnerLabel ?? 'your partner'}
               </p>
               <p className="text-xs text-muted-foreground">
-                Use "View partner" in the menu to see their budget, read only.
+                You can see their budget, read only.
               </p>
             </div>
           </div>
@@ -117,6 +120,19 @@ export function PartnerLink() {
             Unlink
           </button>
         </div>
+        {/* The ONLY other way in is the desktop sidebar, which a phone never renders (measured
+            2026-10-05: 0 partner-view controls at 390px), so this button is the phone's entry.
+            The partner-view banner carries "Back to my account" on every page. */}
+        {partnerUserId && (
+          <button
+            onClick={() => { switchTo(partnerUserId); navigate('/dashboard'); }}
+            className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium bg-secondary border border-border hover:border-primary/40 hover:text-primary transition-colors btn-press"
+            style={{ borderRadius: 'var(--radius)' }}
+          >
+            <Eye size={12} />
+            View their budget
+          </button>
+        )}
         <p className="text-xs text-muted-foreground">
           Unlinking takes effect immediately for both of you and needs no confirmation
           from the other side.

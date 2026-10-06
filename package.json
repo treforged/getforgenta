@@ -34,6 +34,7 @@
     "measure:detail-load": "node scripts/measure-detail-load.mjs",
     "check:goal-grid": "node scripts/check-goal-grid.mjs",
     "check:loan-chart": "node scripts/check-loan-chart.mjs",
+    "check:partner-view": "node scripts/check-partner-view.mjs",
     "check:goal-starts": "node scripts/check-goal-starts.mjs",
     "check:forecast-table": "node scripts/check-forecast-table.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",
