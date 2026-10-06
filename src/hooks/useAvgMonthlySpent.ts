@@ -3,7 +3,8 @@ import { useAccounts, useAllSyncedTransactions, useSyncedTransactionReviewsQuery
 import { useMonthlyCashFlow } from '@/hooks/useMonthlyCashFlow';
 import { findExclusiveReview } from '@/lib/synced-transaction-review';
 import { detectTransferPairs, indexPairsByLeg } from '@/lib/transfer-pair-detection';
-import { averageMonthlySpentCents } from '@/lib/budget-spent';
+import { averageMonthlySpentCents, computeMonthIncomeCents, computeMonthSpent } from '@/lib/budget-spent';
+import type { CashFlowMonth } from '@/hooks/useMonthlyCashFlow';
 
 const MONTHS = 5;
 
@@ -16,11 +17,15 @@ const MONTHS = 5;
  * stays; this figure answers "what did I actually spend", which the ledger cannot. A month with no
  * bank rows keeps the ledger figure, so a user without a bank connection sees what they saw before.
  *
- * Its own hook, not part of `useMonthlyCashFlow`, so the full bank history is fetched only where this
- * figure renders rather than on every Dashboard load. The cash-flow BARS stay on the ledger: their
- * income side is ledger-only too, and moving only the expense side would draw a false negative net.
+ * Its own hook, not part of `useMonthlyCashFlow`, so the full bank history is fetched only where these
+ * figures render rather than on every Dashboard load.
+ *
+ * `cashFlowData` (ask 01979820): months 1-5 that have bank rows take BOTH income and expenses from
+ * the bank, never one side alone - the ledger misses bank income exactly as it misses bank spending,
+ * so moving only expenses would draw a false negative net. Month 0 (the current month) is unchanged:
+ * it is the all-in projection `useMonthlyCashFlow` builds.
  */
-export function useAvgMonthlySpent(): number {
+export function useBankCashFlow(): { cashFlowData: CashFlowMonth[]; avgMonthlySpend: number } {
   const { cashFlowData } = useMonthlyCashFlow();
   const { data: bank } = useAllSyncedTransactions();
   const { data: reviews } = useSyncedTransactionReviewsQuery();
@@ -58,6 +63,24 @@ export function useAvgMonthlySpent(): number {
       transferLegIds,
       ledgerOnlyCents: (key) => ledgerByKey.get(key) ?? 0,
     });
-    return averageCents / 100;
+    const bankData = cashFlowData.map((m, idx) => {
+      const k = MONTHS - idx;
+      if (k < 1) return m;
+      const d = new Date(now.getFullYear(), now.getMonth() - k, 1);
+      const pad = (x: number) => String(x).padStart(2, '0');
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const from = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
+      const to = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(last.getDate())}`;
+      if (!rows.some(t => t.date >= from && t.date <= to)) return m;
+      const income = Math.round(computeMonthIncomeCents({ bank: rows, ledger: ledger ?? [], from, to, overrides, transferLegIds }) / 100);
+      const expenses = Math.round(computeMonthSpent({ bank: rows, ledger: ledger ?? [], from, to, matchedCategory: new Map(), overrides, transferLegIds }).totalCents / 100);
+      return { ...m, income, expenses, net: income - expenses };
+    });
+    return { cashFlowData: bankData, avgMonthlySpend: averageCents / 100 };
   }, [cashFlowData, bank, reviews, ledger, accounts]);
+}
+
+/** Avg Monthly Spend alone - see {@link useBankCashFlow}. */
+export function useAvgMonthlySpent(): number {
+  return useBankCashFlow().avgMonthlySpend;
 }

@@ -223,3 +223,47 @@ export function averageMonthlySpentCents(p: {
   }
   return { averageCents: Math.round(sum / p.months), bankMonths };
 }
+
+/**
+ * A month's INCOME, for the cash-flow bars (ask 01979820): bank inflows Plaid calls INCOME (or the user
+ * set to 'Income'), plus hand-entered ledger income. Loan disbursements, transfers in and refunds are not
+ * income. Measured 2026-10-05: Tre's INCOME rows run ~$4.2k/mo; LOAN_DISBURSEMENTS reached $5.5k in June.
+ */
+export function computeMonthIncomeCents(p: {
+  bank: readonly SpentBankRow[];
+  ledger: readonly SpentLedgerRow[];
+  from: string;
+  to: string;
+  overrides: ReadonlyMap<string, string>;
+  transferLegIds: ReadonlySet<string>;
+}): number {
+  let total = 0;
+  const { bank, ledger, from, to, overrides, transferLegIds } = p;
+
+  for (const row of bank) {
+    if (row.date < from || row.date > to) continue;
+    if (row.pending === true) continue;
+    if (transferLegIds.has(row.id)) continue;
+    const cents = Math.round(Number(row.amount) * 100);
+    if (!Number.isFinite(cents)) continue;
+    if (cents >= 0) continue;
+    const cat = row.category ?? '';
+    const isIncome = overrides.has(row.id)
+      ? overrides.get(row.id) === 'Income'
+      : cat.trim().toUpperCase() === 'INCOME';
+    if (!isIncome) continue;
+    total += -cents;
+  }
+
+  for (const row of ledger) {
+    if (row.date < from || row.date > to) continue;
+    if (row.type !== 'income') continue;
+    if (row.origin === 'synced') continue;
+    if (row.category === 'Balance Adjustment') continue;
+    const cents = Math.round(Number(row.amount) * 100);
+    if (!Number.isFinite(cents)) continue;
+    total += Math.abs(cents);
+  }
+
+  return total;
+}

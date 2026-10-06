@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { averageMonthlySpentCents, buildSpentRows, computeMonthSpent, resolveBankCategory, type MonthSpentInput, type SpentBankRow, type SpentLedgerRow } from '../budget-spent';
+import { averageMonthlySpentCents, buildSpentRows, computeMonthIncomeCents, computeMonthSpent, resolveBankCategory, type MonthSpentInput, type SpentBankRow, type SpentLedgerRow } from '../budget-spent';
 
 // Drafted by the free tier (groq gpt-oss-120b), corrected in review: 4, 7 and 8 were rewritten.
 const base: MonthSpentInput = {
@@ -263,3 +263,41 @@ describe('averageMonthlySpentCents', () => {
     expect(result).toEqual({ averageCents: 5000, bankMonths: 1 })
   })
 })
+
+// Drafted by the free tier; tests 2-4 corrected in review (it put the maps on the rows and gave ledger rows no date).
+describe('computeMonthIncomeCents', () => {
+  const ibase = { from: '2026-09-01', to: '2026-09-30', overrides: new Map<string, string>(), transferLegIds: new Set<string>(), bank: [] as SpentBankRow[], ledger: [] as SpentLedgerRow[] };
+  it('counts an INCOME inflow', () => {
+    expect(computeMonthIncomeCents({ ...ibase, bank: [b('1', '2026-09-15', -2100.5, 'INCOME')] })).toBe(210050);
+  });
+  it('excludes outflows, loans, transfers in, pending, transfer legs and out-of-range rows', () => {
+    expect(computeMonthIncomeCents({ ...ibase,
+      bank: [
+        b('2', '2026-09-15', 50, 'INCOME'),
+        b('3', '2026-09-15', -5000, 'LOAN_DISBURSEMENTS'),
+        b('4', '2026-09-15', -300, 'TRANSFER_IN'),
+        b('5', '2026-10-01', -100, 'INCOME'),
+        b('6', '2026-09-15', -100, 'INCOME', { pending: true }),
+        b('leg', '2026-09-15', -100, 'INCOME'),
+        b('keep', '2026-09-30', -1, 'INCOME'),
+      ],
+      transferLegIds: new Set(['leg']) })).toBe(100);
+  });
+  it('the user override decides, both ways', () => {
+    expect(computeMonthIncomeCents({ ...ibase,
+      bank: [b('7', '2026-09-15', -40, 'GENERAL_MERCHANDISE'), b('8', '2026-09-15', -60, 'INCOME')],
+      overrides: new Map([['7', 'Income'], ['8', 'Shopping']]) })).toBe(4000);
+  });
+  it('ledger: hand-entered income counts; synced copies, balance adjustments and expenses do not', () => {
+    expect(computeMonthIncomeCents({ ...ibase, ledger: [
+      { date: '2026-09-10', type: 'income', origin: 'manual', category: 'Income', amount: 100 },
+      { date: '2026-09-10', type: 'income', origin: 'synced', category: 'Income', amount: 200 },
+      { date: '2026-09-10', type: 'income', origin: 'manual', category: 'Balance Adjustment', amount: 300 },
+      { date: '2026-09-10', type: 'expense', origin: 'manual', category: 'Other', amount: 400 },
+      { date: '2026-08-31', type: 'income', origin: null, category: 'Income', amount: 500 },
+    ] })).toBe(10000);
+  });
+  it('three string amounts of -0.10 are exactly 30 cents', () => {
+    expect(computeMonthIncomeCents({ ...ibase, bank: ['9', '10', '11'].map(id => b(id, '2026-09-15', '-0.10', 'INCOME')) })).toBe(30);
+  });
+});

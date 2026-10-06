@@ -2,7 +2,7 @@ import {
   Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Line, CartesianGrid, ComposedChart,
 } from 'recharts';
 import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
-import { useMonthlyCashFlow } from '@/hooks/useMonthlyCashFlow';
+import { useBankCashFlow } from '@/hooks/useAvgMonthlySpent';
 import { AXIS_TICK_FILL, AXIS_TEXT_CLASS } from '@/lib/chart-axis';
 
 interface ChartTooltipProps {
@@ -36,7 +36,8 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
  * the dashboard reads - so this card cannot print a different month than the dashboard does.
  */
 export default function CashFlowOverviewCard() {
-  const { cashFlowData } = useMonthlyCashFlow();
+  // Past months read the bank where it has rows, income and expenses together (ask 01979820).
+  const { cashFlowData } = useBankCashFlow();
 
   return (
     <div className="card-forged p-4 sm:p-5" data-testid="cash-flow-overview">

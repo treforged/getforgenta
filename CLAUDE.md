@@ -343,6 +343,10 @@ section states reasoning, not measurement, and says so.
   signed in, full synced_transactions read answered in-browser: must read $400.00 (two months of $1,000, $5,000 transfers
   excluded); NO_BANK=1 must read the old ledger figure. Red on the pre-fix card (exit 1). The ledger-only figure read
   ~$1.5k/mo for Tre against ~$6.2k of bank charges. The cash-flow BARS stay ledger-only (their income side is too).
+- `npm run check:cash-flow-bars` - Forecast's Cash Flow Overview reads past months from the BANK, income AND expenses
+  together (ask 01979820), 1440, signed in, bank read answered in-browser. HOVERS last month: Income $2,000.00 (a loan
+  disbursement is not income), Expenses $1,000.00 (a transfer out is not spending), Net $1,000.00. NO_BANK=1 keeps the
+  ledger month. Red on the pre-fix card (exit 1). Current month stays the projection.
 - `npm run check:partner-view` - a PHONE can open the partner's budget (ask 07351a98): at 390, partner_links answered in-browser
   with one active link (writes aborted); control = "Linked with"; "View their budget" must be visible and PRESSING it must land on
   /dashboard with the PARTNER VIEW banner. Red on the pre-fix card (0 buttons; the only switch was the desktop sidebar).
