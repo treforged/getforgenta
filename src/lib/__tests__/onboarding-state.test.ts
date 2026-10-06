@@ -40,6 +40,9 @@ import {
   markOnboardingComplete,
   recordCurrentReleaseSeen,
   settleWithin,
+  boundedWrite,
+  SAVE_WAIT_MS,
+  SAVE_TIMEOUT_MESSAGE,
   ONBOARDING_FETCH_TIMEOUT_MS,
 } from '../onboarding-state';
 import { CURRENT_RELEASE, whatsNewFlag } from '../whats-new';
@@ -253,6 +256,26 @@ describe('recordCurrentReleaseSeen', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  // Ask 61c40702: the skip path waited on this write with no bound.
+  it('markOnboardingComplete reports a timeout instead of hanging when the write never answers', async () => {
+    vi.useFakeTimers();
+    try {
+      updateEq.mockReturnValue(new Promise(() => {}));
+      let result: { ok: boolean; error?: string } | undefined;
+      void markOnboardingComplete(USER, 'skipped').then(r => { result = r; });
+      await vi.advanceTimersByTimeAsync(SAVE_WAIT_MS - 1);
+      expect(result).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(result).toEqual({ ok: false, error: SAVE_TIMEOUT_MESSAGE });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('boundedWrite passes a real answer straight through', async () => {
+    await expect(boundedWrite(Promise.resolve({ error: null, data: 1 }), 1_000)).resolves.toEqual({ error: null, data: 1 });
   });
 
   it('settleWithin returns the real value when it arrives first', async () => {

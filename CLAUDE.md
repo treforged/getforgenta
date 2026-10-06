@@ -255,6 +255,12 @@ section states reasoning, not measurement, and says so.
   Leaderboard first. Red both ways (redirect removed; card always shown). Frames: test-results/first-save/partner-*.
   ARM D (ask 769b6e40) never answers the release-flag PATCH: "See your plan" must still reach the finish, because
   a real walk hung there for good with the profile already saved. Red on the unbounded write (walk stuck, exit 1).
+- `npm run check:save-timeouts` - supabase-js has NO timeout, so every write the first-run path waits on is bounded
+  (`boundedWrite`, 15 s; ask 61c40702). At 390x844 on the walk account, writes answered in-browser, it HOLDS one write
+  open per arm: the profile save (timeout message, no finish screen, button usable again), a budget_items insert (save
+  finishes, says it could not CONFIRM - never "failed", it may have landed), and Skip setup ("We couldn't save that",
+  stays on /onboarding). Each arm's control asserts the write really was held. Red on the unbounded writes (5 fail).
+  Does NOT cover sign-in's trusted-device read (needs an MFA account; bounded at 4 s, unit-level only) or auth calls.
 - `npm run check:boot-failure` - a load failure fails LOUD, never black (Tre's black screen, 2026-09-29). Needs
   `npm run build` first; serves dist/ with `vite preview` and loads it in WEBKIT (the iOS engine) at 390x844,
   fully offline. Arms: unblocked app mounts (control); entry script aborted -> "Couldn't load Forgenta" renders

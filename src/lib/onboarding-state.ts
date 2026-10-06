@@ -177,11 +177,11 @@ export async function markOnboardingComplete(
   via: OnboardingCompletionPath,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const { error } = await supabase
+    const { error } = await boundedWrite(supabase
       .from('profiles')
       .update({ onboarding_completed: true, onboarding_completed_via: via })
-      .eq('user_id', userId);
-    if (error) return { ok: false, error: error.message };
+      .eq('user_id', userId));
+    if (error) return { ok: false, error: (error as { message: string }).message };
     writeOnboardingCache(userId);
     return { ok: true };
   } catch (err: unknown) {
@@ -218,6 +218,24 @@ export function settleWithin<T>(promise: Promise<T>, ms: number, fallback: T): P
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<T>(resolve => { timer = setTimeout(() => resolve(fallback), ms); });
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/**
+ * How long a SAVE that the next screen waits on may take before the user is told (Sam, ask 61c40702).
+ * Longer than the flag's bound because this is the user's data, and a slow save that lands is
+ * better than a fast error. But never for ever: supabase-js has no timeout of its own.
+ */
+export const SAVE_WAIT_MS = 15_000;
+export const SAVE_TIMEOUT_MESSAGE = 'Saving is taking too long. Check your connection and try again.';
+
+/** A supabase write that has not answered within `ms` resolves as an error with `timedOut: true`. */
+export function boundedWrite<T extends { error: unknown }>(
+  query: PromiseLike<T>,
+  ms = SAVE_WAIT_MS,
+): Promise<T | { error: { message: string }; timedOut: true }> {
+  return settleWithin<T | { error: { message: string }; timedOut: true }>(
+    Promise.resolve(query), ms, { error: { message: SAVE_TIMEOUT_MESSAGE }, timedOut: true },
+  );
 }
 
 /** The flag write, bounded: false if it fails OR has not answered within `ms`. */

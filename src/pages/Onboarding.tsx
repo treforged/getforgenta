@@ -25,6 +25,8 @@ import {
   type OnboardingCompletionPath,
   readOnboardingCache,
   recordCurrentReleaseSeen,
+  boundedWrite,
+  SAVE_TIMEOUT_MESSAGE,
   writeOnboardingCache,
 } from '@/lib/onboarding-state';
 import {
@@ -349,6 +351,13 @@ export default function Onboarding() {
       // follow record their failure and carry on, so one bad section cannot discard
       // the others and a retry cannot duplicate the rows that already landed.
       const failed: string[] = [];
+      // A bounded insert that TIMED OUT may still have landed, so it is never retried (a retry could
+      // add the rows twice) and the user is asked to check rather than told it failed.
+      const unconfirmed: string[] = [];
+      const noteInsert = (res: { error: unknown; timedOut?: true }, label: string) => {
+        if ('timedOut' in res && res.timedOut) unconfirmed.push(label);
+        else if (res.error) failed.push(label);
+      };
 
       // ⚠️ THIS READ WAS THE BROKEN HALF OF THE REFERRAL CHAIN UNTIL 2026-08-18. It asked
       // sessionStorage for `forged:ref`; the capture in `Landing` wrote `forgenta:ref`. Nothing
@@ -359,7 +368,9 @@ export default function Onboarding() {
       // `onboarding_completed` rides along with the profile write rather than being a second call:
       // it is the same row, the write is idempotent, and a separate call could fail on its own and
       // leave a finished setup marked unfinished (or worse, the reverse).
-      const { error: profileError } = await supabase.from('profiles').update({
+      // Bounded (ask 61c40702): a write that never answers must end in a message, not a spinner.
+      // The profile write is idempotent, so the retry the message asks for is safe.
+      const profileResult = await boundedWrite(supabase.from('profiles').update({
         onboarding_completed: true,
         // The ONLY write that means a person walked the wizard. It is written here rather than
         // through `markOnboardingComplete` for the reason above, so `check:onboarding-attribution`
@@ -376,8 +387,9 @@ export default function Onboarding() {
         // Spread, so an unattributed signup writes NO acquisition columns rather than three
         // nulls - "arrived directly" and "we erased what was there" are different facts.
         ...attributionColumnsForSignup(),
-      }).eq('user_id', user!.id);
-      if (profileError) throw profileError;
+      }).eq('user_id', user!.id));
+      if ('timedOut' in profileResult) throw new Error(SAVE_TIMEOUT_MESSAGE);
+      if (profileResult.error) throw profileResult.error;
       // Cleared only after the profile write above succeeded (it throws on error), so a failed
       // setup that the user retries does not lose the attribution on the first attempt.
       if (refCode) clearReferral();
@@ -390,20 +402,20 @@ export default function Onboarding() {
       ].filter(e => parseFloat(e.amount) > 0);
 
       if (expenses.length > 0) {
-        const { error } = await supabase.from('budget_items').insert(
+        const res = await boundedWrite(supabase.from('budget_items').insert(
           expenses.map(e => ({
             user_id: user!.id,
             label: e.label,
             amount: parseFloat(e.amount),
             category: e.category,
           }))
-        );
-        if (error) failed.push('monthly expenses');
+        ));
+        noteInsert(res, 'monthly expenses');
       }
 
       const validDebts = data.debts.filter(d => d.name && parseFloat(d.balance) > 0);
       if (validDebts.length > 0) {
-        const { error } = await supabase.from('debts').insert(
+        const res = await boundedWrite(supabase.from('debts').insert(
           validDebts.map(d => ({
             user_id: user!.id,
             name: filterProfanity(d.name.slice(0, LIMITS.debtName)).clean,
@@ -412,24 +424,24 @@ export default function Onboarding() {
             min_payment: parseFloat(d.minPayment) || 0,
             credit_limit: parseFloat(d.creditLimit) || null,
           }))
-        );
-        if (error) failed.push('debts');
+        ));
+        noteInsert(res, 'debts');
       }
 
       if (parseFloat(data.savingsBalance) > 0) {
-        const { error } = await supabase.from('accounts').insert({
+        const res = await boundedWrite(supabase.from('accounts').insert({
           user_id: user!.id,
           name: 'High-Yield Savings',
           account_type: 'high_yield_savings',
           balance: parseFloat(data.savingsBalance),
           apy_rate: parseFloat(data.savingsApy) || 0,
-        });
-        if (error) failed.push('savings account');
+        }));
+        noteInsert(res, 'savings account');
       }
 
       const regularGoals = data.goals.filter(g => g.goalType !== 'Car Fund' && g.name && parseFloat(g.targetAmount) > 0);
       if (regularGoals.length > 0) {
-        const { error } = await supabase.from('savings_goals').insert(
+        const res = await boundedWrite(supabase.from('savings_goals').insert(
           regularGoals.map(g => ({
             user_id: user!.id,
             name: g.name,
@@ -437,13 +449,13 @@ export default function Onboarding() {
             current_amount: 0,
             goal_type: g.goalType,
           }))
-        );
-        if (error) failed.push('savings goals');
+        ));
+        noteInsert(res, 'savings goals');
       }
 
       const carGoals = data.goals.filter(g => g.goalType === 'Car Fund' && g.name);
       if (carGoals.length > 0) {
-        const { error } = await supabase.from('car_funds').insert(
+        const res = await boundedWrite(supabase.from('car_funds').insert(
           carGoals.map(g => ({
             user_id: user!.id,
             vehicle_name: g.name,
@@ -455,8 +467,8 @@ export default function Onboarding() {
             expected_apr: parseFloat(g.expectedApr) || 0,
             loan_term_months: parseInt(g.loanTermMonths) || 60,
           }))
-        );
-        if (error) failed.push('car funds');
+        ));
+        noteInsert(res, 'car funds');
       }
 
       // Only reached once the profile write above landed, so the cache can never claim a setup that
@@ -471,6 +483,8 @@ export default function Onboarding() {
       clearOnboardingDraft();
       if (failed.length > 0) {
         toast.error(`Profile saved, but we couldn't add: ${failed.join(', ')}. You can add these from the app.`);
+      } else if (unconfirmed.length > 0) {
+        toast.warning(`Profile saved. We couldn't confirm: ${unconfirmed.join(', ')}. Check them in the app before adding again.`);
       } else {
         toast.success('Your financial profile is ready!');
       }

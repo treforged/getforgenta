@@ -77,6 +77,7 @@
     "check:time-bombs": "node scripts/check-time-bombs.mjs",
     "check:signup-funnel": "node scripts/check-signup-funnel.mjs",
     "check:first-save": "node scripts/measure-first-save.mjs",
+    "check:save-timeouts": "node scripts/check-save-timeouts.mjs",
     "check:nav": "node scripts/check-nav-doors.mjs",
     "check:followers": "node scripts/check-followers.mjs",
     "check:debt-limits": "node scripts/check-debt-limits.mjs",

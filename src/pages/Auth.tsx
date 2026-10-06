@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router';
+import { settleWithin } from '@/lib/onboarding-state';
 import { supabase } from '@/lib/supabase';
 import type { Json } from '@/integrations/supabase/types';
 import { toast } from 'sonner';
@@ -40,7 +41,15 @@ function getDeviceName(): string {
   return 'Browser';
 }
 
-const checkDeviceTrusted = isDeviceTrusted;
+// BOUNDED (Sam, ask 61c40702): supabase-js has no timeout, and sign-in waits on this read. If it
+// has not answered in 4 s the device counts as NOT trusted, so the user is asked for their code -
+// the safe direction - rather than left on a spinner.
+const TRUST_READ_WAIT_MS = 4_000;
+const checkDeviceTrusted = (userId: string): Promise<boolean> =>
+  settleWithin(isDeviceTrusted(userId), TRUST_READ_WAIT_MS, false);
+
+// NOT AWAITED by sign-in (ask 61c40702): it is bookkeeping, and an unanswered write here used to
+// hold a trusted user on the sign-in screen with no timeout. It still runs; nothing waits on it.
 
 async function updateDeviceLastSeen(userId: string): Promise<void> {
   const deviceId = getTrustedDeviceId();
@@ -526,7 +535,7 @@ export default function Auth() {
           if (authData.user?.id) {
             const trusted = await checkDeviceTrusted(authData.user.id);
             if (trusted) {
-              await updateDeviceLastSeen(authData.user.id);
+              void updateDeviceLastSeen(authData.user.id);
               toast.success('Signed in successfully');
               navigate('/dashboard', { replace: true });
               setLoading(false);
@@ -608,7 +617,7 @@ export default function Auth() {
       if (mfaUser) {
         const isTrusted = await checkDeviceTrusted(mfaUser.id);
         if (isTrusted) {
-          await updateDeviceLastSeen(mfaUser.id);
+          void updateDeviceLastSeen(mfaUser.id);
           navigate('/dashboard');
         } else {
           setPendingUserId(mfaUser.id);
