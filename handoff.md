@@ -1,6 +1,10 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW2 (2026-10-05 ~21:10 ET, Ada). DONE: 336b096c shipped 876e06c4 (check:loan-chart, red 3 -> green 1). Account linking
+  answered: 10 connections/4 users, nightly sync 13:00Z today OK, last NEW link 09-05 (Robinhood), 0 link-token calls in 24h;
+  iOS native link still unproven on a device. eb7282e9 wake armed in THIS session (CronCreate f9096417, 06:39 ET 10-06).
+  NEXT: STANDING e1b0fffc (a) Finish sooner card in Advanced Debt.
 R-NOW (2026-10-05 ~20:45 ET, Ada getforgenta-a7 -> successor). TRE ASKED TWO THINGS - ANSWER BOTH IN YOUR FIRST REPLY:
   1. ask 336b096c 'users dont need to see there car payoff graph twice. same for anyother type of loan.'
      UNCOMMITTED IN THE TREE: src/components/vehicles/LoanCard.tsx - the per-loan LineChart is REMOVED (the Auto Loans tab
@@ -13355,16 +13359,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 20:30 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 20:49 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
+ M src/components/vehicles/LoanCard.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13375,6 +13380,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8b6c0bff [handoff]: R-NOW - loan chart dedupe uncommitted for render check; account-linking question to verify
 04b642db [handoff]: iOS 1319 uploaded with the security fix; hero link shipped
 2f29a721 [dashboard]: Simple Home links the payoff date to "Finish sooner" (ask e1b0fffc)
 c986dee0 [handoff]: Capacitor security fix shipped; iOS upload run to verify; spent-of-planned scoped
@@ -13382,7 +13388,6 @@ c986dee0 [handoff]: Capacitor security fix shipped; iOS upload run to verify; sp
 e90e9d1f [handoff]: Finish sooner card shipped; next ideas listed
 ca3dc82d [debt]: "Finish sooner" on Debt's Simple view - pay $X more, debt-free by <date> (ask e1b0fffc)
 00f4805c [handoff]: Simple measured at desktop; blockers re-tested
-ff7d5366 [handoff]: 5ce71f3a shipped; eb7282e9 wake-up armed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
