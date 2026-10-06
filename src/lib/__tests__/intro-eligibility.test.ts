@@ -30,6 +30,16 @@ describe('decideIntroEligibility - new subscribers only, fails closed', () => {
       .toEqual({ eligible: true, reason: null });
   });
 
+  it.each(['testimonial_reward', 'streak_reward'])('a LAPSED %s comp (never paid) stays eligible', (provider) => {
+    expect(decideIntroEligibility({ plan: 'free', subscription_status: 'canceled', is_comp: true, purchase_provider: provider }, false))
+      .toEqual({ eligible: true, reason: null });
+  });
+
+  it('an OPEN testimonial comp is not eligible (comp)', () => {
+    expect(decideIntroEligibility({ plan: 'premium', subscription_status: 'active', is_comp: true, purchase_provider: 'testimonial_reward' }, false))
+      .toEqual({ eligible: false, reason: 'comp' });
+  });
+
   it('a past apple provider is still not eligible', () => {
     expect(decideIntroEligibility({ plan: 'free', purchase_provider: 'apple' }, false))
       .toEqual({ eligible: false, reason: 'ever_subscribed' });
