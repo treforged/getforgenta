@@ -2,7 +2,8 @@
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
 R-NOW8 (2026-10-06 ~01:45 ET, Ada). START HERE:
-  1. eb7282e9 Play fallback 06:39 ET: armed in THIS tab (CronCreate e6fe74dc, session-only). A new tab re-arms it.
+  1. [x] eb7282e9 + 7ef43384 DONE 06:40 ET: none of 29 runs since 10-05 14:00Z deployed; dispatched run 37451288979 ->
+     Play Production step success, log 'status: completed', no userFraction (VERSION_CODE 1268). The 10:00Z cron did not fire again (6dce46c4).
   2. [x] 2fb9bc69 slice 1 SHIPPED 0824bbb0 (pushed, 0/0): every tier links a bank second; free sees "Your first bank
      connection is free" and the premium pitch after the save. walk:first-run REOPEN=1 13/13 (throwaway deleted, 0 rows),
      check:first-save re-ordered + green both arms, test:tz 6087 x3, lint 0 errors.
@@ -13419,7 +13420,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 02:24 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 06:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13439,14 +13440,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+7986402c [handoff]: R-NOW8 - bounded writes shipped (bb3cc353)
+bb3cc353 [onboarding]: every write the first-run and sign-in paths wait on is bounded (61c40702)
 3413615c [handoff]: R-NOW8 - upsell screen removed, See-your-plan hang fixed
 89ab1b1d [onboarding]: "See your plan" can no longer hang on the release flag (769b6e40)
 2478dee9 [onboarding]: drop the "Are you sure?" second upsell screen (579f2b33)
 4701cf99 [handoff]: R-NOW8 - pitch copy, review card dropped
 653a6be6 [onboarding]: premium pitch no longer says "Connect your bank once" (2fb9bc69)
 cbdf37da [handoff]: R-NOW8 - partner question shipped (b3c12107); Home review card next
-b3c12107 [onboarding]: ask "Who is this budget for?" and point couples at partner sharing (d53dbbe1)
-2346ca8b [onboarding]: finish card stops selling the bank link as Premium (2fb9bc69)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
