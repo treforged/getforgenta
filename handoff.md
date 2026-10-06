@@ -10,7 +10,9 @@ R-NOW13 (2026-10-06 ~13:30 ET, Ada). R-NOW12 items 2-4 DONE:
     6d974248 Accounts > Banks strip + bd3ba569 Home BrokenLinkBanner (outranks consent/2FA). Gate check:relink-prompt.
   - 3568c05f Linked Banks header "1 bank paused"; 2258f534 FreeBankLinkNotice silent once any connection exists.
   - Tre "1. yes" (852772a5): intro is $0.99/$9.99 EVERYWHERE. d0bc47d5 INTRO_CENTS 99/999. Coupons: 900 rep 12mo / 8000 once.
-  NEXT: (1) after the deploy + coupons exist, re-run check:intro-offer and call create-checkout action:'offer' for real.
+  - create-checkout DEPLOYED 10-06 (Tre's yes in Ada's tab), CLI v2.115, tree == HEAD d0bc47d5. Live: no token 401;
+    walk offer 200 {eligible:false} (walk is comp); intro checkout 409 reason comp. Fails closed; coupons still absent.
+  NEXT: (1) once Sam's coupons + secrets exist, re-run check:intro-offer and an offer call from a NON-comp test account.
   (2) CronCreate d9e48030 fires 10-07 11:37 (session-only; re-arm if this tab dies). (3) e1b0fffc standing.
 R-NOW12 (2026-10-06 ~15:00 ET, Ada -> successor). START HERE, IN ORDER:
   1. a6375f1c INTRO OFFER (Tre, decision 994dbd43; ahead of e1b0fffc). Server half SHIPPED, NOT DEPLOYED: 680d11f1
@@ -13499,7 +13501,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 13:53 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 14:22 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13519,14 +13521,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+369d086b [handoff]: R-NOW13 - $0.99/$9.99 shipped, banks header + free-notice fixes
+d0bc47d5 [premium]: intro offer is $0.99/mo or $9.99 for the first year on every platform (852772a5)
+2258f534 [dashboard]: "first bank connection is free" stays silent once any connection exists
+3568c05f [accounts]: the Linked Banks header stops reading healthy when a bank's sync is paused
 df382a39 [handoff]: R-NOW13 - broken bank link prompts shipped (6d974248, bd3ba569)
 bd3ba569 [dashboard]: a stopped bank sync shows a banner on Home, ahead of the statement-consent ask
 6d974248 [accounts]: a bank link that needs a sign-in says so - syncing has stopped
 c5ed602e [handoff]: R-NOW13 - intro offer web + native shipped, console list with Sam (e9a278bd)
-7c503ea2 [premium]: native paywall names the store intro offer when the user is eligible (a6375f1c)
-de726b9f [premium]: web paywall shows the first-year intro offer when the server says so (a6375f1c)
-5ef97954 [handoff]: R-NOW12 - intro offer mid-flight (server shipped undeployed, web paywall uncommitted)
-680d11f1 [premium]: first-year intro offer - server half (opt-in, fails closed, NOT YET DEPLOYED)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
