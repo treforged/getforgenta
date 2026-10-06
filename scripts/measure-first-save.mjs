@@ -19,6 +19,8 @@
  *   ARM C  answers "Me and a partner" and ends on "Set up partner sharing" -> /account, which must
  *          open on the partner section although Account was parked on Leaderboard (ask d53dbbe1).
  *          ARM A and B are its control: they must show NO partner card.
+ *   ARM D  ARM A with the release-flag PATCH never answered (ask 769b6e40): "See your plan" must
+ *          still reach the finish. A control asserts the PATCH really was held.
  * Each arm asserts the SCREEN: the first save is on "See your plan", "Your profile is set" is
  * shown only after it, the final button saves the wizard zero more times, and the URL lands.
  *
@@ -127,13 +129,20 @@ const safeJsonKeys = (t) => Object.keys(safeJson(t)).join('+');
 // since 2026-09-29 a failed save keeps the user off the finish screen - correctly.)
 // partner: answer "Me and a partner" on the welcome step (ask d53dbbe1). The finish screen must then
 // show the partner card, and only then; ARM A is the control that it is absent for "Just me".
-async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = false, partner = false) {
+// hangFlag: never answer the release-flag PATCH (tour_flags), the write that hung a real walk on
+// 2026-10-06 (ask 769b6e40). The wizard must still move on within its bound.
+async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = false, partner = false, hangFlag = false) {
   // leaveBanner: never dismiss the cookie banner, so every press must reach its control WITH the
   // banner up. Before 2026-09-29 the banner covered Continue at 390px and this arm could not finish.
   const st = { screens: 0, presses: 0, fields: 0, writes: [], log: [], savePress: null, cookie: leaveBanner };
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
   await ctx.route(`${url}/rest/v1/**`, (route) => {
     const req = route.request();
+    // ARM D: the walk account already carries the release flag, so the wizard would skip the write.
+    // Answer ITS read (select=tour_flags only) with an empty map so the write is really attempted.
+    if (hangFlag && req.method() === 'GET' && /[?&]select=tour_flags(&|$)/.test(req.url())) {
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tour_flags: {} }) });
+    }
     if (req.method() === 'GET' || req.method() === 'HEAD') return route.continue();
     const path = new URL(req.url()).pathname.replace('/rest/v1/', '');
     const body = req.postData() || '';
@@ -147,6 +156,7 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
     const isWizardSave = isWizardTable(path) || /"onboarding_completed_via":"wizard"/.test(body);
     const isCacheRestore = /"onboarding_completed_via":"cache_restore"/.test(body);
     st.writes.push({ method: req.method(), path, isSave, isWizardSave, isCacheRestore, fields: path.startsWith('profiles') ? safeJsonKeys(body) : '' });
+    if (hangFlag && /"tour_flags"/.test(body)) { st.hung = (st.hung || 0) + 1; return undefined; }
     return route.fulfill({ status: 204, body: '' });
   });
   const page = await ctx.newPage();
@@ -243,6 +253,7 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
     [`"${final.name}" lands on ${wantPath}`, landed === wantPath, `landed ${landed}`],
     [partner ? 'finish screen shows the partner card' : 'finish screen shows NO partner card for "Just me"',
       partnerCard === partner, `visible=${partnerCard}`],
+    ...(hangFlag ? [['the release-flag PATCH really was left unanswered (control)', (st.hung || 0) >= 1, `hung=${st.hung || 0}`]] : []),
     ...(partner ? [['Account opened on the partner section ("Have an invite code?")', inviteField === true, `visible=${inviteField}`]] : []),
   ];
   return { arm, st, checks };
@@ -258,6 +269,7 @@ try {
   arms.push(await runArm(browser, 'ARM A', { role: 'button', re: /Continue free/, name: 'Continue free' }, '/dashboard', true));
   arms.push(await runArm(browser, 'ARM B', { role: 'link', re: /Explore Premium/, name: 'Explore Premium' }, '/premium', false, true));
   arms.push(await runArm(browser, 'ARM C', { role: 'button', re: /Set up partner sharing/, name: 'Set up partner sharing' }, '/account', true, false, true));
+  arms.push(await runArm(browser, 'ARM D', { role: 'button', re: /Continue free/, name: 'Continue free' }, '/dashboard', false, false, false, true));
 } catch (err) {
   // NOT fail() here: process.exit skips `finally`, and a red run then left the walk account at
   // onboarding_completed=false (measured 2026-09-29). Record it; exit after the restore.
@@ -289,6 +301,6 @@ for (const a of arms) {
 }
 console.log(`\narms examined: ${arms.length}  checks failed: ${failed}`);
 console.log(`machine time: ${((Date.now() - t0) / 1000).toFixed(1)} s (NOT a human time)   frames: ${OUT}`);
-if (arms.length !== 3) fail(2, `${arms.length} of 3 arms ran - nothing complete was measured.`);
+if (arms.length !== 4) fail(2, `${arms.length} of 4 arms ran - nothing complete was measured.`);
 if (failed) fail(1, `${failed} check(s) failed.`);
 console.log('OK - the save happens before the finish screen claims it, and neither finish button saves twice.');

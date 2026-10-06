@@ -253,6 +253,8 @@ section states reasoning, not measurement, and says so.
   ARM C (ask d53dbbe1) answers "Me and a partner": the finish screen must show the partner card (A and B must
   not), and "Set up partner sharing" must open Account on the invite-code field with Account parked on
   Leaderboard first. Red both ways (redirect removed; card always shown). Frames: test-results/first-save/partner-*.
+  ARM D (ask 769b6e40) never answers the release-flag PATCH: "See your plan" must still reach the finish, because
+  a real walk hung there for good with the profile already saved. Red on the unbounded write (walk stuck, exit 1).
 - `npm run check:boot-failure` - a load failure fails LOUD, never black (Tre's black screen, 2026-09-29). Needs
   `npm run build` first; serves dist/ with `vite preview` and loads it in WEBKIT (the iOS engine) at 390x844,
   fully offline. Arms: unblocked app mounts (control); entry script aborted -> "Couldn't load Forgenta" renders

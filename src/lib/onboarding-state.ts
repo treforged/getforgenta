@@ -204,7 +204,28 @@ export async function markOnboardingComplete(
  * own flags. Best effort: a failure here costs one extra dialog, never a lost setup, so it never
  * blocks the exit.
  */
-export async function recordCurrentReleaseSeen(userId: string): Promise<boolean> {
+/**
+ * How long the wizard waits for the release flag before it moves on anyway (ask 769b6e40).
+ * Measured 2026-10-06: on 1 of 2 real first-run walks the flag PATCH LANDED in the database but its
+ * response never came back, and supabase-js has no timeout - so "See your plan" stayed in its saving
+ * state for good, with the user's profile already saved. The flag is bookkeeping; it must never be
+ * the thing a new user waits on.
+ */
+export const RELEASE_SEEN_WAIT_MS = 4_000;
+
+/** Resolves with `promise`, or with `fallback` once `ms` passes - whichever comes first. */
+export function settleWithin<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>(resolve => { timer = setTimeout(() => resolve(fallback), ms); });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+/** The flag write, bounded: false if it fails OR has not answered within `ms`. */
+export function recordCurrentReleaseSeen(userId: string, ms = RELEASE_SEEN_WAIT_MS): Promise<boolean> {
+  return settleWithin(writeCurrentReleaseSeen(userId), ms, false);
+}
+
+async function writeCurrentReleaseSeen(userId: string): Promise<boolean> {
   try {
     const { data, error } = await supabase
       .from('profiles')

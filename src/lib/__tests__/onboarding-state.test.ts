@@ -39,6 +39,7 @@ import {
   fetchOnboardingCompleted,
   markOnboardingComplete,
   recordCurrentReleaseSeen,
+  settleWithin,
   ONBOARDING_FETCH_TIMEOUT_MS,
 } from '../onboarding-state';
 import { CURRENT_RELEASE, whatsNewFlag } from '../whats-new';
@@ -234,5 +235,27 @@ describe('recordCurrentReleaseSeen', () => {
     selectMaybeSingle.mockResolvedValue({ data: null, error: { message: 'boom' } });
     await expect(recordCurrentReleaseSeen(USER)).resolves.toBe(false);
     expect(updatePayloads).toEqual([]);
+  });
+
+  // Ask 769b6e40: the PATCH landed but its response never came back, and "See your plan" waited for
+  // ever. A write that never answers must resolve false within the bound, not hang the caller.
+  it('gives up after the bound when the write never answers', async () => {
+    vi.useFakeTimers();
+    try {
+      selectMaybeSingle.mockResolvedValue({ data: { tour_flags: {} }, error: null });
+      updateEq.mockReturnValue(new Promise(() => {}));
+      let settled: boolean | undefined;
+      void recordCurrentReleaseSeen(USER, 4_000).then(v => { settled = v; });
+      await vi.advanceTimersByTimeAsync(3_999);
+      expect(settled).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(settled).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('settleWithin returns the real value when it arrives first', async () => {
+    await expect(settleWithin(Promise.resolve('real'), 1_000, 'late')).resolves.toBe('real');
   });
 });
