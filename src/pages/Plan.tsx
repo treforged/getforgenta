@@ -13,7 +13,7 @@ const BudgetControl = lazy(() => import('@/pages/BudgetControl'));
  *
  * The header mirrors Transactions (title, guide, view switch) and `BudgetControl` renders
  * `embedded`, exactly as it did inside that page, so the rules screen itself is unchanged.
- * The guide is still the Transactions surface guide: its first section IS Plan.
+ * The guide is the 'plan' surface, which reads the same 'transactions:budget' copy as before.
  */
 export default function Plan() {
   const { mode: viewMode, setMode: setViewMode } = useViewMode();
@@ -23,7 +23,7 @@ export default function Plan() {
         <div className="flex items-center gap-3">
           <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Plan</h1>
           <div className="ml-auto">
-            <SurfaceGuide surface="transactions" />
+            <SurfaceGuide surface="plan" />
           </div>
         </div>
         <div className="flex justify-center sm:justify-end">

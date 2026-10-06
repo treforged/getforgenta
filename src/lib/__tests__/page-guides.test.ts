@@ -88,3 +88,21 @@ describe('resolveGuide', () => {
     }
   });
 });
+
+// Plan became its own page on 2026-10-06 (decision c5e29d9e). Its guide must be Plan's, and the
+// Transactions guide must stop carrying a section for a panel that page no longer has.
+describe('the Plan page has its own guide', () => {
+  it('titles it "Plan Guide" and fills it only with the Plan copy', () => {
+    const plan = resolveSurfaceGuide('plan');
+    expect(plan.title).toBe('Plan Guide');
+    expect(plan.sections.length).toBe(PAGE_GUIDES['transactions:budget'].sections.length);
+    expect(plan.sections.every(s => s.group === 'Plan')).toBe(true);
+  });
+
+  it('drops Plan from the Transactions guide and names that guide after the page', () => {
+    const tx = resolveSurfaceGuide('transactions');
+    expect(tx.title).toBe('Transactions Guide');
+    expect(tx.sections.some(s => s.group === 'Plan')).toBe(false);
+    expect(tx.sections.length).toBeGreaterThan(0);
+  });
+});

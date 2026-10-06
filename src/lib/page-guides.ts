@@ -48,6 +48,8 @@ export type GuideSurface =
   | 'dashboard'
   | 'accounts'
   | 'transactions'
+  // Plan's own page since 2026-10-06 (decision c5e29d9e). Its guide key stays 'transactions:budget'.
+  | 'plan'
   | 'debt'
   | 'forecast'
   | 'garage'
@@ -287,6 +289,7 @@ const SURFACE_FALLBACK: Record<GuideSurface, GuideKey> = {
   dashboard: 'dashboard:overview',
   accounts: 'accounts:balances',
   transactions: 'transactions:planning',
+  plan: 'transactions:budget',
   debt: 'debt:cards',
   forecast: 'forecast:forecast',
   garage: 'garage:vehicles',
@@ -332,9 +335,11 @@ const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> =
   // the table of contents the page now reads as. Renaming the keys would orphan
   // `SURFACE_FALLBACK.transactions` and every panel-scoped `resolveGuide` call for no gain.
   transactions: [
-    { key: 'transactions:budget', label: 'Plan' },
     { key: 'transactions:planning', label: 'Transactions · Your ledger' },
     { key: 'transactions:bank', label: 'Transactions · From your bank' },
+  ],
+  plan: [
+    { key: 'transactions:budget', label: 'Plan' },
   ],
   debt: [
     { key: 'debt:cards', label: 'Credit cards' },
@@ -365,7 +370,9 @@ const SURFACE_PANELS: Record<GuideSurface, { key: GuideKey; label: string }[]> =
 const SURFACE_TITLE: Record<GuideSurface, string> = {
   dashboard: 'Home Guide',
   accounts: 'Accounts Guide',
-  transactions: 'Activity Guide',
+  // "Transactions", not "Activity" - the page was renamed on 2026-08-27 and this title was not.
+  transactions: 'Transactions Guide',
+  plan: 'Plan Guide',
   debt: 'Debt Guide',
   forecast: 'Forecast Guide',
   garage: 'Garage Guide',
