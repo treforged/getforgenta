@@ -119,7 +119,8 @@ section states reasoning, not measurement, and says so.
   that, "the rail is on top" is a claim about a 72px strip nothing overlaps. The centring half
   exists because a phone fix (`shrink-0` on the button sharing the pill's row) shifted the group
   344px right on desktop — **a fix measured at one breakpoint is not a fix.** Proven red both
-  ways with the real shipped defects. Does NOT cover colour, spacing, phone widths, other routes,
+  ways with the real shipped defects. Since 2026-10-06 it also asserts that at rest ONLY the current page's rail row
+  carries a fill (Debt's old `bg-primary/8` read as a second selected row); red on the old Sidebar. Does NOT cover colour, spacing, phone widths, other routes,
   or whether a modal still covers the rail.
 - `npm run check:text-scale` — Dynamic Type's measurable half: with the root at 150%, every
   sampled text element must scale and nothing may overflow its box. ⚠️ **IT DOES NOT AND CANNOT
@@ -231,7 +232,7 @@ section states reasoning, not measurement, and says so.
   account wrote no rows, so every figure is invented or a confident $0; Sam's rule), with a planted
   "$1,234" as control. Since 2026-10-06 it also reads /budget and PERCENTAGES ("Fixed (0%)"), joining
   each element's own text nodes: React splits `{label} ({pct}%)` into four nodes, and a per-node reader
-  passed five "(0%)" rows. Control: a planted "Fixed (12%)" built from four separate nodes. Proven red with the pre-fix engine ($20k-$80k axis) and on the pre-empty-state
+  passed five "(0%)" rows. Control: a planted "Fixed (12%)" built from four separate nodes. `WIDTH=1440` walks desktop. Proven red with the pre-fix engine ($20k-$80k axis) and on the pre-empty-state
   app (19 $0 figures). Each route is read only once no `.skeleton-shimmer` shows and two reads agree:
   a 6 s sleep read a skeleton Dashboard as "figures 0". Never-settled routes exit 2. Still LOOK AT
   the frames: it reads figures, not meaning.

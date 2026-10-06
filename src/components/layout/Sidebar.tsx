@@ -232,8 +232,12 @@ export default function Sidebar() {
                 "flex items-center gap-3 px-3 py-2 text-xs font-medium transition-colors duration-150 btn-press",
                 active
                   ? "bg-sidebar-accent text-primary"
+                  // ⚠️ NO RESTING FILL ON A HIGHLIGHTED ROW (2026-10-06). `bg-primary/8` read as the
+                  // CURRENT page in the narrow rail, where the Zap marker is hidden with the label,
+                  // so every screen showed two "selected" rows. The emphasis is now the gold icon
+                  // plus the corner dot below - the phone bar's marker - and a fill means "you are here".
                   : item.highlight
-                    ? "text-primary/80 bg-primary/8 hover:bg-primary/12 hover:text-primary"
+                    ? "text-primary/80 hover:bg-sidebar-accent/50 hover:text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
               )}
               style={{ borderRadius: 'var(--radius)' }}
@@ -249,6 +253,13 @@ export default function Sidebar() {
                     FALSE at rest on any mouse — so in the narrow rail there was no dot AND no
                     number, and the only badge a mouse user ever had was one clipped out of sight.
                     See RAIL_ONLY for why the coarse-pointer case still rides on `collapsed`. */}
+                {item.highlight && !active && badge === null && (
+                  <span
+                    aria-hidden="true"
+                    data-testid="rail-highlight-dot"
+                    className={cn('absolute top-0 right-0 w-2 h-2 bg-primary rounded-full', !collapsed && RAIL_ONLY)}
+                  />
+                )}
                 {badge !== null && (
                   <span
                     aria-hidden="true"

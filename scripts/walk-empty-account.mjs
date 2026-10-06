@@ -29,7 +29,10 @@
 import { readFileSync } from 'node:fs';
 
 const BASE = 'http://localhost:8080';
-const VIEW = { width: 390, height: 844 };
+// WIDTH=1440 walks the desktop layout (a different DOM: the rail, multi-column cards). Default is the phone.
+const WIDTH = Number(process.env.WIDTH || 390);
+if (![390, 1440].includes(WIDTH)) { console.error('FAIL: WIDTH must be 390 or 1440.'); process.exit(2); }
+const VIEW = WIDTH === 1440 ? { width: 1440, height: 900 } : { width: 390, height: 844 };
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 
 const env = readFileSync('.env.local', 'utf8');
@@ -188,7 +191,7 @@ for (const route of ROUTES) {
     + `${MONEY_ROUTES.has(route) ? ` figures ${invented.length}` : ''}${sts ? ' SAFE-TO-SPEND FIGURE' : ''}`);
   for (const f of invented.slice(0, 12)) console.log(`          invented ${f.fig.padEnd(10)} in "${f.ctx}"`);
   const name = route.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'root';
-  await page.screenshot({ path: `test-results/empty-walk/${name}.png`, fullPage: false });
+  await page.screenshot({ path: `test-results/empty-walk/${WIDTH === 390 ? '' : `${WIDTH}-`}${name}.png`, fullPage: false });
 }
 const summary = `${ROUTES.length} routes walked on an empty account, ${findings} with a finding, ${unstable} unstable.`;
 if (findings) await done(1, `FINDINGS: ${summary}`);

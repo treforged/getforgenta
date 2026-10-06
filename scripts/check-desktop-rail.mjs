@@ -122,8 +122,32 @@ if (spread > 2) {
   problems.push(`the panel pills on this screen do not share a centre - ${spread}px apart. One of them is in a flex row with another control that is taking the width unevenly. ${centres.map((c) => `${c.centre}px [${c.labels}]`).join('  vs  ')}`);
 }
 
-// ── 2. The pop-out paints over the page ──────────────────────────────────────
+// ── 3. At rest, ONLY the current page's row carries a fill (2026-10-06) ──────────
+// Debt's "key feature" fill (`bg-primary/8`) read as a second selected row in the narrow rail,
+// where its Zap marker is hidden with the label - two "you are here" rows on every screen. Read
+// BEFORE the hover below, because hovering fills rows legitimately.
 const RAIL = '[class*="fine-pointer:absolute"]';
+await page.mouse.move(1400, 880);
+await page.waitForTimeout(300);
+const fills = await page.evaluate((sel) => [...document.querySelectorAll(`${sel} nav a`)].map((a) => {
+  const m = getComputedStyle(a).backgroundColor.match(/[\d.]+/g) || [];
+  const alpha = m.length === 4 ? Number(m[3]) : (m.length === 3 ? 1 : 0);
+  return { label: a.getAttribute('aria-label') || a.innerText.trim(), current: a.getAttribute('aria-current') === 'page', filled: alpha > 0.01 };
+}), RAIL);
+console.log('--- rail rows at rest ---');
+for (const f of fills) console.log(`  ${f.current ? 'CURRENT' : '       '} ${f.filled ? 'filled' : 'clear '}  ${f.label}`);
+const current = fills.filter((f) => f.current);
+// Positive control: the reader must SEE the current row's fill, or "no other row is filled" is blind.
+if (current.length !== 1 || !current[0].filled) {
+  await browser.close();
+  fail(2, `CONTROL FAILED: expected exactly one current rail row and to read its fill; got ${current.length} current, filled=${current[0]?.filled}.`);
+}
+const falseSelected = fills.filter((f) => f.filled && !f.current);
+if (falseSelected.length) {
+  problems.push(`rail rows that look selected but are not the current page: ${falseSelected.map((f) => f.label).join(', ')}. A resting fill means "you are here" - see primary-nav highlight.`);
+}
+
+// ── 2. The pop-out paints over the page ──────────────────────────────────────
 const widthOf = () => page.evaluate((sel) => {
   const el = document.querySelector(sel);
   return el ? Math.round(el.getBoundingClientRect().width) : null;
