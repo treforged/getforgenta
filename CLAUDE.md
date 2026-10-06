@@ -229,7 +229,9 @@ section states reasoning, not measurement, and says so.
   ⚠️ ITS GREEN WAS WEAK: the first run passed 10/10 while the Forecast drew a phantom $97.5k salary
   (ask 9f385515). Since 2026-10-01 it also fails on ANY "$<digits>" on Dashboard and Forecast (the
   account wrote no rows, so every figure is invented or a confident $0; Sam's rule), with a planted
-  "$1,234" as control. Proven red with the pre-fix engine ($20k-$80k axis) and on the pre-empty-state
+  "$1,234" as control. Since 2026-10-06 it also reads /budget and PERCENTAGES ("Fixed (0%)"), joining
+  each element's own text nodes: React splits `{label} ({pct}%)` into four nodes, and a per-node reader
+  passed five "(0%)" rows. Control: a planted "Fixed (12%)" built from four separate nodes. Proven red with the pre-fix engine ($20k-$80k axis) and on the pre-empty-state
   app (19 $0 figures). Each route is read only once no `.skeleton-shimmer` shows and two reads agree:
   a 6 s sleep read a skeleton Dashboard as "figures 0". Never-settled routes exit 2. Still LOOK AT
   the frames: it reads figures, not meaning.
