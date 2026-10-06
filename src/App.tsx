@@ -62,6 +62,7 @@ const Auth = lazy(() => import("@/pages/Auth"));
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 
 const Transactions = lazy(() => import("@/pages/Transactions"));
+const Plan = lazy(() => import("@/pages/Plan"));
 const DebtPayoff = lazy(() => import("@/pages/DebtPayoff"));
 const SettingsPage = lazy(() => import("@/pages/Settings"));
 const Account = lazy(() => import('./pages/Account'));
@@ -257,27 +258,10 @@ function DemoEntry() {
 }
 
 /**
- * `/budget` is no longer a page — it is the third panel of the Activity surface (2026-08-18). A
- * component and not a bare <Navigate> so the whole query string rides along, the same reason
- * `AccountsRedirect` is one; nothing writes a `?tab=` at `/budget` today, but a redirect that
- * silently drops the query string is the defect that only shows up the first time something does.
- *
- * ⚠️ THE SIX IN-APP LINKS STILL POINT AT `/budget` ON PURPOSE, and two tests assert that literal
- * href (`DashboardHero.test.tsx`, `ForecastHero.test.tsx`). Repointing them would leave this
- * redirect — the thing every existing bookmark lands on — covered by nothing.
- */
-function BudgetRedirect() {
-  const { search } = useLocation();
-  const params = new URLSearchParams(search);
-  params.set('tab', 'budget');
-  return <Navigate to={`/transactions?${params.toString()}`} replace />;
-}
-
-/**
  * `/goals` is no longer a page — it is the Dashboard's third panel (Tre, 2026-08-20: "move the
  * goals section to the home/command center tab … it makes more sense there.", superseding the
  * two-day stint on the Forecast). A component and not a bare <Navigate> so the whole query string
- * rides along, the same reason `AccountsRedirect` and `BudgetRedirect` are components.
+ * rides along, the same reason `AccountsRedirect` is a component.
  *
  * ⚠️ THE IN-APP LINKS STILL POINT AT `/goals` ON PURPOSE — the Dashboard chips, two goal cards
  * and `OnboardingChecklist` all do. Repointing them would leave this redirect, which is what every
@@ -365,7 +349,8 @@ function AppRoutes() {
           the only honest options at that level. */}
       <Route element={<ProtectedRoute><ErrorBoundary label="The app" homeTo={null}><Suspense fallback={<PageLoader />}><DashboardLayout /></Suspense></ErrorBoundary></ProtectedRoute>}>
         <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Dashboard" homeTo={null}><Dashboard /></ErrorBoundary></Suspense>} />
-        <Route path="/budget" element={<BudgetRedirect />} />
+        {/* A page again since 2026-10-06: Plan has its own bottom-bar slot (decision c5e29d9e). */}
+        <Route path="/budget" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Plan"><Plan /></ErrorBoundary></Suspense>} />
         <Route path="/transactions" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Transactions"><Transactions /></ErrorBoundary></Suspense>} />
         <Route path="/debt" element={<Suspense fallback={<PageLoader />}><ErrorBoundary label="Debt Payoff"><DebtPayoff /></ErrorBoundary></Suspense>} />
         <Route path="/goals" element={<GoalsRedirect />} />

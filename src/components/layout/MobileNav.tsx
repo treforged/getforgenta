@@ -106,6 +106,7 @@ export default function MobileNav() {
             <Link
               key={item.to}
               to={item.to}
+              aria-current={active ? 'page' : undefined}
               onClick={active ? scrollMainToTop : undefined}
               className={cn(
                 'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 text-xs font-medium transition-colors btn-press text-center',

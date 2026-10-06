@@ -45,7 +45,7 @@ import { exportTransactionsCsv } from '@/lib/exportCsv';
 import { exportTransactionsPdf } from '@/lib/exportPdf';
 import { filterProfanity, LIMITS } from '@/lib/content-filter';
 import { toast } from 'sonner';
-import { Link, useSearchParams } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useDemo } from '@/contexts/DemoContext';
 import { useViewMode } from '@/hooks/useViewMode';
 import { ViewModeSwitch } from '@/components/shared/ViewModeSwitch';
@@ -57,7 +57,7 @@ import { useDismissedDuplicates } from '@/hooks/useDismissedDuplicates';
 import DuplicateTransactionWarning from '@/components/shared/DuplicateTransactionWarning';
 import type { Tables } from '@/integrations/supabase/types';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
-import { activityTabFromSearch, effectiveActivityTab, type ActivityTab } from '@/lib/activity-tab';
+import { activityTabFromSearch, effectiveActivityTab, isPlanTabRequest, type ActivityTab } from '@/lib/activity-tab';
 import { payInFourDefaults } from '@/lib/bnpl-defaults';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { matchesTransactionSearch } from '@/lib/transaction-search';
@@ -70,7 +70,6 @@ import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 // by far the common one — would pay for a panel it never opens. Same trade, and the same measured
 // reason, as `Accounts` inside `Dashboard`. Read the chunk sizes out of the build before changing
 // this back.
-const BudgetControl = lazy(() => import('@/pages/BudgetControl'));
 
 // ALL_CATEGORIES used to hoist Income to the top of a flat 26-option list. The
 // grouped picker supersedes that: Income now leads the 'Money' group.
@@ -170,6 +169,17 @@ export default function Transactions() {
   // stripped, after which the user's own remembered panel takes over again. Identical to Dashboard.
   const [searchParams, setSearchParams] = useSearchParams();
   const askedTab = activityTabFromSearch(searchParams);
+  // Plan is its own page since 2026-10-06 (decision c5e29d9e). An old `?tab=budget` link goes there,
+  // with the rest of its query string, instead of opening a panel that no longer exists.
+  const navigateToPlan = useNavigate();
+  const wantsPlan = isPlanTabRequest(searchParams);
+  useEffect(() => {
+    if (!wantsPlan) return;
+    const rest = new URLSearchParams(searchParams);
+    rest.delete('tab');
+    const qs = rest.toString();
+    navigateToPlan(`/budget${qs ? `?${qs}` : ''}`, { replace: true });
+  }, [wantsPlan, searchParams, navigateToPlan]);
   useEffect(() => {
     if (!askedTab) return;
     setActiveTab(askedTab);
@@ -915,15 +925,9 @@ export default function Transactions() {
       so a quiet queue and a queue that has not loaded both render nothing. */}
   <PanelBar>
     {([
-      // Budget Control leads (Tre, 2026-08-18: "move budget control as the first tab of
-      // transactions") — the rules are what every other number on this page derives from, so it
-      // reads left to right as cause then effect: the rules, then what actually happened against
-      // them. A fresh SIGN-IN also lands here (`resetActivityTabForSignIn`, called from
-      // AuthContext); within a session the panel is remembered. Tre, 2026-08-18: "it should land in
-      // whatever page the user looked at last, on sign in it should be budget control though."
-      // "Plan", not "Budget Control" (Tre, 2026-08-27: "rename Budget Control to Plan") — and it
-      // also stops the pill row from repeating the surface's own new name back at it.
-      { id: 'budget' as const, label: 'Plan', count: null as number | null },
+      // Plan led this row until 2026-10-06, when it became its own bottom-bar destination at
+      // `/budget` (Tre, decision c5e29d9e). What is left still reads cause then effect: what
+      // happened, then what happens next.
       { id: 'transactions' as const, label: 'Transactions', count: reviewQueueCount },
       // Forecast joined this row on 2026-09-12 (Tre: "the forecast section should be moved to the
       // transactions tab"). It reads left to right as rules -> what happened -> what happens next,
@@ -1012,15 +1016,6 @@ export default function Transactions() {
   </div>
 </div>
 
-      {/* ⚠️ RENDERED, NOT LINKED TO — and `BudgetControl` is unchanged apart from an `embedded` prop
-          that suppresses only its own <h1>/subtitle and page padding, because this page already
-          carries both. Mounted only while its own panel is selected, so its profile/rules/accounts
-          queries never run while the user is on the ledger. */}
-      {activeTab === 'budget' && (
-        <Suspense fallback={<div className="h-64" />}>
-          <ErrorBoundary variant="widget" label="Plan"><BudgetControl embedded simple={isSimple} /></ErrorBoundary>
-        </Suspense>
-      )}
 
       {/* THE MERGED PANEL — what the bank reported, and the ledger those charges settle against.
           Two halves, never interleaved into one list (a projection and a settled charge are

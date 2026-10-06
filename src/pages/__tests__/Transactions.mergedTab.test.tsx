@@ -116,14 +116,24 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), warning: v
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => false } }));
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Routes, Route, useLocation } from 'react-router';
 import { ACTIVITY_TAB_STORAGE_KEY } from '@/lib/activity-tab';
 import Transactions from '../Transactions';
+
+function PlanProbe() {
+  const { pathname, search } = useLocation();
+  return <div data-testid="plan-probe">{pathname + search}</div>;
+}
 
 function renderAt(url = '/transactions') {
   render(
     <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-      <MemoryRouter initialEntries={[url]}><Transactions /></MemoryRouter>
+      <MemoryRouter initialEntries={[url]}>
+        <Routes>
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/budget" element={<PlanProbe />} />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -151,7 +161,7 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); vi.useRealTimers(); });
 
 describe('Transactions — Planning and Bank Activity as one tab', () => {
-  it('offers three panels, not four', () => {
+  it('offers two panels: Plan has its own page since 2026-10-06', () => {
     renderAt();
     const tabs = panelTabs().map(t => t.textContent);
     // 'Plan' since 2026-08-27 (Tre: "rename Budget Control to Plan"). The tab ID is still
@@ -159,7 +169,8 @@ describe('Transactions — Planning and Bank Activity as one tab', () => {
     // 'Forecast' joined on 2026-09-12, moving off the bottom nav onto this row. The point of
     // this test is unchanged: Planning and Bank Activity are still ONE panel between them, not
     // two — which is what "not four" has always been guarding.
-    expect(tabs).toEqual(['Plan', 'Transactions', 'Forecast']);
+    // Plan left this row for its own bottom-bar slot on 2026-10-06 (decision c5e29d9e).
+    expect(tabs).toEqual(['Transactions', 'Forecast']);
   });
 
   /**
@@ -179,7 +190,6 @@ describe('Transactions — Planning and Bank Activity as one tab', () => {
       expect(screen.getByRole('tab', { name: /Forecast/i }).getAttribute('aria-selected')).toBe('true');
     });
     // The CHANGE, not merely the absence of an error: the other panels are no longer selected.
-    expect(screen.getByRole('tab', { name: /^Plan$/i }).getAttribute('aria-selected')).toBe('false');
     expect(screen.getByRole('tab', { name: /^Transactions$/i }).getAttribute('aria-selected')).toBe('false');
   });
 
@@ -218,7 +228,7 @@ describe('Transactions — Planning and Bank Activity as one tab', () => {
     mocks.needsDecision = [BANK_CHARGE];
     mocks.suggestedCount = 3;
     renderAt();
-    const tab = panelTabs()[1];
+    const tab = panelTabs()[0];
     expect(within(tab).getByText('3')).toBeTruthy();
   });
 
@@ -228,6 +238,20 @@ describe('Transactions — Planning and Bank Activity as one tab', () => {
     localStorage.setItem(ACTIVITY_TAB_STORAGE_KEY, JSON.stringify('bank'));
     renderAt();
     expect(screen.getByTestId('bank-half')).toBeTruthy();
+    expect(within(screen.getByTestId('ledger-half')).getByText('Corner store')).toBeTruthy();
+  });
+
+  it('sends an old ?tab=budget link to the Plan page, keeping the rest of the query', async () => {
+    // Would-fail: honouring it as a panel id here would open the ledger, not Plan.
+    renderAt('/transactions?tab=budget&rule=abc');
+    await waitFor(() => {
+      expect(screen.getByTestId('plan-probe').textContent).toBe('/budget?rule=abc');
+    });
+  });
+
+  it('opens the ledger for a stored "budget", which every sign-in wrote until 2026-10-06', () => {
+    localStorage.setItem(ACTIVITY_TAB_STORAGE_KEY, JSON.stringify('budget'));
+    renderAt();
     expect(within(screen.getByTestId('ledger-half')).getByText('Corner store')).toBeTruthy();
   });
 

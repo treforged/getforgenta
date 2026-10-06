@@ -257,6 +257,10 @@ section states reasoning, not measurement, and says so.
   a real walk hung there for good with the profile already saved. Red on the unbounded write (walk stuck, exit 1).
   ARM E (2026-10-06) presses "Save what I have" on Expenses (no bank): the save must land on that press with the
   income and still reach the finish; ARM A asserts the link shows on its Expenses screen. Red with the link hidden (exit 1).
+- `npm run check:plan-tab` - Plan took Garage's bottom-bar slot (Tre, decision c5e29d9e, 2026-10-06), at 390 and 1440 signed in:
+  the nav has Plan and no Garage (control: Home found), PRESSING Plan lands on /budget with the heading AND BudgetControl's body,
+  the nav marks it aria-current, Transactions has no Plan pill, an old `/transactions?tab=budget` lands on /budget, and Account's
+  Garage link lands on /vehicles. Table writes aborted; rpc passes (aborting it raised the offline banner). Red on the old nav (exit 1).
 - `npm run check:save-timeouts` - supabase-js has NO timeout, so every write the first-run path waits on is bounded
   (`boundedWrite`, 15 s; ask 61c40702). At 390x844 on the walk account, writes answered in-browser, it HOLDS one write
   open per arm: the profile save (timeout message, no finish screen, button usable again), a budget_items insert (save

@@ -17,18 +17,19 @@ import {
   activityTabFromSearch,
   effectiveActivityTab,
   isActivityTab,
+  isPlanTabRequest,
 } from '@/lib/activity-tab';
 
 describe('activity-tab', () => {
-  it('names exactly the three panels the page renders, in the order the row shows them', () => {
-    expect([...ACTIVITY_TABS]).toEqual(['budget', 'transactions', 'forecast']);
+  it('names exactly the two panels the page renders, in the order the row shows them', () => {
+    // Plan left this row on 2026-10-06 for its own bottom-bar slot (decision c5e29d9e).
+    expect([...ACTIVITY_TABS]).toEqual(['transactions', 'forecast']);
   });
 
-  it('lands a fresh sign-in on Budget Control', () => {
-    // Tre, 2026-08-18: "on sign in it should be budget control". Separate from the row order on
-    // purpose — they happen to agree today, and pinning the VALUE means they can stop agreeing
-    // without this silently following the first pill around.
-    expect(ACTIVITY_TAB_FALLBACK).toBe('budget');
+  it('lands a fresh sign-in on the Transactions panel, now that Plan is its own page', () => {
+    // Was 'budget' (Tre, 2026-08-18: "on sign in it should be budget control"). Plan left this
+    // surface on 2026-10-06, so the reset can no longer open it here; Plan has its own tab.
+    expect(ACTIVITY_TAB_FALLBACK).toBe('transactions');
   });
 
   it('writes the sign-in reset in the format the reader parses', () => {
@@ -36,8 +37,8 @@ describe('activity-tab', () => {
     // bare string is discarded and the reset looks like it silently did not happen.
     const written: Record<string, string> = {};
     resetActivityTabForSignIn({ setItem: (k, v) => { written[k] = v; } });
-    expect(written[ACTIVITY_TAB_STORAGE_KEY]).toBe('"budget"');
-    expect(effectiveActivityTab(JSON.parse(written[ACTIVITY_TAB_STORAGE_KEY]))).toBe('budget');
+    expect(written[ACTIVITY_TAB_STORAGE_KEY]).toBe('"transactions"');
+    expect(effectiveActivityTab(JSON.parse(written[ACTIVITY_TAB_STORAGE_KEY]))).toBe('transactions');
   });
 
   it('never lets a broken storage break a sign-in', () => {
@@ -47,8 +48,18 @@ describe('activity-tab', () => {
   });
 
   it('reads a panel a link asks for, from a string or a URLSearchParams', () => {
-    expect(activityTabFromSearch('?tab=budget')).toBe('budget');
+    expect(activityTabFromSearch('?tab=forecast')).toBe('forecast');
     expect(activityTabFromSearch(new URLSearchParams('tab=transactions'))).toBe('transactions');
+  });
+
+  it('recognises an old ?tab=budget link as a request for the Plan page, and nothing else', () => {
+    // Would-fail: without this, every old link to Plan inside Transactions would open the ledger.
+    expect(isPlanTabRequest('?tab=budget')).toBe(true);
+    expect(isPlanTabRequest(new URLSearchParams('tab=budget&x=1'))).toBe(true);
+    expect(activityTabFromSearch('?tab=budget')).toBeNull();
+    expect(isPlanTabRequest('?tab=transactions')).toBe(false);
+    expect(isPlanTabRequest('?other=budget')).toBe(false);
+    expect(isPlanTabRequest('')).toBe(false);
   });
 
   it('lands both retired spellings on the merged panel, from a link', () => {
@@ -74,7 +85,8 @@ describe('activity-tab', () => {
     // exactly that, quietly, to everyone who was last on either half.
     expect(effectiveActivityTab('planning')).toBe('transactions');
     expect(effectiveActivityTab('bank')).toBe('transactions');
-    expect(effectiveActivityTab('budget')).toBe('budget');
+    // A stored 'budget' (every sign-in wrote it until 2026-10-06) opens the ledger, not a blank.
+    expect(effectiveActivityTab('budget')).toBe('transactions');
     expect(effectiveActivityTab('transactions')).toBe('transactions');
   });
 
@@ -92,7 +104,8 @@ describe('activity-tab', () => {
   });
 
   it('keeps the other surfaces’ vocabularies out of its own', () => {
-    expect(isActivityTab('budget')).toBe(true);
+    expect(isActivityTab('transactions')).toBe(true);
+    expect(isActivityTab('budget')).toBe(false);
     // A retired spelling is NOT a current panel — it resolves through the alias map and is
     // deliberately not a member of the union, so nothing can store or render it as a panel.
     expect(isActivityTab('planning')).toBe(false);

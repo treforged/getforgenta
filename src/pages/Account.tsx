@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router';
 import { lazy, Suspense, useEffect } from 'react';
-import { User, Settings as SettingsIcon, Trophy, Award, Sparkles, GraduationCap, BarChart3 } from 'lucide-react';
+import { User, Settings as SettingsIcon, Trophy, Award, Sparkles, GraduationCap, BarChart3, Car } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { useFollows } from '@/hooks/useFollows';
@@ -144,6 +144,16 @@ export default function Account() {
             page links to it". That link is this one. The hamburger is `lg:hidden`, so deleting
             this outright would leave desktop with no route to Settings at all.
             `settings-reachable.gate.test.ts` holds both widths. */}
+        <div className="flex items-center gap-2 shrink-0">
+        {/* Garage left the bottom bar on 2026-10-06 when Plan took its slot (decision c5e29d9e).
+            This is its route in at every width; without it /vehicles would be reachable from nowhere. */}
+        <Link
+          to="/vehicles"
+          className="inline-flex btn btn-md btn-secondary shrink-0"
+          style={{ borderRadius: 'var(--radius)' }}
+        >
+          <Car size={12} /> Garage
+        </Link>
         <Link
           to="/settings"
           className="hidden lg:inline-flex btn btn-md btn-secondary shrink-0"
@@ -151,6 +161,7 @@ export default function Account() {
         >
           <SettingsIcon size={12} /> Settings
         </Link>
+        </div>
       </div>
 
       {/* ICON-ONLY SINCE 2026-09-18 (Tre: "like all the other tabs, make all the sections in the

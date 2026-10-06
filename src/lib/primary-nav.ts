@@ -1,4 +1,4 @@
-import { LayoutDashboard, ArrowLeftRight, Landmark, Car, User } from 'lucide-react';
+import { LayoutDashboard, ArrowLeftRight, Landmark, ClipboardList, User } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 /**
@@ -58,7 +58,9 @@ export const PRIMARY_NAV: readonly NavDestination[] = [
   // Accounts, Plan, Goals and Forecast are all PANELS of the surfaces above rather than
   // destinations of their own — Tre, 2026-08-18: "we need to reduce how many separate tabs".
   // Their old routes still resolve as redirects, so every bookmark still lands.
-  { to: '/vehicles', icon: Car, label: 'Garage' },
+  // Plan took Garage's slot on 2026-10-06 (Tre, decision c5e29d9e): competitors give budgeting a
+  // bottom-bar slot. Garage is still reached from the Account tab's header (`Account.tsx`).
+  { to: '/budget', icon: ClipboardList, label: 'Plan' },
   // Rightmost on the phone, and five is what a 320px SE holds; six is what breaks it.
   { to: '/account', icon: User, label: 'Account' },
 ];

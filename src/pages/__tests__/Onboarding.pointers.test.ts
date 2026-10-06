@@ -25,6 +25,7 @@ const ONBOARDING = read('src/pages/Onboarding.tsx');
 const APP_LOCK = read('src/components/settings/AppLockSettings.tsx');
 const SETTINGS = read('src/pages/Settings.tsx');
 const TRANSACTIONS = read('src/pages/Transactions.tsx');
+const PRIMARY_NAV_SRC = read('src/lib/primary-nav.ts');
 
 /**
  * ASSERT ON COPY, NOT ON SOURCE.
@@ -70,8 +71,10 @@ describe('the instrument can find what it is looking for', () => {
     expect(SETTINGS).toContain('Account Security');
   });
 
-  it('the budget tab is labelled "Plan"', () => {
-    expect(TRANSACTIONS).toMatch(/id: 'budget'[^}]*label: 'Plan'/);
+  // Plan is a bottom-bar destination since 2026-10-06 (decision c5e29d9e), so "under Plan" in the
+  // onboarding copy names a tab the user can see.
+  it('Plan is a bottom-bar destination at /budget', () => {
+    expect(PRIMARY_NAV_SRC).toMatch(/to: '\/budget'[^}]*label: 'Plan'/);
   });
 });
 

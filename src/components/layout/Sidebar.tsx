@@ -224,6 +224,7 @@ export default function Sidebar() {
               // already true of the manual collapse; the hover rail makes icon-only the DEFAULT on
               // every mouse, which turns a latent defect into the normal case.
               aria-label={item.label}
+              aria-current={active ? 'page' : undefined}
               title={badge !== null
                 ? `${badge} bank ${badge === 1 ? 'charge has' : 'charges have'} a suggested match waiting for you`
                 : undefined}

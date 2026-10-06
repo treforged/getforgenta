@@ -39,7 +39,10 @@
  * `ACTIVITY_TAB_FALLBACK` — see below; the two are separate on purpose, so changing which pill is
  * first never silently changes which panel opens.
  */
-export const ACTIVITY_TABS = ['budget', 'transactions', 'forecast'] as const;
+// ⚠️ 'budget' LEFT THIS ROW ON 2026-10-06 (Tre, decision c5e29d9e: Plan takes Garage's slot in the
+// bottom bar). Plan is now its own destination at `/budget`, so `?tab=budget` is a LINK TO THAT PAGE
+// (`isPlanTabRequest`), and a stored 'budget' heals to the fallback like any retired value.
+export const ACTIVITY_TABS = ['transactions', 'forecast'] as const;
 
 export type ActivityTab = (typeof ACTIVITY_TABS)[number];
 
@@ -59,7 +62,18 @@ export const ACTIVITY_TAB_ALIASES: Readonly<Record<string, ActivityTab>> = {
  * value heals to. Tre, 2026-08-18: *"for the activity, it should land in whatever page the user
  * looked at last, on sign in it should be budget control though."*
  */
-export const ACTIVITY_TAB_FALLBACK: ActivityTab = 'budget';
+// 'transactions' since 2026-10-06: Plan is no longer a panel here, so a sign-in reset to it would
+// have nothing to open. A fresh sign-in reaches Plan from the bottom bar instead.
+export const ACTIVITY_TAB_FALLBACK: ActivityTab = 'transactions';
+
+/**
+ * `?tab=budget` was how every old link reached Plan inside Transactions. Plan is its own page now,
+ * so the Transactions page sends that link on to `/budget` rather than dropping it.
+ */
+export function isPlanTabRequest(search: string | URLSearchParams): boolean {
+  const params = typeof search === 'string' ? new URLSearchParams(search) : search;
+  return params.get('tab') === 'budget';
+}
 
 /** The one spelling of the key. Exported so the sign-in reset cannot drift from the reader. */
 export const ACTIVITY_TAB_STORAGE_KEY = 'tre:transactions:tab';
