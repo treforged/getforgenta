@@ -1,15 +1,15 @@
 #!/usr/bin/env node
-// check:spent-of-planned - Budget Simple shows "Spent so far ... of $X planned" (ask e1b0fffc (c)) at 390x844, signed
+// check:spent-of-planned - Budget Simple shows "Spent so far ... of $X planned" (ask e1b0fffc (c)) at 390x844 and 1440x900, signed
 // in as the walk account. The profile READ is rewritten to view_mode=simple (nothing written), the month's
 // synced_transactions read is ANSWERED in-browser with known rows, and the ledger read with [] - every write is
 // aborted. Expected: Dining $12.34; Shopping $30.00 (a $50 charge less a $20 refund); a $500 TRANSFER_OUT and a
 // $900 LOAN_PAYMENTS row are NOT spending, so the headline reads $42.34. Positive control: the card mounts.
 // VIEW_MODE=advanced must NOT render the card. Does NOT cover matched-rule categories, user overrides, transfer
-// pairing (unit tests own those: src/lib/__tests__/budget-spent.test.ts), desktop widths or colour.
+// pairing (unit tests own those: src/lib/__tests__/budget-spent.test.ts), or colour.
 import { readFileSync } from 'node:fs';
 
 const BASE = 'http://localhost:8080';
-const VIEWS = [{ width: 390, height: 844 }];
+const VIEWS = [{ width: 390, height: 844 }, { width: 1440, height: 900 }];
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 
 const env = readFileSync('.env.local', 'utf8');
