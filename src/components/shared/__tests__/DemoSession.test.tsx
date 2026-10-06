@@ -19,7 +19,10 @@ const mocks = vi.hoisted(() => ({
   setIsDemo: vi.fn(),
   navigate: vi.fn(),
   signOut: vi.fn(),
+  recordFunnelStep: vi.fn(),
 }));
+
+vi.mock('@/lib/signup-funnel', () => ({ recordFunnelStep: mocks.recordFunnelStep }));
 
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: mocks.user, signOut: mocks.signOut }),
@@ -52,6 +55,14 @@ describe('DemoBanner — the way out depends on who is looking', () => {
     renderBanner();
     expect(screen.getByText('Sign Up Free →')).toBeTruthy();
     expect(screen.queryByText(/Back to my account/)).toBeNull();
+  });
+
+  it('counts a press on Sign Up Free, so the demo conversion is measurable', () => {
+    mocks.isDemo = true;
+    mocks.recordFunnelStep.mockReset();
+    renderBanner();
+    fireEvent.click(screen.getByText('Sign Up Free →'));
+    expect(mocks.recordFunnelStep).toHaveBeenCalledWith('demo_signup_tap');
   });
 
   it('offers a signed-in user the way back to their own account, not a sign-up', () => {

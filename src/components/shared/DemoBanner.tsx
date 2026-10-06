@@ -1,6 +1,7 @@
 import { Link, useLocation } from 'react-router';
 import { useDemoSession } from '@/hooks/useDemoSession';
 import { useDemo } from '@/contexts/DemoContext';
+import { recordFunnelStep } from '@/lib/signup-funnel';
 
 const routeDescriptions: Record<string, string> = {
   '/dashboard':    'Overview of all accounts, cash flow, and net worth in one place',
@@ -66,6 +67,7 @@ export default function DemoBanner() {
             </Link>
             <Link
               to="/auth"
+              onClick={() => recordFunnelStep('demo_signup_tap')}
               className="text-[11px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors px-3 py-1.5 btn-press"
               style={{ borderRadius: 'var(--radius)' }}
             >

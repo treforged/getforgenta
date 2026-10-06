@@ -28,7 +28,9 @@ export type FunnelStep =
   /** The landing page mounted (ask 4f473837: landing-to-download conversion). */
   | 'landing_viewed'
   /** A store badge on the landing page was pressed; `detail` is 'app_store' or 'play_store'. */
-  | 'tap_store';
+  | 'tap_store'
+  /** The demo banner's "Sign Up Free" was pressed (e1b0fffc: does the demo convert anyone?). */
+  | 'demo_signup_tap';
 export type FunnelMethod = '' | 'email' | 'google' | 'apple';
 
 /** Hosts whose rows count as real visitors. The native apps load getforgenta.com too. */
