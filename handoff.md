@@ -8,6 +8,8 @@ R-NOW13 (2026-10-06 ~13:30 ET, Ada). R-NOW12 items 2-4 DONE:
   - Console list filed as ask e9a278bd (owner Sam) and sent to Sam. The create-checkout deploy is Tre's, in his session.
   - 599911a7 + 8dd3c5ab closed (Ruby's 3 ad facts). Answering (3) found a gap: a reauth_required bank showed nothing.
     6d974248 Accounts > Banks strip + bd3ba569 Home BrokenLinkBanner (outranks consent/2FA). Gate check:relink-prompt.
+  - 3568c05f Linked Banks header "1 bank paused"; 2258f534 FreeBankLinkNotice silent once any connection exists.
+  - Tre "1. yes" (852772a5): intro is $0.99/$9.99 EVERYWHERE. d0bc47d5 INTRO_CENTS 99/999. Coupons: 900 rep 12mo / 8000 once.
   NEXT: (1) after the deploy + coupons exist, re-run check:intro-offer and call create-checkout action:'offer' for real.
   (2) CronCreate d9e48030 fires 10-07 11:37 (session-only; re-arm if this tab dies). (3) e1b0fffc standing.
 R-NOW12 (2026-10-06 ~15:00 ET, Ada -> successor). START HERE, IN ORDER:
@@ -13497,7 +13499,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 13:26 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 13:53 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13517,14 +13519,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+df382a39 [handoff]: R-NOW13 - broken bank link prompts shipped (6d974248, bd3ba569)
+bd3ba569 [dashboard]: a stopped bank sync shows a banner on Home, ahead of the statement-consent ask
+6d974248 [accounts]: a bank link that needs a sign-in says so - syncing has stopped
 c5ed602e [handoff]: R-NOW13 - intro offer web + native shipped, console list with Sam (e9a278bd)
 7c503ea2 [premium]: native paywall names the store intro offer when the user is eligible (a6375f1c)
 de726b9f [premium]: web paywall shows the first-year intro offer when the server says so (a6375f1c)
 5ef97954 [handoff]: R-NOW12 - intro offer mid-flight (server shipped undeployed, web paywall uncommitted)
 680d11f1 [premium]: first-year intro offer - server half (opt-in, fails closed, NOT YET DEPLOYED)
-c875d4b1 [nav]: the Debt highlight dot sits on the icon's corner with a ring, not on the glyph
-9d2e7b92 [handoff]: R-NOW11 - three e1b0fffc slices shipped, wake 5041ac9e still session-only
-8c0bbc04 [nav]: the desktop rail shows one selected row - Debt's emphasis is a dot, not a second fill
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
