@@ -21,6 +21,8 @@
  *          ARM A and B are its control: they must show NO partner card.
  *   ARM D  ARM A with the release-flag PATCH never answered (ask 769b6e40): "See your plan" must
  *          still reach the finish. A control asserts the PATCH really was held.
+ *   ARM E  presses "Save what I have" on Expenses (ask 9d793687): the save is on that press, carries
+ *          the income, and reaches the finish. ARM A asserts the link is on its Expenses screen too.
  * Each arm asserts the SCREEN: the first save is on "See your plan", "Your profile is set" is
  * shown only after it, the final button saves the wizard zero more times, and the URL lands.
  *
@@ -131,7 +133,9 @@ const safeJsonKeys = (t) => Object.keys(safeJson(t)).join('+');
 // show the partner card, and only then; ARM A is the control that it is absent for "Just me".
 // hangFlag: never answer the release-flag PATCH (tour_flags), the write that hung a real walk on
 // 2026-10-06 (ask 769b6e40). The wizard must still move on within its bound.
-async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = false, partner = false, hangFlag = false) {
+// saveEarly (ask 9d793687): on Expenses press "Save what I have" instead of walking to Goals. The save
+// must land on THAT press, carry the income, and still reach the finish screen.
+async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = false, partner = false, hangFlag = false, saveEarly = false) {
   // leaveBanner: never dismiss the cookie banner, so every press must reach its control WITH the
   // banner up. Before 2026-09-29 the banner covered Continue at 390px and this arm could not finish.
   const st = { screens: 0, presses: 0, fields: 0, writes: [], log: [], savePress: null, cookie: leaveBanner };
@@ -215,14 +219,25 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
   await shot('income');
   await fill('Gross per paycheck', '1875');
   await press('button', /^Continue/, 'Continue');
-  for (const name of ['expenses', 'debts', 'savings']) {
-    await shot(name);
-    await press('button', /^Continue/, 'Continue');
+  const savePressName = saveEarly ? 'Save what I have' : 'See your plan';
+  let bannerUp = false;
+  let earlySave = [];
+  if (saveEarly) {
+    await shot('expenses');
+    earlySave = await press('button', /Save what I have/, savePressName);
+  } else {
+    // Control for ARM E: the save-early link must be ON the normal walk's Expenses screen too,
+    // or ARM E would be pressing something only it can see.
+    for (const name of ['expenses', 'debts', 'savings']) {
+      await shot(name);
+      if (name === 'expenses') st.earlyLinkShown = await page.getByRole('button', { name: /Save what I have/ }).isVisible().catch(() => false);
+      await press('button', /^Continue/, 'Continue');
+    }
+    await shot('goals');
+    // Positive control for leaveBanner: the banner must really be up here, or this arm proves nothing.
+    bannerUp = await page.getByRole('region', { name: 'Cookie consent' }).isVisible().catch(() => false);
+    await press('button', /See your plan/, savePressName);
   }
-  await shot('goals');
-  // Positive control for leaveBanner: the banner must really be up here, or this arm proves nothing.
-  const bannerUp = await page.getByRole('region', { name: 'Cookie consent' }).isVisible().catch(() => false);
-  await press('button', /See your plan/, 'See your plan');
   // The pitch's buttons only navigate; the press log shows they write nothing.
   await shot('premium-1');
   await press('button', /^No thanks$/, 'No thanks');
@@ -246,7 +261,10 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
 
   const checks = [
     ...(leaveBanner ? [['cookie banner stayed up for the whole walk (control)', bannerUp, `visible=${bannerUp}`]] : []),
-    ['first save is on "See your plan"', st.savePress === 'See your plan', `was ${st.savePress ?? 'NONE'}`],
+    [`first save is on "${savePressName}"`, st.savePress === savePressName, `was ${st.savePress ?? 'NONE'}`],
+    ...(saveEarly ? [['the early save writes the income', earlySave.some((w) => w.path.startsWith('profiles') && /weekly_gross_income/.test(w.fields)),
+      earlySave.map((w) => `${w.path} {${w.fields}}`).join('; ') || 'no writes']] : []),
+    ...(!saveEarly && arm === 'ARM A' ? [['"Save what I have" shows on Expenses once income is in', st.earlyLinkShown === true, `visible=${st.earlyLinkShown}`]] : []),
     ['finish screen shown, and only after the save', finishShown && savedBeforeFinish, `shown=${finishShown} savedBefore=${savedBeforeFinish}`],
     [`"${final.name}" does not save the wizard again`, finalWrites.filter((w) => w.isWizardSave).length === 0,
       `${finalWrites.filter((w) => w.isWizardSave).length} wizard saves; ${finalWrites.filter((w) => w.isCacheRestore).length} cache_restore (probe artefact, see header)`],
@@ -270,6 +288,7 @@ try {
   arms.push(await runArm(browser, 'ARM B', { role: 'link', re: /Explore Premium/, name: 'Explore Premium' }, '/premium', false, true));
   arms.push(await runArm(browser, 'ARM C', { role: 'button', re: /Set up partner sharing/, name: 'Set up partner sharing' }, '/account', true, false, true));
   arms.push(await runArm(browser, 'ARM D', { role: 'button', re: /Continue free/, name: 'Continue free' }, '/dashboard', false, false, false, true));
+  arms.push(await runArm(browser, 'ARM E', { role: 'button', re: /Continue free/, name: 'Continue free' }, '/dashboard', true, false, false, false, true));
 } catch (err) {
   // NOT fail() here: process.exit skips `finally`, and a red run then left the walk account at
   // onboarding_completed=false (measured 2026-09-29). Record it; exit after the restore.
@@ -301,6 +320,6 @@ for (const a of arms) {
 }
 console.log(`\narms examined: ${arms.length}  checks failed: ${failed}`);
 console.log(`machine time: ${((Date.now() - t0) / 1000).toFixed(1)} s (NOT a human time)   frames: ${OUT}`);
-if (arms.length !== 4) fail(2, `${arms.length} of 4 arms ran - nothing complete was measured.`);
+if (arms.length !== 5) fail(2, `${arms.length} of 5 arms ran - nothing complete was measured.`);
 if (failed) fail(1, `${failed} check(s) failed.`);
 console.log('OK - the save happens before the finish screen claims it, and neither finish button saves twice.');

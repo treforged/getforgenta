@@ -55,6 +55,9 @@ type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | '
 
 /** The steps that ask for numbers by hand — the ones a linked bank makes optional. */
 const MANUAL_STEPS: Step[] = ['income', 'expenses', 'debts', 'savings', 'goals'];
+// Steps after income where a user without a bank may save what they have and finish later. Not
+// income (the plan needs it) and not goals (its own button already saves).
+const SAVE_EARLY_STEPS: Step[] = ['expenses', 'debts', 'savings'];
 
 /**
  * The steps a reload may reopen on (ask b3f0bbcc). Never 'premium' or 'finish': both come after the
@@ -560,6 +563,10 @@ export default function Onboarding() {
   // the sync has not run yet, free users have no bank, and a head start is still worth having.
   const hintFor = (what: string) => (bankLinked ? <BankLinkedHint what={what} /> : null);
   const showSkipToPlan = bankLinked && MANUAL_STEPS.includes(step);
+  // Without a bank nothing was saved until "See your plan", four screens past income - so a person
+  // who stopped on Expenses kept nothing but a local draft (ask 9d793687: 12 of 17 empty accounts
+  // saved nothing). Once income is in, the plan has what it needs; the rest can be added in the app.
+  const showSaveEarly = !bankLinked && SAVE_EARLY_STEPS.includes(step) && (parseFloat(data.weeklyGross) || 0) > 0;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-4 py-8">
@@ -953,6 +960,15 @@ export default function Onboarding() {
                   className="w-full text-center text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1"
                 >
                   Skip the rest — read it from my bank →
+                </button>
+              )}
+              {showSaveEarly && (
+                <button
+                  onClick={seePlan}
+                  disabled={saving}
+                  className="w-full text-center text-xs text-muted-foreground hover:text-foreground transition-colors py-1"
+                >
+                  Save what I have — add the rest later →
                 </button>
               )}
             </div>

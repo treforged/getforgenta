@@ -255,6 +255,8 @@ section states reasoning, not measurement, and says so.
   Leaderboard first. Red both ways (redirect removed; card always shown). Frames: test-results/first-save/partner-*.
   ARM D (ask 769b6e40) never answers the release-flag PATCH: "See your plan" must still reach the finish, because
   a real walk hung there for good with the profile already saved. Red on the unbounded write (walk stuck, exit 1).
+  ARM E (2026-10-06) presses "Save what I have" on Expenses (no bank): the save must land on that press with the
+  income and still reach the finish; ARM A asserts the link shows on its Expenses screen. Red with the link hidden (exit 1).
 - `npm run check:save-timeouts` - supabase-js has NO timeout, so every write the first-run path waits on is bounded
   (`boundedWrite`, 15 s; ask 61c40702). At 390x844 on the walk account, writes answered in-browser, it HOLDS one write
   open per arm: the profile save (timeout message, no finish screen, button usable again), a budget_items insert (save
