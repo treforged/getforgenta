@@ -321,6 +321,7 @@ section states reasoning, not measurement, and says so.
 - `npm run check:relink-prompt` - a BROKEN bank link says so (Accounts > Banks, 390x844, signed in). financial_connections
   answered in-browser with one Plaid row: reauth_required must show "sign in again" + Re-link; active must not. Red on the
   pre-fix row, which ignored connection_status and showed only "Updated Oct 3". Rules + 7 tests: src/lib/relink-prompt.ts.
+  The Linked Banks header must read "1 bank paused" with a gold (not green) dot; red on the pre-change header.
   Dashboard arm: BrokenLinkBanner shows and the statement-consent banner does NOT (one nudge at a time); Dismiss hands over
   to consent. Red on the pre-banner Dashboard. Frames show a Cloudflare notice and the free-bank notice: probe artefacts
   (functions are aborted; the stub row has no linked accounts). Does NOT cover Akoya or desktop widths.

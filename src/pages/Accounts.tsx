@@ -1,5 +1,5 @@
 import PanelBar from '@/components/shared/PanelBar';
-import { relinkPrompt } from '@/lib/relink-prompt';
+import { relinkPrompt, brokenLinkItems } from '@/lib/relink-prompt';
 import SurfaceGuide from '@/components/shared/SurfaceGuide';
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
@@ -1303,12 +1303,15 @@ export default function Accounts({ embedded = false, simple = false }: { embedde
               .filter(Boolean)
               .sort()
               .at(-1);
+            // A green dot beside a bank whose sync has STOPPED read as "all fine" (2026-10-06).
+            const paused = brokenLinkItems(plaidItems).length;
             return (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent ? 'bg-success' : 'bg-gold'}`} />
+              <div data-testid="banks-sync-status" className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${mostRecent && paused === 0 ? 'bg-success' : 'bg-gold'}`} />
                 {mostRecent
                   ? `Last synced ${new Date(mostRecent).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · Syncs daily at ${formatDailySyncTime()}`
                   : `Not yet synced · Syncs daily at ${formatDailySyncTime()}`}
+                {paused > 0 && ` · ${paused === 1 ? '1 bank' : `${paused} banks`} paused`}
               </div>
             );
           })()}

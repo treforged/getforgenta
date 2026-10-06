@@ -115,6 +115,15 @@ const readPrompt = async status => {
   try { await page.getByText('Probe Bank').first().waitFor({ state: 'visible', timeout: 10000 }); }
   catch { await ctx.close(); await done(2, `CONTROL FAILED: the stubbed connection never rendered (served ${served}).`); }
   const strip = page.getByTestId('relink-prompt');
+  const header = page.getByTestId('banks-sync-status');
+  const headerText = (await header.count()) ? await header.first().innerText() : '';
+  const headerDotGreen = (await header.count())
+    ? await header.first().locator('div').first().evaluate(e => e.className.includes('bg-success')) : null;
+  console.log(`  ${status} header: ${JSON.stringify(headerText)} green dot ${headerDotGreen}`);
+  if (status === 'reauth_required' && (!/1 bank paused/.test(headerText) || headerDotGreen !== false)) {
+    await ctx.close(); await done(1, 'the Linked Banks header still reads healthy (green, no "paused") with a broken bank.');
+  }
+  if (status === 'active' && /paused/.test(headerText)) { await ctx.close(); await done(1, 'a healthy bank reads as paused.'); }
   const text = (await strip.count()) ? await strip.first().innerText() : '';
   if (status === 'reauth_required') {
     await page.getByText('Probe Bank').first().evaluate(e => e.scrollIntoView({ block: 'center' }));
