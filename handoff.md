@@ -1,6 +1,22 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW4 (2026-10-05 ~23:10 ET, Ada getforgenta-fd -> successor). START HERE, IN ORDER:
+  1. RE-ARM eb7282e9 (Play ship fallback, 06:39 ET 10-06): CronCreate '39 6 6 10 *' one-shot - my f9096417 dies with this tab.
+     Then follow `ask show eb7282e9` exactly at that time.
+  2. STANDING e1b0fffc (c) spent-of-planned, docs/simple-view/PROPOSAL.md:52 ('Budget: Spent of planned (one bar);
+     categories with one progress bar each'). NOT STARTED - design only. Facts so far: PLANNED = budget-month-totals.ts
+     (rules, app categories). ACTUAL candidates: `transactions` (type='expense', app categories, origin manual|synced,
+     user-corrected) vs `synced_transactions` (Plaid primary; map via src/lib/plaid-category-map.ts suggestCategory).
+     FIRST run this SQL on Tre's account (a72f416e-...) to see which source holds this month's real spending:
+       transactions expense by origin this month; synced_transactions by category this month; active expense rules by
+       category. Decide: prefer `transactions` if bank rows reach it (user-corrected categories, one source of truth);
+       state the rule in the commit. Build in BudgetControl Simple (`simple` prop, src/pages/BudgetControl.tsx:236).
+       Pure helper + tests -> free tier first (llm --shape ts-pure-helper-tests; brief: export every symbol, tests import).
+  3. Shipped this session (all pushed 0/0): 876e06c4 loan chart once; c2e35e99 phone partner view; 8deabd10 invite code
+     survives onboarding; e7c2dd85 invite name (deployed); 531cc678 own notices hidden in partner view; 60418be5 Finish
+     sooner in Advanced + row layout; 9e179cba desktop rail closes after a click. New gates: check:loan-chart,
+     check:partner-view, check:invite-resume (needs SQL throwaway), check:rail-click, check:pay-more VIEW=advanced.
 R-NOW3 (2026-10-05 ~22:00 ET, Ada). Tre meant PARTNER linking. Tested end to end with throwaways (all deleted, 0 rows):
   works = invite+email, free 403, accept via link, both linked, desktop partner view. FIXED + pushed: c2e35e99 phone entry
   (check:partner-view), 8deabd10 code survives /auth+/onboarding (check:invite-resume, src/lib/pending-invite.ts),
@@ -13366,7 +13382,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 21:55 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 22:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13386,14 +13402,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+73e1045a [handoff]: R-NOW3 - Finish sooner in Advanced + rail click fix shipped; next spent-of-planned
+60418be5 [debt]: "Finish sooner" shows in the Advanced view too, and its rows fit any phone (e1b0fffc)
+9e179cba [rail]: the desktop sidebar closes after a mouse click instead of staying open over the page
+46bfd8dc [handoff]: R-NOW3 - partner view notices shipped; next Finish sooner in Advanced
+531cc678 [partner]: the partner's budget no longer shows the viewer's own-account notices (ask 3201f66a)
 11a87c07 [handoff]: R-NOW3 - partner linking tested, 3 fixes shipped; next: partner view write controls
 e7c2dd85 [invites]: an invite from someone with no display name says "A Forgenta member" (ask b6b27be2)
 8deabd10 [invites]: a partner or friend invite code survives sign-up and onboarding (ask 4f623f93)
-c2e35e99 [partner]: a phone can open the partner's budget from the linked card (ask 07351a98)
-d48a7def [handoff]: R-NOW2 - loan chart dedupe shipped; linking answered; eb7282e9 wake re-armed
-876e06c4 [debt]: Auto Loans draws each car's payoff graph once, not twice (ask 336b096c)
-8b6c0bff [handoff]: R-NOW - loan chart dedupe uncommitted for render check; account-linking question to verify
-04b642db [handoff]: iOS 1319 uploaded with the security fix; hero link shipped
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
