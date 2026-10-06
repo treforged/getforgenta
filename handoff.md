@@ -1,6 +1,14 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW16 (2026-10-06 ~15:55 ET, Ada). R-NOW15 item 1 DONE:
+  - create-checkout DEPLOYED v78 on Tre's typed "yes deploy" in Ada's tab; live source contains
+    STORE_PROVIDERS + stripeHistoryShowsSubscription (== HEAD 394158ee).
+  - Live probe as intro-probe-1006: offer 200 {"eligible":true,"monthly":true,"yearly":true}; intro checkout
+    monthly 200 + yearly 200 with client_secret. (Was 409 ever_subscribed.) The 6 free users are eligible now too.
+  - Probe user DELETED: auth.users 0, auth.identities 0, user_subscriptions 0. Its Stripe customer remains in
+    Stripe (no Stripe access here; harmless, no subscription). Remaining @forgenta.test = deck-walk + reach-rls-probe (fixtures).
+  NEXT: CronCreate ac255c92 fires 10-07 11:37 (session-only). Play Console intro offers: Sam, blocked. e1b0fffc standing.
 R-NOW15 (2026-10-06 ~15:35 ET, Ada). START HERE:
   1. ROOT CAUSE FOUND, not the Stripe list: user_subscriptions.purchase_provider DEFAULTS to 'stripe', and
      decideIntroEligibility read any non-null value as ever-subscribed -> 6 free users (no sub id) were ineligible,
