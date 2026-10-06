@@ -31,6 +31,21 @@ beforeEach(() => {
 });
 
 describe('recordFunnelStep', () => {
+  it('tap_store records BOTH stores, once each (ask 4f473837)', () => {
+    recordFunnelStep('tap_store', { detail: 'app_store' });
+    recordFunnelStep('tap_store', { detail: 'app_store' });
+    recordFunnelStep('tap_store', { detail: 'play_store' });
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(insertMock.mock.calls.map((c) => c[0].detail)).toEqual(['app_store', 'play_store']);
+  });
+
+  it('landing_viewed is counted once per page life', () => {
+    recordFunnelStep('landing_viewed');
+    recordFunnelStep('landing_viewed');
+    expect(insertMock).toHaveBeenCalledOnce();
+    expect(insertMock.mock.calls[0][0]).toMatchObject({ step: 'landing_viewed', detail: '' });
+  });
+
   it('sends a welcome_shown event with defaults', () => {
     recordFunnelStep('welcome_shown');
     expect(fromMock).toHaveBeenCalledOnce();

@@ -4,6 +4,9 @@ import { motion, useMotionValue, useSpring, type Variants } from 'framer-motion'
 import { useTranslation } from 'react-i18next';
 import { useDemo } from '@/contexts/DemoContext';
 import LanguageSwitcher from '@/components/shared/LanguageSwitcher';
+import SocialProof from '@/components/landing/SocialProof';
+import { recordFunnelStep } from '@/lib/signup-funnel';
+import { APP_STORE_URL } from '@/lib/store-rating';
 import { ArrowRight, BarChart3, Shield, Target, Wallet, Car, Crown, TrendingUp, Lock, Zap } from 'lucide-react';
 
 const fadeUp: Variants = {
@@ -79,6 +82,11 @@ export default function Landing() {
   // `CaptureReferral` in `App.tsx`, which runs on every route — a shared link that points anywhere
   // other than the home page (`/auth?ref=…`, a deep link into a build) attributes just the same.
   // See `@/lib/referral`.
+  // The denominator of landing-to-download conversion (ask 4f473837). Counted once per page life.
+  useEffect(() => {
+    recordFunnelStep('landing_viewed');
+  }, []);
+
   const springX = useSpring(mouseX, { stiffness: 60, damping: 20 });
   const springY = useSpring(mouseY, { stiffness: 60, damping: 20 });
 
@@ -213,10 +221,11 @@ export default function Landing() {
           transition={{ delay: 0.55, duration: 0.5 }}
         >
           <a
-            href="https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239"
+            href={APP_STORE_URL}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={t('hero.appStoreAria')}
+            onClick={() => recordFunnelStep('tap_store', { detail: 'app_store' })}
           >
             <img
               src="/app-store-badge.svg"
@@ -229,6 +238,7 @@ export default function Landing() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={t('hero.playStoreAria')}
+            onClick={() => recordFunnelStep('tap_store', { detail: 'play_store' })}
           >
             <img
               src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"
@@ -236,6 +246,7 @@ export default function Landing() {
               style={{ height: 64, width: 'auto' }}
             />
           </a>
+          <SocialProof />
         </motion.div>
       </section>
 

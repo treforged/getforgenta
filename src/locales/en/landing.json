@@ -79,5 +79,11 @@
     "rights": "© {{year}} Forgenta™ by TRE Forged LLC. All rights reserved.",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service"
+  },
+  "socialProof": {
+    "ratingCount_one": "{{count}} rating on the App Store",
+    "ratingCount_other": "{{count}} ratings on the App Store",
+    "testimonialsLabel": "What users say",
+    "rewardDisclosure": "Received 3 free months of Premium for sharing this review."
   }
 }

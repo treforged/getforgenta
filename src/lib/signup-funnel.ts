@@ -24,7 +24,11 @@ export type FunnelStep =
   | 'auth_error'
   | 'confirm_email_shown'
   | 'signup_completed'
-  | 'try_demo';
+  | 'try_demo'
+  /** The landing page mounted (ask 4f473837: landing-to-download conversion). */
+  | 'landing_viewed'
+  /** A store badge on the landing page was pressed; `detail` is 'app_store' or 'play_store'. */
+  | 'tap_store';
 export type FunnelMethod = '' | 'email' | 'google' | 'apple';
 
 /** Hosts whose rows count as real visitors. The native apps load getforgenta.com too. */
@@ -130,7 +134,9 @@ export function recordFunnelStep(
         ? platformRaw
         : '';
 
-    const key = `${step}|${method}`;
+    // tap_store carries WHICH store in `detail`; without it in the key, a visitor who taps the App
+    // Store badge and then the Play badge would record only the first.
+    const key = step === 'tap_store' ? `${step}|${method}|${detail}` : `${step}|${method}`;
 
     if (step === 'auth_error') {
       if (authErrorCount >= 5) {

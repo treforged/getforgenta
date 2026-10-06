@@ -318,6 +318,12 @@ section states reasoning, not measurement, and says so.
   $0.99 (Tre, ask 852772a5) with "Then $89.99/yr" / "Then $9.99/mo", no SAVE 25%, NO struck-through text (no "was" price, ask 599911a7); Get sends
   intro:true; a 409 shows a message and drops the offer. Controls: offer off shows $89.99 + SAVE 25%; a 400 (old deployed
   function) shows no offer. Red three ways (intro flag dropped, a struck "was" price, SAVE 25% kept).
+- `npm run check:landing-proof` - the landing page's social proof and download counting (ask 4f473837), 390 and 1440,
+  signed OUT, dev server. The live App Store rating must render beside the badges and AGREE with Apple's lookup fetched by
+  the script (5.0 / 5 ratings on 2026-10-06); PRESSING each badge must send one `tap_store` row with its store, and the
+  page one `landing_viewed`. Inserts are answered in-browser, store tabs closed. Red two ways (Play counter removed;
+  section removed). Conversion READ: signup_funnel_events env='prod' platform='web', tap_store per landing_viewed.
+  Testimonials live in `src/data/testimonials.ts` (empty until Ruby approves one; rewarded ones show the FTC disclosure).
 - `npm run check:relink-prompt` - a BROKEN bank link says so (Accounts > Banks, 390x844, signed in). financial_connections
   answered in-browser with one Plaid row: reauth_required must show "sign in again" + Re-link; active must not. Red on the
   pre-fix row, which ignored connection_status and showed only "Updated Oct 3". Rules + 7 tests: src/lib/relink-prompt.ts.
