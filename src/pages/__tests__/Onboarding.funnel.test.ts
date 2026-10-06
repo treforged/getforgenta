@@ -3,7 +3,7 @@
 // jsdom purely so importing the page does not blow up on `localStorage` in the Supabase client at
 // module load. Nothing here renders anything: the rule under test is pure.
 import { describe, it, expect } from 'vitest';
-import { furthestStepPatch, shouldLeaveOnboarding } from '../Onboarding';
+import { buildSteps, furthestStepPatch, shouldLeaveOnboarding } from '../Onboarding';
 
 /**
  * WHERE PEOPLE STOP IN ONBOARDING — Tre, 2026-09-02: "conversion is the metric".
@@ -12,11 +12,12 @@ import { furthestStepPatch, shouldLeaveOnboarding } from '../Onboarding';
  * actionable question is WHICH STEP loses them, and the only thing that can get that wrong in an
  * interesting way is the monotonic rule. Everything below is about that rule.
  *
- * The premium and free flows differ at the SECOND step (`bank` vs `premium`), which is why
- * position is compared inside the user's own sequence rather than against one global list.
+ * The premium and free flows differ by ONE step: free carries `premium` (the pitch) before the
+ * finish, premium does not (since ask 2fb9bc69 both get `bank` second). That is why position is
+ * compared inside the user's own sequence rather than against one global list.
  */
 
-const FREE = ['welcome', 'premium', 'income', 'expenses', 'debts', 'savings', 'goals', 'finish'] as const;
+const FREE = ['welcome', 'bank', 'income', 'expenses', 'debts', 'savings', 'goals', 'premium', 'finish'] as const;
 const PREMIUM = ['welcome', 'bank', 'income', 'expenses', 'debts', 'savings', 'goals', 'finish'] as const;
 const AT = () => '2026-09-05T12:00:00.000Z';
 
@@ -61,18 +62,18 @@ describe('furthestStepPatch', () => {
       .toEqual({ onboarding_started_at: '2026-09-05T12:00:00.000Z' });
   });
 
-  it('compares position INSIDE the user\'s own flow — premium and free differ at step two', () => {
-    // `bank` is index 1 of the premium flow and absent from the free one. Judged against the free
-    // list it would be index -1 and every later step would look like progress from nothing.
-    expect(furthestStepPatch('bank', AT(), 'income', PREMIUM, AT))
-      .toEqual({ onboarding_furthest_step: 'income' });
-    expect(furthestStepPatch('income', AT(), 'bank', PREMIUM, AT)).toBeNull();
+  it("compares position INSIDE the user's own flow — free carries a step premium does not", () => {
+    // `premium` is index 7 of the free flow and absent from the premium one. Judged against the
+    // premium list it would be index -1 and every later step would look like progress from nothing.
+    expect(furthestStepPatch('goals', AT(), 'premium', FREE, AT))
+      .toEqual({ onboarding_furthest_step: 'premium' });
+    expect(furthestStepPatch('premium', AT(), 'goals', FREE, AT)).toBeNull();
   });
 
   it('lets a recognised step overwrite an unrecognised stored value', () => {
     // A value this flow does not contain is not a position within it, so it must not pin the
     // funnel forever. The direction is deliberate: forward.
-    expect(furthestStepPatch('bank', AT(), 'income', FREE, AT))
+    expect(furthestStepPatch('premium', AT(), 'income', PREMIUM, AT))
       .toEqual({ onboarding_furthest_step: 'income' });
   });
 
@@ -112,5 +113,18 @@ describe('shouldLeaveOnboarding', () => {
     expect(shouldLeaveOnboarding(null, { message: 'network' })).toBe(false);
     expect(shouldLeaveOnboarding(null)).toBe(false);
     expect(shouldLeaveOnboarding({ onboarding_completed: true }, { message: 'network' })).toBe(false);
+  });
+});
+
+describe('buildSteps (ask 2fb9bc69)', () => {
+  it('asks EVERY tier to link a bank second, and keeps the free pitch just before the finish', () => {
+    expect(buildSteps(false)).toEqual([...FREE]);
+    expect(buildSteps(true)).toEqual([...PREMIUM]);
+  });
+});
+describe('buildSteps (ask 2fb9bc69)', () => {
+  it('asks EVERY tier to link a bank second, and keeps the free pitch just before the finish', () => {
+    expect(buildSteps(false)).toEqual([...FREE]);
+    expect(buildSteps(true)).toEqual([...PREMIUM]);
   });
 });

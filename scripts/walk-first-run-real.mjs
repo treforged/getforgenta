@@ -102,6 +102,8 @@ const checks = [];
 let landed = '';
 let wizardShown = false;
 let finishShown = false;
+let freeBankShown = false;
+let pitchShown = false;
 let whatsNewOnHome = null;
 let tourOnHome = false;
 let dialogsOnHome = -1;
@@ -115,8 +117,11 @@ try {
   await shot('welcome');
   await page.getByLabel('What should we call you?', { exact: false }).first().fill('First Run');
   await press(/^Continue/);
-  await press(/^No thanks$/);
-  await press(/stay on free/i);
+  // Ask 2fb9bc69: a FREE account is asked to link a bank second, and told the first link is free.
+  freeBankShown = await page.getByTestId('free-first-bank').first()
+    .waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+  await shot('bank');
+  await press(/Skip for now/);
   await page.getByText(/Income & Paycheck/i).first().waitFor({ timeout: 10000 });
   await page.getByLabel('Gross per paycheck', { exact: false }).first().fill('1500');
   await shot('income');
@@ -124,6 +129,12 @@ try {
   for (const name of ['expenses', 'debts', 'savings']) { await shot(name); await press(/^Continue/); }
   await shot('goals');
   await press(/See your plan/);
+  // The premium pitch now sits AFTER the save, one step before the finish.
+  pitchShown = await page.getByText(/^No thanks$/).first()
+    .waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
+  await shot('premium');
+  await press(/^No thanks$/);
+  await press(/stay on free/i);
   finishShown = await page.getByText(/Your profile is set/i).first()
     .waitFor({ timeout: 10000 }).then(() => true).catch(() => false);
   await shot('finish');
@@ -165,6 +176,8 @@ console.log(`after+10s: ${JSON.stringify(after2)}`);
 checks.push(
   ['wizard rendered for a fresh account (control)', wizardShown, `shown=${wizardShown}`],
   ['"See your plan" reached "Your profile is set"', finishShown, `shown=${finishShown}`],
+  ['the bank step showed "first bank connection is free"', freeBankShown, `shown=${freeBankShown}`],
+  ['the premium pitch showed after the save, before the finish', pitchShown, `shown=${pitchShown}`],
   ['"Continue free" landed on /dashboard', landed === '/dashboard', `landed ${landed || 'nowhere'}`],
   ['no write was refused', writes.every((w) => !/ [45]\d\d$/.test(w)), `${writes.filter((w) => / [45]\d\d$/.test(w)).length} of ${writes.length} refused`],
   ["onboarding_furthest_step = 'finish' after the walk", after1.onboarding_furthest_step === 'finish', `${after1.onboarding_furthest_step}`],

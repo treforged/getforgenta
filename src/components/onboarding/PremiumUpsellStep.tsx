@@ -1,8 +1,9 @@
-// The free user's stand-in for the bank-connect step.
+// The free user's premium pitch, one step before the finish.
 //
-// Carried over from the retired Dashboard modal wizard, which showed two upsell stages before free
-// onboarding began. Premium is what unlocks the bank link, so this sits in exactly the slot the
-// premium flow gives to Plaid, and declining drops straight into manual entry — nobody is blocked.
+// Carried over from the retired Dashboard modal wizard. It used to REPLACE the bank step for free
+// accounts, when premium was what unlocked any bank link. The first link has been free since
+// 2026-09-06, so free accounts now get the bank step too and see this after the manual steps
+// (ask 2fb9bc69). Declining moves on to the finish - nobody is blocked.
 
 import { useState } from 'react';
 // DERIVED, NEVER TYPED. Until 2026-09-18 these read "Up to 3" and "manual-only on free"

@@ -51,11 +51,17 @@ type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | '
 const MANUAL_STEPS: Step[] = ['income', 'expenses', 'debts', 'savings', 'goals'];
 
 /**
- * Premium gets bank connect where free gets the premium pitch: linking is what premium buys, so the
- * two tiers see the same slot answered differently rather than a different-length flow.
+ * EVERY tier is asked to link a bank second (ask 2fb9bc69, Tre 10-06: "look for more to copy/improve
+ * from our competitors. onboarding"). Copilot, Monarch and YNAB all lead with the bank link and build
+ * the budget from history; ours already does that (RulesFoundCard) but showed it to premium only.
+ * The first link has been free since 2026-09-06 (plaid-create-link-token: 200 + link_token for a
+ * free account, measured 2026-10-06), so the old reason - "linking is what premium buys" - is gone.
+ * Free accounts still see the premium pitch, one step before the finish, so nothing was removed.
  */
-function buildSteps(isPremium: boolean): Step[] {
-  return ['welcome', isPremium ? 'bank' : 'premium', ...MANUAL_STEPS, 'finish'];
+export function buildSteps(isPremium: boolean): Step[] {
+  return isPremium
+    ? ['welcome', 'bank', ...MANUAL_STEPS, 'finish']
+    : ['welcome', 'bank', ...MANUAL_STEPS, 'premium', 'finish'];
 }
 
 /**
@@ -473,9 +479,11 @@ export default function Onboarding() {
     }
   };
 
-  // "See your plan" and "Skip the rest": save, and show the finish screen only once it landed.
+  // "See your plan" and "Skip the rest": save, and move on only once it landed. The step after goals
+  // is the finish for premium and the premium pitch for free (ask 2fb9bc69) - so the save still runs
+  // BEFORE anything says "Your profile is set", and the pitch's buttons only navigate.
   const seePlan = async () => {
-    if (await persist()) setStep('finish');
+    if (await persist()) setStep(steps[steps.indexOf('goals') + 1] ?? 'finish');
   };
 
   // The finish screen's own buttons. `persist` is a no-op once saved, so these only navigate.
@@ -556,7 +564,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── Bank connect (premium) ── */}
+          {/* ── Bank connect (every tier; the first link is free) ── */}
           {step === 'bank' && (
             <div className="space-y-4">
               <BankConnectStep
@@ -566,6 +574,7 @@ export default function Onboarding() {
                 // card below appears if and when it finds something, and never otherwise.
                 onLinked={() => setBankLinked(true)}
                 onSkip={next}
+                free={!isPremium}
               />
               {bankLinked && (
                 <>
@@ -582,7 +591,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* ── Premium pitch (free — the slot premium spends on Plaid) ── */}
+          {/* ── Premium pitch (free accounts, just before the finish) ── */}
           {step === 'premium' && (
             <PremiumUpsellStep onUpgrade={() => navigate('/premium')} onDecline={next} />
           )}

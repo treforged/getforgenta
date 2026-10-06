@@ -34,7 +34,7 @@
  * and read back on every path, including a failed walk.
  *
  * DOES NOT MEASURE: human time (machine time is printed but means nothing about a person), the
- * bank-link path (the walk account is free, so it sees the premium screens), OAuth sign-up, or
+ * bank-link path (it presses Skip on the bank step), OAuth sign-up, or
  * whether the screens are clear. Frames are saved so a person can judge the last one.
  *
  * USAGE: node scripts/measure-first-save.mjs [outDir]
@@ -189,10 +189,10 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
   await shot('welcome');
   await fill('What should we call you?', 'Walk Tester');
   await press('button', /^Continue/, 'Continue');
-  await shot('premium-1');
-  await press('button', /^No thanks$/, 'No thanks');
-  await shot('premium-2');
-  await press('button', /stay on free/i, "I'll stay on free");
+  // Since 2026-10-06 (ask 2fb9bc69) a free account is asked to link a bank second, and sees the
+  // premium pitch AFTER the save, one step before the finish.
+  await shot('bank');
+  await press('button', /Skip for now/, 'Skip for now');
   await page.getByText(/Income & Paycheck/i).first().waitFor({ timeout: 10000 });
   await shot('income');
   await fill('Gross per paycheck', '1875');
@@ -205,6 +205,11 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
   // Positive control for leaveBanner: the banner must really be up here, or this arm proves nothing.
   const bannerUp = await page.getByRole('region', { name: 'Cookie consent' }).isVisible().catch(() => false);
   await press('button', /See your plan/, 'See your plan');
+  // The pitch's buttons only navigate; the press log shows they write nothing.
+  await shot('premium-1');
+  await press('button', /^No thanks$/, 'No thanks');
+  await shot('premium-2');
+  await press('button', /stay on free/i, "I'll stay on free");
 
   // ASSERT THE SCREEN, NOT THE ROW: the finish screen must be on screen, and must be there only
   // AFTER the save - which the press log already orders.

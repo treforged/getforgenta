@@ -1,4 +1,4 @@
-// Bank connect, the first thing a premium user is asked for.
+// Bank connect, the first thing every new user is asked for (free accounts: the first link is free).
 //
 // Moved here verbatim from the retired Dashboard modal wizard (`OnboardingWizard.tsx`) when the two
 // onboarding surfaces merged into the /onboarding route. `PlaidLinkButton` is mounted exactly as it
@@ -15,10 +15,13 @@ export default function BankConnectStep({
   linked,
   onLinked,
   onSkip,
+  free = false,
 }: {
   linked: boolean;
   onLinked: () => void;
   onSkip: () => void;
+  /** A free account: say the first link costs nothing, because the premium pitch used to sit here. */
+  free?: boolean;
 }) {
   // Set when Plaid reports it can't reach an institution Akoya can serve.
   const [akoyaFallback, setAkoyaFallback] = useState<AkoyaInstitution | null>(null);
@@ -35,6 +38,11 @@ export default function BankConnectStep({
             Link your bank via Plaid for automatic transaction import and daily balance updates.
             Do this first and the next few steps mostly fill themselves in.
           </p>
+          {free && (
+            <p className="text-xs font-medium text-primary mt-1.5" data-testid="free-first-bank">
+              Your first bank connection is free.
+            </p>
+          )}
         </div>
       </div>
 
