@@ -9,7 +9,7 @@ import {
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createTracer, hashId } from "../_shared/tracer.ts";
 import { stripHtmlTags } from "../_shared/sanitize.ts";
-import { decideIntroEligibility, introCouponFor } from "../_shared/intro-eligibility.ts";
+import { decideIntroEligibility, introCouponFor, stripeHistoryShowsSubscription } from "../_shared/intro-eligibility.ts";
 
 const PAYLOAD_SIZE_LIMIT = 2048;
 
@@ -163,12 +163,12 @@ Deno.serve(async (req) => {
     let stripeEverSubscribed = false;
     if (wantsIntro && existingSub?.stripe_customer_id) {
       const histRes = await fetch(
-        `https://api.stripe.com/v1/subscriptions?customer=${encodeURIComponent(existingSub.stripe_customer_id)}&status=all&limit=1`,
+        `https://api.stripe.com/v1/subscriptions?customer=${encodeURIComponent(existingSub.stripe_customer_id)}&status=all&limit=100`,
         { headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` } },
       );
       if (!histRes.ok) throw new Error(`Stripe subscription history error ${histRes.status}`);
       const hist = await histRes.json();
-      stripeEverSubscribed = Array.isArray(hist?.data) && hist.data.length > 0;
+      stripeEverSubscribed = stripeHistoryShowsSubscription(hist);
     }
     const introDecision = decideIntroEligibility(existingSub ?? null, stripeEverSubscribed);
 
