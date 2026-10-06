@@ -8,8 +8,14 @@ R-NOW10 (2026-10-06 ~11:10 ET, Ada). R-NOW9 IS DONE. State:
     header; ?tab=budget -> /budget; aria-current on both navs. Gate: npm run check:plan-tab (16 checks, red on old nav).
   - Win-back sent 14:44Z, 10/10 delivered (14b5d58d). a2c2d32f: no-save-nudge function + cron no-save-nudge-daily 15:30 UTC,
     one email per real account 3-30 days old with no rows; 10 seeded. Undo: cron.unschedule('no-save-nudge-daily').
-  NEXT: (1) on/after 2026-10-07 15:35Z read net._http_response for the cron call and tell Sam how many it sent (one line).
-  (2) e1b0fffc standing - keep improving the app. (3) ff52631d waits on Tre.
+  - fab89bc9: Plan page has its own "Plan Guide"; Transactions guide renamed. walk:press PASS 400/168/168, stubs 13/13.
+  NEXT, IN ORDER (Sam approved 1):
+  (1) walk:empty + check:one-banner on a NEW throwaway account: create empty-walk-1006@forgenta.test in SQL (auth.users +
+      auth.identities, crypt(pw, gen_salt('bf')), email_confirmed_at now()), pass EMPTY_WALK_EMAIL/EMPTY_WALK_PASSWORD,
+      then DELETE it and prove auth.users returns 0 rows. Not created yet (handoff gate fired first).
+  (2) ARM A WAKE (CronCreate one-shot, local 11:37 on 10-07): read net._http_response for the 15:30Z no-save-nudge call
+      and tell Sam one line: candidates/sent/failures. The previous session's wake died with it.
+  (3) e1b0fffc standing - keep improving the app. (4) ff52631d waits on Tre.
 R-NOW9 (2026-10-06 ~07:10 ET, Ada -> successor). START HERE, IN ORDER:
   1. ask 9d793687 (Sam): DRAFT, DO NOT SEND, one win-back email for the real accounts that saved nothing.
      Write it to claudecontext/drafts/2026-10-06_forgenta-winback.md: one 60-second action (finish setup), link
@@ -13448,17 +13454,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 09:59 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 11:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13469,14 +13474,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+5a58a099 [handoff]: R-NOW10 - Plan tab, save-early, win-back + auto follow-up
+a2c2d32f [email]: automatic one-time follow-up for new accounts that save nothing (6d0e50b0)
+57cb9665 [nav]: Plan takes Garage's bottom-bar slot (decision c5e29d9e)
+b4eea1f8 [onboarding]: no "Available after expenses" when no bills were entered
 974e9dba [onboarding]: save what you have from Expenses on, without a bank
 0a5658d2 [handoff]: R-NOW9 - win-back email draft (9d793687) for successor
 eeb63711 [handoff]: R-NOW8 - funnel measured, resume-step fix (54c59fcf)
 54c59fcf [onboarding]: a reload or relaunch reopens setup where the user left it (b3f0bbcc)
-37ec85c0 [handoff]: R-NOW8 - Play fallback shipped (run 37451288979)
-7986402c [handoff]: R-NOW8 - bounded writes shipped (bb3cc353)
-bb3cc353 [onboarding]: every write the first-run and sign-in paths wait on is bounded (61c40702)
-3413615c [handoff]: R-NOW8 - upsell screen removed, See-your-plan hang fixed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
