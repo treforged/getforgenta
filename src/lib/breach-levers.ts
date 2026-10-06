@@ -85,14 +85,14 @@ export function shortfallByMonth(result: ForecastResult, horizonMonths: number):
 }
 
 /** 'Sep 2029' -> a sortable month number; NaN for anything else. */
-function monthIndex(label: string | undefined): number {
+export function monthIndex(label: string | undefined): number {
   const [mon, year] = String(label ?? '').split(' ');
   const m = MONTHS.indexOf(mon);
   const y = Number(year);
   return m < 0 || !Number.isFinite(y) ? NaN : y * 12 + m;
 }
 
-function payoffMonth(result: ForecastResult): string | undefined {
+export function payoffMonth(result: ForecastResult): string | undefined {
   return result.milestones?.find(m => m.event.startsWith('CC Debt Free'))?.month;
 }
 

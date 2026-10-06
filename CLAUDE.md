@@ -305,6 +305,14 @@ section states reasoning, not measurement, and says so.
   controls run first (3+1, blank double, even 2x2). Proven red on Tre's two 2026-10-05 screenshots (Monthly Income
   spanning 2 columns; Minimums Due alone at 768). Its first sweep also found raw account ids printed on the
   Transactions source tiles. Does NOT cover flex-wrap rows, grids behind a dialog, or colour.
+- `npm run check:pay-more` - Debt's Simple "Finish sooner" card (ask e1b0fffc) at 390x844: view forced Simple by rewriting the
+  profile READ, every write answered 204 in-browser. PRESSES "Show me" and requires the button to go and rows (or the honest
+  no-change line) to come; rows read "Debt-free <Mon YYYY>" and grow no later as the extra grows; the card's base (first row's
+  month + months sooner) must be a month the page shows. `DEMO=1` runs on /demo, which has a debt-free date (Dec 2027 -> Oct /
+  May / Feb 2027 at +$100/250/500); the walk account never pays off, so only DEMO=1 exercises the rows. Red: an off-by-one in
+  monthsSooner (base Jan 2028 vs page Dec 2027) and a dead button, both exit 1. The lever is $X more in
+  forecastMonthEvents[1..].nonPaycheckIncome: an income RULE was tried and the engine ignored it (cash identical). Numbers:
+  pay-more-payoff.test.ts (6, red two ways) and pay-more-payoff.realData.test.ts (shortcut == full re-render at 4 amounts).
 - `npm run measure:detail-load` - an INVENTORY of cards, dollar figures and phone screens per route (ask 7515c3fa).
   VIEW_MODE=simple reads every route in the Simple view; PRESS_ROUTE=/debt presses Simple, Show each account and
   Show advanced detail there and fails if the count does not drop and return. WIDTH=1440 for desktop.

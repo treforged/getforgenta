@@ -22,6 +22,10 @@ import { PROJECTION_MONTHS } from '@/lib/scheduling';
 import LiabilityTrajectoryChart from '@/components/debt/LiabilityTrajectoryChart';
 import type { LiabilityTrajectoryInput } from '@/lib/liability-trajectory';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
+import PayMoreCard from '@/components/debt/PayMoreCard';
+import { payMoreReport } from '@/lib/pay-more-payoff';
+import { runDebtCashConvergence } from '@/lib/forecast-convergence';
+import { calculateForecast } from '@/lib/forecast-engine';
 import { usePersistedState } from '@/hooks/usePersistedState';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { isCardOpenAsOf } from '@/lib/card-start-date';
@@ -62,7 +66,16 @@ export default function DebtPayoff() {
     assumptions,
     pauseSavings,
     setPauseSavings,
+    forecastInputsBundle,
+    rawCardProjection,
   } = useCardProjectionContext();
+  // "Pay $X more, done by <date>" for the Simple view. Same re-run as Forecast's ShortfallLevers
+  // (raw sim + the bundle's inputs); measured equal to a full re-render on the 2026-09-29 capture
+  // for this lever at +$0/100/250/500 a month (Aug 2029 / May 2029 / Oct 2028 / Jun 2028).
+  const computePayMore = useCallback(() => payMoreReport(
+    forecastInputsBundle.engineInputs,
+    i => (rawCardProjection ? runDebtCashConvergence(rawCardProjection, i).projections : calculateForecast(i)),
+  ), [forecastInputsBundle, rawCardProjection]);
   // The Debt Payoff accordion + trajectory display per-card balances via the shared step3-display
   // adjustment (sim balance minus cumulative PASS-3 surplus routed to the card) so they match the
   // Forecast month popup and CSV export. Unlike the earlier reverted
@@ -593,6 +606,11 @@ export default function DebtPayoff() {
       {activeTab === 'cards' && !isSimple && (
         <ErrorBoundary variant="widget" label="Consolidation Loan">
           <ConsolidationPanel accounts={accounts ?? []} plans={paymentPlans ?? []} />
+        </ErrorBoundary>
+      )}
+      {activeTab === 'cards' && isSimple && openCreditCards.length > 0 && (
+        <ErrorBoundary variant="widget" label="Finish sooner">
+          <PayMoreCard compute={computePayMore} />
         </ErrorBoundary>
       )}
       {activeTab === 'cards' && isSimple && (
