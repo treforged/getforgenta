@@ -1,6 +1,20 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW19 (2026-10-06 ~18:45 ET, Ada -> successor; handoff gate at 179 calls). START HERE, IN ORDER:
+  1. RE-ARM the 10-07 11:37 no-save-nudge read FIRST (CronCreate one-shot "37 11 7 10 *"): read cron.job_run_details
+     for 'no-save-nudge-daily' + net._http_response (candidates/sent/failures), tell Sam, update ask a2c2d32f.
+     The old cron ac255c92 died with this tab.
+  2. SAM'S e1b0fffc SLICE (10-06, verbatim intent): (1) measure the ONBOARDING funnel from REAL rows - profiles.
+     onboarding_furthest_step + onboarding_completed joined to auth.users, EXCLUDING @forgenta.test, example.*, *.test,
+     treforged.com and other RFC-reserved domains - and find the step with the biggest drop (furthest_step is
+     monotonic; step order is in src/pages/Onboarding.tsx:81, free vs premium differ); (2) reset the REVIEWER account
+     to first run and ASSERT THE WIZARD IS ON SCREEN (a DB read-back is not enough - CLAUDE.md 'reviewer reset'), walk
+     that step; (3) fix the biggest friction you can PROVE and send Sam before/after numbers or frames. If no clear drop:
+     run the competitor-edge skill on the top 3 budgeting-app review complaints and bring Sam the first winnable one.
+     Tell Sam the ask id when it starts.
+  3. Waiting, not yours to push: a6375f1c (Play Console offers, Sam e9a278bd), 0c15746d (Android robots; Sam reads the
+     Play pre-launch report), a640c0d7 (10-20 landing read), ff52631d (Tre).
 R-NOW18 (2026-10-06 ~18:30 ET, Ada). Since R-NOW17:
   - ca4ca61a check:intro-offer-live (deployed function, walk account; red via provider 'apple', restored).
   - Full walk green: walk:routes 27/27, walk:press 401/165/165, stub 13/13 + 13/13.
@@ -13558,17 +13572,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 16:40 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 16:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13579,14 +13592,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+5583c794 [handoff]: R-NOW18 - live intro gate, walk green, Android sign-in premise likely robots
+ca4ca61a test: check:intro-offer-live - the intro offer against the DEPLOYED create-checkout
 17cc12d0 [handoff]: R-NOW17 - testimonial grant, landing social proof live, CSP lesson in the gate notes
 103eb77c [landing]: let the browser read Apple's rating - add itunes.apple.com to connect-src
 55ed0356 [landing]: live App Store rating beside the badges + landing-to-download counting (ask 4f473837)
 3a746e14 [premium]: staff-only 3-month comp for an approved video testimonial (ask a868f7c3)
 626e6b52 test: gate the intro offer against the table's REAL column defaults
 d05e351d [handoff]: R-NOW16 - create-checkout v78 live, probe eligible, probe user deleted
-2a59d7e8 [handoff]: R-NOW15 - intro root cause is the purchase_provider default (394158ee), deploy awaits Tre in Ada's tab
-394158ee [premium]: purchase_provider's 'stripe' default no longer costs free users the intro offer
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
