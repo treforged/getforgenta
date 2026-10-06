@@ -5,7 +5,9 @@ R-NOW6 (2026-10-06 ~00:40 ET, Ada). START HERE:
   1. eb7282e9 Play fallback 06:39 ET today: armed in THIS tab (CronCreate e7f2fea8); any other tab re-arms or does it by hand.
   2. [x] 0ac9c4b3 af621263 - Avg Monthly Spend reads the bank (check:avg-spend). Sam's question answered: ledger-without-bank
      is BY DESIGN (forecast double-count guard); only actual-spend readers were wrong.
-  3. NEXT: the new ask for the cash-flow BARS (income + expenses from the bank together) - `ask list --owner Ada`.
+  3. [x] 01979820 844dae27 - cash-flow bars read bank income+expenses for past months (check:cash-flow-bars).
+  4. NEXT: STANDING e1b0fffc - pick the next improvement; other actual-spend readers of the ledger are the obvious audit
+     (grep categorizeExpenses callers for past-month 'actual' labels).
   Simple proposal items all exist (Upcoming This Week carries card/vehicle/plan payments, Dashboard.tsx:386-389;
   Debt 'Interest this month' DebtHero.tsx:75). check:spent-of-planned now covers 1440 too.
 R-NOW5 (2026-10-05 ~23:55 ET, Ada). START HERE:
@@ -13399,7 +13401,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 23:37 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 00:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13419,14 +13421,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+65ffed78 [handoff]: R-NOW6 - avg spend reads the bank (af621263); next cash-flow bars
+af621263 [analytics]: Avg Monthly Spend reads your bank, not only hand-entered charges (0ac9c4b3)
+eecc0263 [test]: check:spent-of-planned also measures 1440x900 (PASS both widths)
 de742a30 [handoff]: R-NOW5 - spent-of-planned shipped (7c6ce402, b179d250); eb7282e9 armed as e7f2fea8
 b179d250 [budget]: "Spent so far" leaves debt payments out on both sides (e1b0fffc (c))
 7c6ce402 [budget]: Simple view shows what you have spent this month against your plan (e1b0fffc (c))
 9a0bdfef [handoff]: R-NOW4 - successor brief: re-arm eb7282e9, spent-of-planned design facts
 73e1045a [handoff]: R-NOW3 - Finish sooner in Advanced + rail click fix shipped; next spent-of-planned
-60418be5 [debt]: "Finish sooner" shows in the Advanced view too, and its rows fit any phone (e1b0fffc)
-9e179cba [rail]: the desktop sidebar closes after a mouse click instead of staying open over the page
-46bfd8dc [handoff]: R-NOW3 - partner view notices shipped; next Finish sooner in Advanced
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
