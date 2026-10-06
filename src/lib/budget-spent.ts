@@ -173,3 +173,53 @@ export function buildSpentRows(planned: readonly { category: string; amount: num
   const totalSpent = rows.reduce((sum, r) => sum + r.spentCents, 0);
   return { rows, plannedCents: totalPlanned, spentCents: totalSpent };
 }
+
+/**
+ * The average of the last `months` FULL months' actual spending. A month with any bank row is read
+ * from the bank (+ hand-entered ledger rows) by `computeMonthSpent`; a month with none falls back to
+ * the caller's ledger-only figure, so a user with no bank connection sees what they saw before.
+ * Measured 2026-10-05 (ask 0ac9c4b3): the ledger-only "Avg Monthly Spend" read ~$1.5k/mo for Tre
+ * against ~$6.2k of real bank charges, because bank rows reach the ledger only when imported.
+ */
+export function averageMonthlySpentCents(p: {
+  bank: readonly SpentBankRow[];
+  ledger: readonly SpentLedgerRow[];
+  now: Date;                       // local time
+  months: number;                  // e.g. 5 = the five FULL months before now's month
+  overrides: ReadonlyMap<string, string>;
+  transferLegIds: ReadonlySet<string>;
+  ledgerOnlyCents: (monthKey: string) => number;  // fallback for a month with no bank rows, 'YYYY-MM'
+}): { averageCents: number; bankMonths: number } {
+  if (p.months <= 0) return { averageCents: 0, bankMonths: 0 };
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  let sum = 0;
+  let bankMonths = 0;
+  for (let k = 1; k <= p.months; k++) {
+    const start = new Date(p.now.getFullYear(), p.now.getMonth() - k, 1);
+    const year = start.getFullYear();
+    const month = start.getMonth(); // 0‑based
+    const from = `${year}-${pad(month + 1)}-01`;
+    const toDate = new Date(year, month + 1, 0); // last day of month
+    const to = `${year}-${pad(month + 1)}-${pad(toDate.getDate())}`;
+    // String compare on YYYY-MM-DD: `new Date('2026-09-01')` is UTC midnight, a day early west of UTC.
+    const hasBank = p.bank.some(r => r.date >= from && r.date <= to);
+    let cents: number;
+    if (hasBank) {
+      cents = computeMonthSpent({
+          bank: p.bank,
+          ledger: p.ledger,
+          from,
+          to,
+          matchedCategory: new Map(),
+          overrides: p.overrides,
+          transferLegIds: p.transferLegIds,
+        }).totalCents;
+      bankMonths++;
+    } else {
+      const monthKey = `${year}-${pad(month + 1)}`;
+      cents = p.ledgerOnlyCents(monthKey);
+    }
+    sum += cents;
+  }
+  return { averageCents: Math.round(sum / p.months), bankMonths };
+}

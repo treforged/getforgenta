@@ -339,6 +339,10 @@ section states reasoning, not measurement, and says so.
   $12.34 and Shopping $30.00 ($50 less a $20 refund); a $500 TRANSFER_OUT and a $900 LOAN_PAYMENTS row must not count. VIEW_MODE=advanced:
   no card. Red with the provider exclusion removed ($1,442.34, exit 1). SPENT reads BANK rows: measured 10-05, bank charges never reach
   `transactions` (it holds future one-offs). Rules + 18 unit tests: src/lib/budget-spent.ts (red under 4 mutants).
+- `npm run check:avg-spend` - Account > Analytics "Avg Monthly Spend" reads the BANK where it has rows (ask 0ac9c4b3), 1440,
+  signed in, full synced_transactions read answered in-browser: must read $400.00 (two months of $1,000, $5,000 transfers
+  excluded); NO_BANK=1 must read the old ledger figure. Red on the pre-fix card (exit 1). The ledger-only figure read
+  ~$1.5k/mo for Tre against ~$6.2k of bank charges. The cash-flow BARS stay ledger-only (their income side is too).
 - `npm run check:partner-view` - a PHONE can open the partner's budget (ask 07351a98): at 390, partner_links answered in-browser
   with one active link (writes aborted); control = "Linked with"; "View their budget" must be visible and PRESSING it must land on
   /dashboard with the PARTNER VIEW banner. Red on the pre-fix card (0 buttons; the only switch was the desktop sidebar).

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildSpentRows, computeMonthSpent, resolveBankCategory, type MonthSpentInput, type SpentBankRow } from '../budget-spent';
+import { averageMonthlySpentCents, buildSpentRows, computeMonthSpent, resolveBankCategory, type MonthSpentInput, type SpentBankRow, type SpentLedgerRow } from '../budget-spent';
 
 // Drafted by the free tier (groq gpt-oss-120b), corrected in review: 4, 7 and 8 were rewritten.
 const base: MonthSpentInput = {
@@ -176,3 +176,90 @@ describe('buildSpentRows', () => {
     });
   });
 });
+
+describe('averageMonthlySpentCents', () => {
+  it('no rows and fallback 0', () => {
+    const bank: SpentBankRow[] = []
+    const ledger: SpentLedgerRow[] = []
+    const result = averageMonthlySpentCents({
+      bank,
+      ledger,
+      now: new Date(2026, 9, 5),
+      months: 5,
+      overrides: new Map(),
+      transferLegIds: new Set(),
+      ledgerOnlyCents: () => 0,
+    })
+    expect(result).toEqual({ averageCents: 0, bankMonths: 0 })
+  })
+
+  it('one bank row Sep 2026, months 5', () => {
+    const bank = [b('1', '2026-09-15', 100, 'FOOD_AND_DRINK')]
+    const result = averageMonthlySpentCents({
+      bank,
+      ledger: [],
+      now: new Date(2026, 9, 5),
+      months: 5,
+      overrides: new Map(),
+      transferLegIds: new Set(),
+      ledgerOnlyCents: () => 0,
+    })
+    expect(result).toEqual({ averageCents: 2000, bankMonths: 1 })
+  })
+
+  it('fallback used for months without bank rows', () => {
+    const bank = [b('1', '2026-09-15', 100, 'FOOD_AND_DRINK')]
+    const result = averageMonthlySpentCents({
+      bank,
+      ledger: [],
+      now: new Date(2026, 9, 5),
+      months: 5,
+      overrides: new Map(),
+      transferLegIds: new Set(),
+      ledgerOnlyCents: (monthKey) => monthKey === '2026-08' ? 5000 : 0,
+    })
+    expect(result).toEqual({ averageCents: 3000, bankMonths: 1 })
+  })
+
+  it('row in current month ignored', () => {
+    const bank = [b('1', '2026-10-01', 100, 'FOOD_AND_DRINK')]
+    const result = averageMonthlySpentCents({
+      bank,
+      ledger: [],
+      now: new Date(2026, 9, 5),
+      months: 5,
+      overrides: new Map(),
+      transferLegIds: new Set(),
+      ledgerOnlyCents: () => 0,
+    })
+    expect(result).toEqual({ averageCents: 0, bankMonths: 0 })
+  })
+
+  it('TRANSFER_OUT-only month counts as bank month', () => {
+    const bank = [b('1', '2026-09-15', 40, 'TRANSFER_OUT')]
+    const result = averageMonthlySpentCents({
+      bank,
+      ledger: [],
+      now: new Date(2026, 9, 5),
+      months: 1,
+      overrides: new Map(),
+      transferLegIds: new Set(),
+      ledgerOnlyCents: () => 99999,
+    })
+    expect(result).toEqual({ averageCents: 0, bankMonths: 1 })
+  })
+
+  it('year boundary: bank row in Dec 2026', () => {
+    const bank = [b('1', '2026-12-31', 50, 'FOOD_AND_DRINK')]
+    const result = averageMonthlySpentCents({
+      bank,
+      ledger: [],
+      now: new Date(2027, 0, 10),
+      months: 1,
+      overrides: new Map(),
+      transferLegIds: new Set(),
+      ledgerOnlyCents: () => 0,
+    })
+    expect(result).toEqual({ averageCents: 5000, bankMonths: 1 })
+  })
+})

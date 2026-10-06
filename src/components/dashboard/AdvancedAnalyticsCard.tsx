@@ -4,6 +4,7 @@ import MetricCard from '@/components/shared/MetricCard';
 import PremiumGate from '@/components/shared/PremiumGate';
 import { formatCurrency } from '@/lib/calculations';
 import { useMonthlyCashFlow } from '@/hooks/useMonthlyCashFlow';
+import { useAvgMonthlySpent } from '@/hooks/useAvgMonthlySpent';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 
@@ -43,7 +44,9 @@ function BreakdownTooltip({ active, payload }: BreakdownTooltipProps) {
 export default function AdvancedAnalyticsCard() {
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
-  const { dti, summary, emergencyRunwayMonths, avgMonthlySpend, netWorthBreakdown } = useMonthlyCashFlow();
+  const { dti, summary, emergencyRunwayMonths, netWorthBreakdown } = useMonthlyCashFlow();
+  // Bank-read where the bank has rows (ask 0ac9c4b3); the ledger-only figure understated Tre ~4x.
+  const avgMonthlySpend = useAvgMonthlySpent();
   const allAssetsForBreakdown = netWorthBreakdown.assets;
   const allLiabilitiesForBreakdown = netWorthBreakdown.liabilities;
 

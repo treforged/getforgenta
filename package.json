@@ -35,6 +35,7 @@
     "check:goal-grid": "node scripts/check-goal-grid.mjs",
     "check:loan-chart": "node scripts/check-loan-chart.mjs",
     "check:spent-of-planned": "node scripts/check-spent-of-planned.mjs",
+    "check:avg-spend": "node scripts/check-avg-spend.mjs",
     "check:partner-view": "node scripts/check-partner-view.mjs",
     "check:invite-resume": "node scripts/check-invite-resume.mjs",
     "check:rail-click": "node scripts/check-rail-click.mjs",
