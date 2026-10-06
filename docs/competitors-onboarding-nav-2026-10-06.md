@@ -24,7 +24,7 @@ Earlier passes: `navigation-jakobs-law.md` (2026-09-06), `onboarding-inventory-2
 
 ## Proposed, in order
 
-1. **IN PROGRESS (uncommitted, see handoff R-NOW7):** every tier links a bank second; free accounts see "Your first bank
+1. **SHIPPED 0824bbb0 (2026-10-06):** every tier links a bank second; free accounts see "Your first bank
    connection is free"; the premium pitch moves to after the save, one step before the finish.
 2. **Copilot's review queue on Home:** new bank charges to confirm/categorise, as a dashboard card (we have the deck in
    Transactions > BankActivity; Home has nothing). Needs a design pass.
