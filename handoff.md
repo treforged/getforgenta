@@ -10,7 +10,9 @@ R-NOW8 (2026-10-06 ~01:45 ET, Ada). START HERE:
      [x] d53dbbe1 b3c12107 "Who is this budget for?" + Budget together card -> /account?partner=invite (check:first-save ARM C).
      [x] 653a6be6 pitch line no longer says "Connect your bank once".
      [-] 474649b8 dropped: the Transactions tab already badges the review count (MobileNav:62, Sidebar:89).
-     Pushes today: 6 with src changes. BATCH further commits (GitHub Actions budget rule).
+     [x] 579f2b33 2478dee9 "Are you sure?" second upsell removed (Sam's yes); walk:first-run 13/13.
+     [x] 769b6e40 89ab1b1d "See your plan" hang: release-flag write bounded at 4 s (check:first-save ARM D).
+     Pushes today: 8 with src changes. BATCH further commits (GitHub Actions budget rule).
   4. 6cdc485c is the Plan/Garage bottom-bar question for Tre via Sam - not a desk change.
 R-NOW6 (2026-10-06 ~00:40 ET, Ada). START HERE:
   1. eb7282e9 Play fallback 06:39 ET today: armed in THIS tab (CronCreate e7f2fea8); any other tab re-arms or does it by hand.
@@ -13415,21 +13417,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 01:11 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 01:57 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (11 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M scripts/walk-first-run-real.mjs
- M src/components/onboarding/BankConnectStep.tsx
- M src/components/onboarding/PremiumUpsellStep.tsx
- M src/pages/Onboarding.tsx
- M src/pages/__tests__/Onboarding.funnel.test.ts
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13440,14 +13437,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+4701cf99 [handoff]: R-NOW8 - pitch copy, review card dropped
+653a6be6 [onboarding]: premium pitch no longer says "Connect your bank once" (2fb9bc69)
+cbdf37da [handoff]: R-NOW8 - partner question shipped (b3c12107); Home review card next
+b3c12107 [onboarding]: ask "Who is this budget for?" and point couples at partner sharing (d53dbbe1)
+2346ca8b [onboarding]: finish card stops selling the bank link as Premium (2fb9bc69)
+dcf4d807 [handoff]: R-NOW8 - onboarding bank step shipped (0824bbb0); partner question next
+0824bbb0 [onboarding]: free accounts are asked to link a bank second; premium pitch moves after the save (2fb9bc69)
 9e089a27 [handoff]: R-NOW7 - competitor onboarding pass; slice 1 (free bank step) uncommitted, walk next
-b48fce38 [handoff]: R-NOW6 - Spent so far in both views (9321fc1f)
-9321fc1f [budget]: "Spent so far" shows in Advanced too, at the top of the Plan panel (e1b0fffc)
-6fecd9a3 [budget]: "Spent so far" never nets a paycheck against spending (e1b0fffc (c))
-7aef1ef5 [handoff]: R-NOW6 - cash-flow bars shipped (844dae27)
-844dae27 [forecast]: Cash Flow Overview reads past months from your bank, income and spending together (01979820)
-65ffed78 [handoff]: R-NOW6 - avg spend reads the bank (af621263); next cash-flow bars
-af621263 [analytics]: Avg Monthly Spend reads your bank, not only hand-entered charges (0ac9c4b3)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
