@@ -250,6 +250,9 @@ section states reasoning, not measurement, and says so.
   in-browser with a 204, so nothing reaches the database; the walk account is restored on every exit.
   Proven red three ways (pre-fix wizard, no `saved` guard, pre-fix banner). Header names one probe
   artefact (`cache_restore` after the Premium reload). Does NOT cover the bank path or OAuth sign-up.
+  ARM C (ask d53dbbe1) answers "Me and a partner": the finish screen must show the partner card (A and B must
+  not), and "Set up partner sharing" must open Account on the invite-code field with Account parked on
+  Leaderboard first. Red both ways (redirect removed; card always shown). Frames: test-results/first-save/partner-*.
 - `npm run check:boot-failure` - a load failure fails LOUD, never black (Tre's black screen, 2026-09-29). Needs
   `npm run build` first; serves dist/ with `vite preview` and loads it in WEBKIT (the iOS engine) at 390x844,
   fully offline. Arms: unblocked app mounts (control); entry script aborted -> "Couldn't load Forgenta" renders

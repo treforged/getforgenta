@@ -112,7 +112,8 @@ export default function Account() {
   const { search } = useLocation();
   useEffect(() => {
     const params = new URLSearchParams(search);
-    if (params.get('friend_code') || params.get('partner_code')) setSection('profile');
+    // `?partner=invite` is onboarding's "Set up partner sharing" (ask d53dbbe1): same section.
+    if (params.get('friend_code') || params.get('partner_code') || params.get('partner') === 'invite') setSection('profile');
     // Same rule, new arrival: `?lesson=` is consumed by `LearnCard`, which now lives in the Learn
     // section. Without this, a notification tap lands on whatever section was last persisted and
     // the lesson opens on a screen nobody is looking at — working, and invisible.

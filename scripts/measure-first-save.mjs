@@ -16,6 +16,9 @@
  *   ARM B  ends on "Explore Premium" -> /premium.   NEVER dismisses the banner, so every press
  *          must reach its control with the banner up (it covered Continue before 2026-09-29), and
  *          a control asserts the banner really was up.
+ *   ARM C  answers "Me and a partner" and ends on "Set up partner sharing" -> /account, which must
+ *          open on the partner section although Account was parked on Leaderboard (ask d53dbbe1).
+ *          ARM A and B are its control: they must show NO partner card.
  * Each arm asserts the SCREEN: the first save is on "See your plan", "Your profile is set" is
  * shown only after it, the final button saves the wizard zero more times, and the URL lands.
  *
@@ -122,7 +125,9 @@ const safeJsonKeys = (t) => Object.keys(safeJson(t)).join('+');
 // Every data-plane write is RECORDED and ANSWERED IN THE BROWSER with an empty 204, so the app
 // believes it saved and NOTHING reaches the database. (Aborting instead made the save fail, and
 // since 2026-09-29 a failed save keeps the user off the finish screen - correctly.)
-async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = false) {
+// partner: answer "Me and a partner" on the welcome step (ask d53dbbe1). The finish screen must then
+// show the partner card, and only then; ARM A is the control that it is absent for "Just me".
+async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = false, partner = false) {
   // leaveBanner: never dismiss the cookie banner, so every press must reach its control WITH the
   // banner up. Before 2026-09-29 the banner covered Continue at 390px and this arm could not finish.
   const st = { screens: 0, presses: 0, fields: 0, writes: [], log: [], savePress: null, cookie: leaveBanner };
@@ -148,7 +153,7 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
 
   const shot = async (name) => {
     st.screens += 1;
-    if (keepFrames) await page.screenshot({ path: join(OUT, `${String(st.screens).padStart(2, '0')}-${name}.png`) });
+    if (keepFrames) await page.screenshot({ path: join(OUT, `${partner ? 'partner-' : ''}${String(st.screens).padStart(2, '0')}-${name}.png`) });
     st.log.push(`screen ${st.screens}: ${name}`);
   };
   const press = async (role, re, name) => {
@@ -183,11 +188,14 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
   await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.includes('onboarding')) localStorage.removeItem(k); });
+  // Park Account on another section, so landing on the partner field proves the link moved it.
+  if (partner) await page.evaluate(() => localStorage.setItem('account-section', JSON.stringify('leaderboard')));
   await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' });
   await page.getByText(/Welcome to Forgenta/i).first().waitFor({ timeout: 15000 });
 
   await shot('welcome');
   await fill('What should we call you?', 'Walk Tester');
+  if (partner) await press('button', /^Me and a partner$/, 'Me and a partner');
   await press('button', /^Continue/, 'Continue');
   // Since 2026-10-06 (ask 2fb9bc69) a free account is asked to link a bank second, and sees the
   // premium pitch AFTER the save, one step before the finish.
@@ -216,11 +224,15 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
   const finishShown = await page.getByText(/Your profile is set/i).first()
     .waitFor({ timeout: 8000 }).then(() => true).catch(() => false);
   const savedBeforeFinish = st.savePress !== null;
+  const partnerCard = await page.getByTestId('finish-partner').isVisible().catch(() => false);
   await shot('finish');
 
   const finalWrites = await press(final.role, final.re, final.name);
   await page.waitForURL((u) => new URL(u).pathname === wantPath, { timeout: 8000 }).catch(() => {});
   const landed = new URL(page.url()).pathname;
+  const inviteField = partner
+    ? await page.getByText(/Have an invite code\?/).first().waitFor({ timeout: 8000 }).then(() => true).catch(() => false)
+    : null;
   await shot('after');
   await ctx.close();
 
@@ -231,6 +243,9 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
     [`"${final.name}" does not save the wizard again`, finalWrites.filter((w) => w.isWizardSave).length === 0,
       `${finalWrites.filter((w) => w.isWizardSave).length} wizard saves; ${finalWrites.filter((w) => w.isCacheRestore).length} cache_restore (probe artefact, see header)`],
     [`"${final.name}" lands on ${wantPath}`, landed === wantPath, `landed ${landed}`],
+    [partner ? 'finish screen shows the partner card' : 'finish screen shows NO partner card for "Just me"',
+      partnerCard === partner, `visible=${partnerCard}`],
+    ...(partner ? [['Account opened on the partner section ("Have an invite code?")', inviteField === true, `visible=${inviteField}`]] : []),
   ];
   return { arm, st, checks };
 }
@@ -244,6 +259,7 @@ try {
   browser = await chromium.launch();
   arms.push(await runArm(browser, 'ARM A', { role: 'button', re: /Continue free/, name: 'Continue free' }, '/dashboard', true));
   arms.push(await runArm(browser, 'ARM B', { role: 'link', re: /Explore Premium/, name: 'Explore Premium' }, '/premium', false, true));
+  arms.push(await runArm(browser, 'ARM C', { role: 'button', re: /Set up partner sharing/, name: 'Set up partner sharing' }, '/account', true, false, true));
 } catch (err) {
   // NOT fail() here: process.exit skips `finally`, and a red run then left the walk account at
   // onboarding_completed=false (measured 2026-09-29). Record it; exit after the restore.
@@ -275,6 +291,6 @@ for (const a of arms) {
 }
 console.log(`\narms examined: ${arms.length}  checks failed: ${failed}`);
 console.log(`machine time: ${((Date.now() - t0) / 1000).toFixed(1)} s (NOT a human time)   frames: ${OUT}`);
-if (arms.length !== 2) fail(2, 'fewer than two arms ran - nothing complete was measured.');
+if (arms.length !== 3) fail(2, `${arms.length} of 3 arms ran - nothing complete was measured.`);
 if (failed) fail(1, `${failed} check(s) failed.`);
 console.log('OK - the save happens before the finish screen claims it, and neither finish button saves twice.');

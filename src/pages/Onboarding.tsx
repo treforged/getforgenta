@@ -42,8 +42,9 @@ import { FieldLabel, Input, Select } from '@/components/onboarding/fields';
 import { totalDebtOf, type DebtEntry, type GoalEntry } from '@/components/onboarding/types';
 import {
   DollarSign, PiggyBank, ChevronRight,
-  ChevronLeft, Check, Crown, Zap, BarChart3, Shield, Loader2, Fingerprint,
+  ChevronLeft, Check, Crown, Zap, BarChart3, Shield, Loader2, Fingerprint, Users,
 } from 'lucide-react';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Capacitor } from '@capacitor/core';
 
 type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
@@ -232,6 +233,9 @@ export default function Onboarding() {
     ...(readOnboardingDraft<OnboardingData>(user?.id) ?? {}),
   }));
   const [saving, setSaving] = useState(false);
+  // Monarch asks this first (ask d53dbbe1). The answer only decides whether the finish screen
+  // points at partner sharing; nothing is stored, so "Just me" is the default and costs nothing.
+  const [budgetFor, setBudgetFor] = useState<'solo' | 'partner'>('solo');
   const [bankLinked, setBankLinked] = useState(false);
 
   const steps = useMemo(() => buildSteps(isPremium), [isPremium]);
@@ -558,6 +562,11 @@ export default function Onboarding() {
                 <FieldLabel>What should we call you?</FieldLabel>
                 <Input label="What should we call you?" value={data.displayName} onChange={v => update('displayName', v)} placeholder="Your name" />
               </div>
+              <div className="space-y-1.5">
+                <FieldLabel>Who is this budget for?</FieldLabel>
+                <SegmentedControl label="Who is this budget for?" value={budgetFor} onSelect={setBudgetFor}
+                  options={[{ value: 'solo', label: 'Just me' }, { value: 'partner', label: 'Me and a partner' }]} />
+              </div>
               {/* The demo's entry, moved here off `/auth` (2026-08-18). Setup is the one moment a
                   filled-in account answers a real question — "what am I building towards?" — and
                   the flag is in-memory, so nothing typed above is lost by looking. */}
@@ -767,6 +776,28 @@ export default function Onboarding() {
                   </div>
                 )}
               </div>
+
+              {budgetFor === 'partner' && (
+                <div className="border border-border p-4 space-y-2" style={{ borderRadius: 'var(--radius)' }} data-testid="finish-partner">
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="text-primary" />
+                    <span className="text-xs font-semibold">Budget together</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {isPremium
+                      ? "Invite your partner by email, and you can each see the other's budget."
+                      : "See each other's budget. One Premium account sends the invite, and the partner joins free. Got an invite code? You can enter it there."}
+                  </p>
+                  <button
+                    onClick={() => { void persist().then(ok => { if (ok) navigate('/account?partner=invite'); }); }}
+                    disabled={saving}
+                    className="w-full py-2 text-[10px] font-medium border border-border text-foreground hover:border-primary/40 hover:text-primary btn-press disabled:opacity-50"
+                    style={{ borderRadius: 'var(--radius)' }}
+                  >
+                    Set up partner sharing
+                  </button>
+                </div>
+              )}
 
               <div className="border border-primary/25 bg-primary/5 p-4 space-y-3" style={{ borderRadius: 'var(--radius)' }}>
                 <div className="flex items-center gap-2">
