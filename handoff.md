@@ -1,6 +1,13 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW13 (2026-10-06 ~13:30 ET, Ada). R-NOW12 items 2-4 DONE:
+  - de726b9f web paywall intro offer + gate `npm run check:intro-offer` (PASS; red 3 ways; test:tz 6141 x3).
+  - 7c503ea2 native paywall: src/lib/native-intro-offer.ts (iOS needs eligibility 2, Android trusts introPrice) +
+    NativePaywall.introOffer.test.tsx (red 2 ways; test:tz 6152 x3). NOT device-verified. Pushed, origin 0/0.
+  - Console list filed as ask e9a278bd (owner Sam) and sent to Sam. The create-checkout deploy is Tre's, in his session.
+  NEXT: (1) after the deploy + coupons exist, re-run check:intro-offer and call create-checkout action:'offer' for real.
+  (2) CronCreate d9e48030 fires 10-07 11:37 (session-only; re-arm if this tab dies). (3) e1b0fffc standing.
 R-NOW12 (2026-10-06 ~15:00 ET, Ada -> successor). START HERE, IN ORDER:
   1. a6375f1c INTRO OFFER (Tre, decision 994dbd43; ahead of e1b0fffc). Server half SHIPPED, NOT DEPLOYED: 680d11f1
      (create-checkout `intro`/`action:'offer'`, _shared/intro-eligibility.ts, src/lib/intro-offer.ts). The production
@@ -13488,34 +13495,36 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 11:55 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 12:51 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (8 file(s)):**
 
 ```
 M deno.lock
+ M src/pages/Premium.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
 ?? press-walk-frames/
+?? src/hooks/useIntroOffer.ts
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+5ef97954 [handoff]: R-NOW12 - intro offer mid-flight (server shipped undeployed, web paywall uncommitted)
+680d11f1 [premium]: first-year intro offer - server half (opt-in, fails closed, NOT YET DEPLOYED)
+c875d4b1 [nav]: the Debt highlight dot sits on the icon's corner with a ring, not on the glyph
+9d2e7b92 [handoff]: R-NOW11 - three e1b0fffc slices shipped, wake 5041ac9e still session-only
+8c0bbc04 [nav]: the desktop rail shows one selected row - Debt's emphasis is a dot, not a second fill
 b6a782d7 [docs]: walk:empty gate line - reads /budget and percentages, joined text nodes
 a8bcc49f [empty-state]: Plan shows a new user what to add first, not a donut of five "(0%)" and "$0.00 this month"
 1631c871 [handoff]: R-NOW11 - walk:empty fix shipped, no-save-nudge wake armed (session-only)
-30d179ce [empty-state]: Forecast Simple summary no longer shows "$0.00 lowest point" to a new user
-beea2dcc [handoff]: R-NOW10 - resume queue for successor (walk:empty, cron read wake)
-fab89bc9 [guides]: Plan page gets "Plan Guide"; Transactions guide renamed and drops Plan
-5a58a099 [handoff]: R-NOW10 - Plan tab, save-early, win-back + auto follow-up
-a2c2d32f [email]: automatic one-time follow-up for new accounts that save nothing (6d0e50b0)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
