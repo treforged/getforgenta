@@ -324,6 +324,8 @@ section states reasoning, not measurement, and says so.
   page one `landing_viewed`. Inserts are answered in-browser, store tabs closed. Red two ways (Play counter removed;
   section removed). Conversion READ: signup_funnel_events env='prod' platform='web', tap_store per landing_viewed.
   Testimonials live in `src/data/testimonials.ts` (empty until Ruby approves one; rewarded ones show the FTC disclosure).
+  ⚠️ RUN IT WITH `BASE_URL=https://getforgenta.com` TOO: the dev server sends NO CSP, so localhost passed while prod showed
+  no rating (connect-src lacked itunes.apple.com). Its inserts are answered in-browser, so a prod run adds no rows.
 - `npm run check:relink-prompt` - a BROKEN bank link says so (Accounts > Banks, 390x844, signed in). financial_connections
   answered in-browser with one Plaid row: reauth_required must show "sign in again" + Re-link; active must not. Red on the
   pre-fix row, which ignored connection_status and showed only "Updated Oct 3". Rules + 7 tests: src/lib/relink-prompt.ts.

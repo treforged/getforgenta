@@ -1,6 +1,16 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW17 (2026-10-06 ~17:30 ET, Ada). Shipped since R-NOW16, all pushed 0/0:
+  - 626e6b52 defaults gate for the intro offer (red on both old bugs).
+  - 3a746e14 a868f7c3 DONE: grant_testimonial_reward(uuid, ref) service-role only, once per user, 3 months, hourly
+    expiry at :09; applied + probed on prod, probe users deleted. Ruby hands Ada the user -> run the select.
+  - 55ed0356 + CSP fix: 4f473837 landing social proof. Live App Store rating under the badges (prod PASS 390/1440 via
+    BASE_URL=https://getforgenta.com npm run check:landing-proof). Testimonials list empty until Ruby approves one.
+    landing_viewed / tap_store now counted in signup_funnel_events. Review prompt (part 1) was already shipped.
+    There is NO pre-change baseline (nothing counted landing taps before today) and web traffic is ~21 opens/week, so
+    the conversion read (dated ask) reports counts, not a lift.
+  NEXT: cron ac255c92 (10-07 11:37 nudge read). e1b0fffc standing.
 R-NOW16 (2026-10-06 ~15:55 ET, Ada). R-NOW15 item 1 DONE:
   - create-checkout DEPLOYED v78 on Tre's typed "yes deploy" in Ada's tab; live source contains
     STORE_PROVIDERS + stripeHistoryShowsSubscription (== HEAD 394158ee).
@@ -13541,7 +13551,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 15:24 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 15:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13561,14 +13571,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+d05e351d [handoff]: R-NOW16 - create-checkout v78 live, probe eligible, probe user deleted
+2a59d7e8 [handoff]: R-NOW15 - intro root cause is the purchase_provider default (394158ee), deploy awaits Tre in Ada's tab
+394158ee [premium]: purchase_provider's 'stripe' default no longer costs free users the intro offer
 63e47901 [handoff]: R-NOW14 - create-checkout redeployed; probe reads ever_subscribed after an abandoned checkout (open)
 8f63c441 [handoff]: ASC intro offers live
 6d729c10 [handoff]: intro comp bug fixed (2b0ace20), redeploy pending; probe user to delete
 2b0ace20 [premium]: one abandoned checkout no longer costs a free user the intro offer
 c56d6320 [handoff]: create-checkout deployed (Tre's yes); live offer call fails closed
-369d086b [handoff]: R-NOW13 - $0.99/$9.99 shipped, banks header + free-notice fixes
-d0bc47d5 [premium]: intro offer is $0.99/mo or $9.99 for the first year on every platform (852772a5)
-2258f534 [dashboard]: "first bank connection is free" stays silent once any connection exists
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
