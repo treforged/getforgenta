@@ -15,7 +15,10 @@ R-NOW8 (2026-10-06 ~01:45 ET, Ada). START HERE:
      [x] 769b6e40 89ab1b1d "See your plan" hang: release-flag write bounded at 4 s (check:first-save ARM D).
      [x] 61c40702 bb3cc353 every write first-run/sign-in waits on is bounded (check:save-timeouts). Residue: auth
          calls (signIn/MFA/signUp/verifyOtp) unbounded by design; trusted-device read is unit-level only.
-     Pushes today: 9 with src changes. BATCH further commits (GitHub Actions budget rule).
+     [x] b3f0bbcc 54c59fcf funnel: 12 real no-save accounts, 16/17 predate step tracking, ONE tracked signup (stopped
+         at Expenses after a Face ID relaunch) - n=1, no biggest drop-off claimed. Fixed: setup reopened on Welcome
+         after a relaunch; now resumes the step (check:save-timeouts RELOAD). Re-measure when tracked signups > 10.
+     Pushes today: 10 with src changes. BATCH further commits (GitHub Actions budget rule).
   4. 6cdc485c is the Plan/Garage bottom-bar question for Tre via Sam - not a desk change.
 R-NOW6 (2026-10-06 ~00:40 ET, Ada). START HERE:
   1. eb7282e9 Play fallback 06:39 ET today: armed in THIS tab (CronCreate e7f2fea8); any other tab re-arms or does it by hand.
