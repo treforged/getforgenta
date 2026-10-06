@@ -1,6 +1,15 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW10 (2026-10-06 ~11:10 ET, Ada). R-NOW9 IS DONE. State:
+  - 974e9dba + b4eea1f8: onboarding "Save what I have - add the rest later" on Expenses/Debts/Savings (no bank, income in);
+    finish shows an add-bills hint instead of "Available after expenses" when no bills. check:first-save ARM E.
+  - 57cb9665: Plan took Garage's bottom-bar slot (decision c5e29d9e). /budget = src/pages/Plan.tsx; Garage button in Account
+    header; ?tab=budget -> /budget; aria-current on both navs. Gate: npm run check:plan-tab (16 checks, red on old nav).
+  - Win-back sent 14:44Z, 10/10 delivered (14b5d58d). a2c2d32f: no-save-nudge function + cron no-save-nudge-daily 15:30 UTC,
+    one email per real account 3-30 days old with no rows; 10 seeded. Undo: cron.unschedule('no-save-nudge-daily').
+  NEXT: (1) on/after 2026-10-07 15:35Z read net._http_response for the cron call and tell Sam how many it sent (one line).
+  (2) e1b0fffc standing - keep improving the app. (3) ff52631d waits on Tre.
 R-NOW9 (2026-10-06 ~07:10 ET, Ada -> successor). START HERE, IN ORDER:
   1. ask 9d793687 (Sam): DRAFT, DO NOT SEND, one win-back email for the real accounts that saved nothing.
      Write it to claudecontext/drafts/2026-10-06_forgenta-winback.md: one 60-second action (finish setup), link
@@ -13439,16 +13448,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 07:06 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 09:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13459,14 +13469,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+974e9dba [onboarding]: save what you have from Expenses on, without a bank
+0a5658d2 [handoff]: R-NOW9 - win-back email draft (9d793687) for successor
 eeb63711 [handoff]: R-NOW8 - funnel measured, resume-step fix (54c59fcf)
 54c59fcf [onboarding]: a reload or relaunch reopens setup where the user left it (b3f0bbcc)
 37ec85c0 [handoff]: R-NOW8 - Play fallback shipped (run 37451288979)
 7986402c [handoff]: R-NOW8 - bounded writes shipped (bb3cc353)
 bb3cc353 [onboarding]: every write the first-run and sign-in paths wait on is bounded (61c40702)
 3413615c [handoff]: R-NOW8 - upsell screen removed, See-your-plan hang fixed
-89ab1b1d [onboarding]: "See your plan" can no longer hang on the release flag (769b6e40)
-2478dee9 [onboarding]: drop the "Are you sure?" second upsell screen (579f2b33)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
