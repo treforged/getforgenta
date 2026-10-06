@@ -97,19 +97,27 @@ const OVERLAY = 'div.backdrop-blur-sm, div.modal-overlay';
 const ROUTES = ['/dashboard', '/budget', '/transactions', '/transactions?tab=forecast', '/debt', '/goals',
   '/vehicles', '/accounts', '/account', '/settings'];
 const JUNK = /(\$-0(?:\.00)?\b|\bNaN\b|\bundefined\b|\bInfinity\b|\bnull\b)/g;
-const MONEY_ROUTES = new Set(['/dashboard', '/transactions?tab=forecast']);
+// /budget joined 2026-10-06: a new user's Plan drew a donut of five "(0%)" shares above the real empty state.
+const MONEY_ROUTES = new Set(['/dashboard', '/budget', '/transactions?tab=forecast']);
 const FIGURE_ALLOW = [];
 const figures = () => page.evaluate(() => {
   const out = [];
-  const re = /-?\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kKmMbB]\b)?/g;
+  // A share of the user's money is a figure too: "Fixed (0%)" on an empty account is the same confident zero.
+  const re = /-?\$\s?\d[\d,]*(?:\.\d+)?(?:\s?[kKmMbB]\b)?|-?\b\d+(?:\.\d+)?%/g;
+  // Read each element's OWN text nodes JOINED, never one node at a time: React renders
+  // `{label} ({pct}%)` as four sibling nodes ("Fixed", " (", "0", "%)"), so a per-node match
+  // never sees "0%" - which is how this walk passed the Plan donut's five "(0%)" rows.
+  const seen = new Set();
   const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const el = n.parentElement;
-    if (!el || el.closest('[aria-hidden="true"]')) continue;
+    if (!el || seen.has(el) || el.closest('[aria-hidden="true"]')) continue;
+    seen.add(el);
     const box = el.getBoundingClientRect();
     const cs = getComputedStyle(el);
     if (box.width === 0 || box.height === 0 || cs.visibility === 'hidden' || cs.opacity === '0') continue;
-    for (const m of n.textContent.match(re) ?? []) {
+    const own = [...el.childNodes].filter((c) => c.nodeType === Node.TEXT_NODE).map((c) => c.textContent).join('');
+    for (const m of own.match(re) ?? []) {
       const host = el.closest('section, [class*="card"], li, tr') ?? el;
       out.push({ fig: m.trim(), ctx: host.innerText.replace(/\s+/g, ' ').slice(0, 70) });
     }
@@ -130,6 +138,9 @@ await page.evaluate(() => { const d = document.createElement('div'); d.textConte
 if (!(await read()).junk.includes('NaN')) await done(2, 'CONTROL FAILED: a planted "$NaN" was not flagged - the matcher is blind.');
 await page.evaluate(() => { const d = document.createElement('div'); d.textContent = 'Income $1,234'; document.body.appendChild(d); });
 if (!(await figures()).some((f) => f.fig === '$1,234')) await done(2, 'CONTROL FAILED: a planted "$1,234" was not read - the figure reader is blind.');
+// Planted as SEPARATE text nodes, the way React renders `{label} ({pct}%)` - one node would pass a blind reader.
+await page.evaluate(() => { const d = document.createElement('span'); for (const t of ['Fixed', ' (', '12', '%)']) d.appendChild(document.createTextNode(t)); document.body.appendChild(d); });
+if (!(await figures()).some((f) => f.fig === '12%')) await done(2, 'CONTROL FAILED: a planted "Fixed (12%)" split across text nodes was not read - the share reader is blind.');
 
 const { mkdirSync } = await import('node:fs');
 mkdirSync('test-results/empty-walk', { recursive: true });

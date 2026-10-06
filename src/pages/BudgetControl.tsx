@@ -1043,8 +1043,10 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
 
   return (
     <div className={embedded ? 'stack-section overflow-x-hidden' : 'py-4 lg:py-6 max-w-6xl mx-auto stack-section overflow-x-hidden'}>
+      {/* Not rendered at all when embedded in Plan: an EMPTY header still took a 27px stack gap, and
+          `empty:hidden` cannot remove it - a display:none sibling still earns the next one its margin. */}
+      {!embedded && (
       <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-3">
-        {!embedded && (
           <div className="min-w-0">
             {/* "Plan", not "Budget Control" (Tre, 2026-08-27). The file, the route alias and the
                 guide key keep their old names — renaming those orphans bookmarks and saved
@@ -1052,8 +1054,8 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Plan</h1>
             <p className="text-sm text-muted-foreground mt-0.5 sm:mt-1">Your single source of truth for income, expenses, and automation</p>
           </div>
-        )}
       </div>
+      )}
 
       {showDemoGuides && !simple && (
         <div className="card-forged p-4 sm:p-5 border-primary/20">
@@ -1393,7 +1395,11 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
           sixth slot, and a 128px donut with a one-line legend and ~450px of nothing to its right.
           Halving their width lets each fill its box and removes a whole card's height from the page.
           Below `lg` they stack exactly as before. When Income & Taxes is folded, Per Paycheck is not
-          rendered and the allocation card takes both columns rather than leaving one empty. */}
+          rendered and the allocation card takes both columns rather than leaving one empty.
+          In Simple with no rules BOTH cards are off, and an empty grid still took a
+          space-y gap above the "No bills or income yet" card (walk:empty frame, 2026-10-06), so the
+          grid is not rendered at all then (`empty:hidden` is not enough: see the header above). */}
+      {((!incomeSectionCollapsed && !simple) || rulesLoading || isDemo || rules.length > 0) && (
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
       {/* WHAT EACH PAYCHECK IS WORTH — the second half of the same split. */}
       {!incomeSectionCollapsed && !simple && (
@@ -1468,7 +1474,10 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
 
 
 
-      {/* Budget Allocation Bar — current month only, distinct colors */}
+      {/* Budget Allocation Bar — current month only, distinct colors.
+          Hidden while there are no rules: five "(0%)" shares of nothing sat ABOVE the "No bills or
+          income yet" card that actually tells a new user what to do (walk:empty, 2026-10-06). */}
+      {(rulesLoading || isDemo || rules.length > 0) && (
       <div className={`card-forged p-4 sm:p-5 flex flex-col ${incomeSectionCollapsed || simple ? 'lg:col-span-2' : ''}`}>
         <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider mb-1">Budget Allocation</h3>
         <p className="text-sm text-muted-foreground mb-4">{now.toLocaleString('en-US', { month: 'long', year: 'numeric' })} — current month only</p>
@@ -1533,7 +1542,9 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
           );
         })()}
       </div>
+      )}
       </div>
+      )}
 
       {/* The rules the bank history implies, for a user who has linked something since setting up.
           Renders NOTHING when there is nothing to offer — never a "0 patterns" card, and never a
@@ -1601,7 +1612,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Income Rules</h3>
               <div className="ml-auto flex items-center gap-3">
-                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-success-text">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>
+                {incomeRules.length > 0 && <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-success-text">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>}
                 <button onClick={() => openAdd('income')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
               </div>
             </div>
@@ -1615,7 +1626,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Fixed Expenses</h3>
               <div className="ml-auto flex items-center gap-3">
-                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
+                {billsRules.length > 0 && <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(billsRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>}
                 <button onClick={() => openAdd('expense', 'Bills')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Fixed</button>
               </div>
             </div>
@@ -1629,7 +1640,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Subscriptions</h3>
               <div className="ml-auto flex items-center gap-3">
-                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>
+                {subscriptionRules.length > 0 && <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(subscriptionRules.filter(r => r.active).reduce((s, r) => s + toCurrentMonthAmount(r), 0), false)} {CURRENT_MONTH_LABEL}</span>}
                 <button onClick={() => openAdd('expense', 'Subscriptions')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Subscription</button>
               </div>
             </div>
@@ -1643,7 +1654,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Variable Expenses</h3>
               <div className="ml-auto flex items-center gap-3">
-                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses)} {CURRENT_MONTH_LABEL}</span>
+                {variableRules.length > 0 && <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold" style={{ color: 'hsl(35, 85%, 50%)' }}>{formatCurrency(totalVariableExpenses)} {CURRENT_MONTH_LABEL}</span>}
                 <button onClick={() => openAdd('expense', 'Other')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Variable</button>
               </div>
             </div>
@@ -1657,7 +1668,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap flex items-center gap-2"><CreditCard size={12} /> Debt Payments</h3>
               <div className="ml-auto flex items-center gap-3">
-                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(totalDebtPayments)} {CURRENT_MONTH_LABEL}</span>
+                {debtRules.length > 0 && <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-destructive-text">{formatCurrency(totalDebtPayments)} {CURRENT_MONTH_LABEL}</span>}
                 <button onClick={() => openAdd('debt_payment', 'Debt Payments')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Payment</button>
               </div>
             </div>
@@ -1677,7 +1688,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap flex items-center gap-2"><ArrowLeftRight size={12} /> Transfers & Investing</h3>
               <div className="ml-auto flex items-center gap-3">
-                <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers)} {CURRENT_MONTH_LABEL}</span>
+                {transferRules.length > 0 && <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-primary">{formatCurrency(totalTransfers)} {CURRENT_MONTH_LABEL}</span>}
                 <button onClick={() => openAdd('investment')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Transfer</button>
               </div>
             </div>
