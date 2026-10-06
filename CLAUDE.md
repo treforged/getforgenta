@@ -320,8 +320,10 @@ section states reasoning, not measurement, and says so.
   function) shows no offer. Red three ways (intro flag dropped, a struck "was" price, SAVE 25% kept).
 - `npm run check:relink-prompt` - a BROKEN bank link says so (Accounts > Banks, 390x844, signed in). financial_connections
   answered in-browser with one Plaid row: reauth_required must show "sign in again" + Re-link; active must not. Red on the
-  pre-fix row, which ignored connection_status and showed only "Updated Oct 3". Rules + 6 tests: src/lib/relink-prompt.ts.
-  Does NOT cover a Dashboard banner (none yet) or Akoya.
+  pre-fix row, which ignored connection_status and showed only "Updated Oct 3". Rules + 7 tests: src/lib/relink-prompt.ts.
+  Dashboard arm: BrokenLinkBanner shows and the statement-consent banner does NOT (one nudge at a time); Dismiss hands over
+  to consent. Red on the pre-banner Dashboard. Frames show a Cloudflare notice and the free-bank notice: probe artefacts
+  (functions are aborted; the stub row has no linked accounts). Does NOT cover Akoya or desktop widths.
 - `npm run check:card-advisor` - Debt > "Which Card?" (ask 1f3217bb) at 390x844, signed in: `/debt?tab=use` opens the panel
   (testid AND aria-selected), typing 300 turns "Enter an amount" into "Use <card>" - or the no-room line ONLY when every
   card row says "Not enough room" - and pressing Gas sets aria-pressed. Writes nothing. Proven red by hiding the answer

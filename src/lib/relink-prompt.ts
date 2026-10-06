@@ -50,3 +50,13 @@ export function relinkPrompt(input: RelinkPromptInput): RelinkPrompt | null {
   }
   return null;
 }
+
+/** A Plaid connection whose sync has stopped until the user re-links it. */
+export function isBrokenLink(item: { readonly provider: string; readonly connection_status: ConnectionStatus }): boolean {
+  return item.provider === 'plaid' && (item.connection_status === 'reauth_required' || item.connection_status === 'error');
+}
+
+/** Every broken Plaid connection, in the order given. Returns a new array. */
+export function brokenLinkItems<T extends { readonly provider: string; readonly connection_status: ConnectionStatus }>(items: readonly T[]): T[] {
+  return items.filter(isBrokenLink);
+}

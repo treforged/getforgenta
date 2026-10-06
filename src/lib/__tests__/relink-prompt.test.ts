@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { relinkPrompt, type RelinkPromptInput } from '../relink-prompt';
+import { relinkPrompt, brokenLinkItems, type RelinkPromptInput } from '../relink-prompt';
 
 const healthy: RelinkPromptInput = {
   provider: 'plaid', connectionStatus: 'active',
@@ -38,5 +38,18 @@ describe('relinkPrompt', () => {
 
   it('Akoya never gets a re-link prompt (update mode is Plaid-only)', () => {
     expect(relinkPrompt({ ...healthy, provider: 'akoya', connectionStatus: 'reauth_required' })).toBeNull();
+  });
+});
+
+describe('brokenLinkItems', () => {
+  it('keeps only Plaid rows that need a sign-in or failed, and never mutates the input', () => {
+    const items = [
+      { id: 'a', provider: 'plaid', connection_status: 'active' as const },
+      { id: 'b', provider: 'plaid', connection_status: 'reauth_required' as const },
+      { id: 'c', provider: 'plaid', connection_status: 'error' as const },
+      { id: 'd', provider: 'akoya', connection_status: 'reauth_required' as const },
+    ];
+    expect(brokenLinkItems(items).map(i => i.id)).toEqual(['b', 'c']);
+    expect(items).toHaveLength(4);
   });
 });

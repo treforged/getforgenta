@@ -5,8 +5,10 @@
  * When Plaid answers ITEM_LOGIN_REQUIRED, sync marks the connection reauth_required and stops syncing it.
  * The row used to show only "Synced 3 days ago". This answers the financial_connections read in-browser
  * with one Plaid row and reads the re-link strip.
- * ASSERTS: reauth_required -> the strip says "sign in again" and carries Re-link. CONTROL: active -> no such text.
- * DOES NOT COVER: the Dashboard (no banner there yet), Akoya, pressing Re-link (opens Plaid), desktop widths.
+ * ASSERTS: reauth_required -> the Linked Banks strip says "sign in again" with Re-link; the Dashboard shows the
+ * broken-link banner and NOT the consent banner, and pressing Dismiss hands over to the consent banner.
+ * CONTROL: active -> no such text, and the Dashboard shows the consent banner only.
+ * DOES NOT COVER: Akoya, pressing Re-link (opens Plaid), desktop widths.
  * USAGE: npm run check:relink-prompt    EXITS: 0 pass . 1 the prompt is wrong . 2 could not test
  */
 import { readFileSync } from 'node:fs';
@@ -66,14 +68,14 @@ catch (err) { fail(2, `${BASE} is not serving (${err.message}). Run: node script
 const browser = await chromium.launch();
 const done = async (code, msg) => { await browser.close(); if (code) fail(code, msg); console.log(msg); process.exit(0); };
 
-const row = status => ({
+const row = (status, consent = false) => ({
   id: '00000000-0000-4000-8000-0000000000aa', provider: 'plaid', provider_item_id: 'item-relink-probe',
   institution_id: 'ins_probe', institution_name: 'Probe Bank', connection_status: status,
   last_synced_at: new Date(Date.now() - 3 * 86400_000).toISOString(), created_at: '2026-09-01T00:00:00Z',
-  liabilities_consent_required: false,
+  liabilities_consent_required: consent,
 });
 
-const readPrompt = async status => {
+const openPage = async (status, consent, path) => {
   const ctx = await browser.newContext({ viewport: VIEW });
   const page = await ctx.newPage();
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
@@ -88,18 +90,24 @@ const readPrompt = async status => {
     const req = route.request();
     if (/\/rest\/v1\/financial_connections\b/.test(req.url()) && req.method() === 'GET') {
       served += 1;
-      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([row(status)]) });
+      return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify([row(status, consent)]) });
     }
     if (/\/rest\/v1\//.test(req.url()) && (req.method() === 'GET' || req.method() === 'HEAD')) return route.continue();
     if (/\/rest\/v1\/rpc\//.test(req.url())) return route.continue();
     return route.abort();
   });
-  await page.goto(`${BASE}/dashboard?tab=accounts`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${BASE}${path}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(6000);
   for (let i = 0; i < 6 && (await page.locator('div.backdrop-blur-sm, div.modal-overlay').count()); i += 1) {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
   }
+  return { ctx, page, served: () => served };
+};
+
+const readPrompt = async status => {
+  const { ctx, page, served: servedFn } = await openPage(status, false, '/dashboard?tab=accounts');
+  const served = servedFn();
   const banks = page.getByRole('tab', { name: /Banks/ }).first();
   try { await banks.waitFor({ state: 'visible', timeout: 15000 }); }
   catch { await page.screenshot({ path: 'test-results/relink-control-fail.png' }); await ctx.close(); await done(2, 'CONTROL FAILED: the Accounts tab has no Linked Banks button (frame: test-results/relink-control-fail.png).'); }
@@ -117,6 +125,34 @@ const readPrompt = async status => {
   return text;
 };
 
+// Dashboard: the broken-link banner shows, outranks the consent banner, and Dismiss hands over to it.
+const readDashboard = async (status, consent) => {
+  const { ctx, page } = await openPage(status, consent, '/dashboard');
+  const brokenBanner = page.getByTestId('broken-link-banner');
+  const consentBanner = page.getByTestId('statement-consent-banner');
+  await page.waitForTimeout(1500);
+  const out = { broken: await brokenBanner.count(), consent: await consentBanner.count(), text: '', afterDismiss: null };
+  if (out.broken) {
+    out.text = await brokenBanner.innerText();
+    await page.screenshot({ path: `test-results/relink-dashboard-${status}.png` });
+    await brokenBanner.getByRole('button', { name: 'Dismiss' }).click();
+    await page.waitForTimeout(800);
+    out.afterDismiss = { broken: await brokenBanner.count(), consent: await consentBanner.count() };
+  }
+  await ctx.close();
+  return out;
+};
+const dashBroken = await readDashboard('reauth_required', true);
+console.log(`dashboard reauth+consent: ${JSON.stringify(dashBroken)}`);
+const dashHealthy = await readDashboard('active', true);
+console.log(`dashboard active+consent (control): ${JSON.stringify(dashHealthy)}`);
+if (dashHealthy.broken !== 0 || dashHealthy.consent !== 1) await done(2, 'CONTROL FAILED: an active row with consent needed should show the consent banner only.');
+if (dashBroken.broken !== 1 || !/Probe Bank needs you to sign in again/.test(dashBroken.text)) await done(1, 'the Dashboard shows no broken-link banner for a reauth_required bank.');
+if (dashBroken.consent !== 0) await done(1, 'the consent banner shows at the same time as the broken-link banner.');
+if (!dashBroken.afterDismiss || dashBroken.afterDismiss.broken !== 0 || dashBroken.afterDismiss.consent !== 1) {
+  await done(1, `Dismiss did not hand over to the consent banner: ${JSON.stringify(dashBroken.afterDismiss)}.`);
+}
+
 const broken = await readPrompt('reauth_required');
 console.log(`reauth_required: ${JSON.stringify(broken)}`);
 const healthy = await readPrompt('active');
@@ -124,4 +160,4 @@ console.log(`active (control): ${JSON.stringify(healthy)}`);
 if (/sign in again/i.test(healthy)) await done(1, 'a healthy connection says the bank needs a sign-in.');
 if (!/sign in again/i.test(broken)) await done(1, 'a reauth_required connection shows no "sign in again" prompt.');
 if (!/Re-link/.test(broken)) await done(1, 'the broken-link prompt has no Re-link button.');
-await done(0, 'PASS: a reauth_required bank row says syncing stopped and offers Re-link; an active row does not. Reads answered in-browser, writes aborted.');
+await done(0, 'PASS: a reauth_required bank says so on the Dashboard (ahead of the consent banner, which takes over on Dismiss) and on its Linked Banks row; an active bank does neither. Reads answered in-browser, writes aborted.');

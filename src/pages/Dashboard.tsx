@@ -16,6 +16,7 @@ import { PMF_SEEN_FLAG, isEligibleForPmf } from '@/lib/pmf-survey';
 import OnboardingChecklist from '@/components/dashboard/OnboardingChecklist';
 import SubscriptionExpiryBanner from '@/components/dashboard/SubscriptionExpiryBanner';
 import StatementConsentBanner from '@/components/dashboard/StatementConsentBanner';
+import BrokenLinkBanner from '@/components/dashboard/BrokenLinkBanner';
 import DashboardCustomizer from '@/components/dashboard/DashboardCustomizer';
 import { formatCurrency } from '@/lib/calculations';
 import { MetricSkeleton, ChartSkeleton, ScheduleSkeleton } from '@/components/dashboard/DashboardSkeleton';
@@ -235,6 +236,8 @@ export default function Dashboard() {
   const [bankNoticeVisible, setBankNoticeVisible] = useState<boolean | null>(null);
   // A bank waiting on statement-data consent outranks the 2FA nudge (ask 3248738e): it is missing data.
   const [consentBannerVisible, setConsentBannerVisible] = useState(false);
+  // A stopped bank sync outranks the statement-consent ask: one nudge at a time (Sam, 2026-10-01).
+  const [brokenLinkVisible, setBrokenLinkVisible] = useState(false);
   const [founderNoteVisible, setFounderNoteVisible] = useState(false);
   const [pmfVisible, setPmfVisible] = useState(false);
   const onboardingInitRef = useRef(false);
@@ -1352,9 +1355,10 @@ export default function Dashboard() {
           See the component for what it reaches and what it cannot. */}
       {!isPartnerView && <FreeBankLinkNotice onVisibleChange={setBankNoticeVisible} />}
       {!isDemo && !isPartnerView && <SubscriptionExpiryBanner />}
-      {!isDemo && !isPartnerView && <StatementConsentBanner onVisibleChange={setConsentBannerVisible} />}
+      {!isDemo && !isPartnerView && <BrokenLinkBanner onVisibleChange={setBrokenLinkVisible} />}
+      {!isDemo && !isPartnerView && !brokenLinkVisible && <StatementConsentBanner onVisibleChange={setConsentBannerVisible} />}
 
-      {!isDemo && !isPartnerView && showSecurityBanner && bankNoticeVisible === false && !consentBannerVisible && (
+      {!isDemo && !isPartnerView && showSecurityBanner && bankNoticeVisible === false && !consentBannerVisible && !brokenLinkVisible && (
         /* Tokens, not raw palette classes. `text-gold` is the warning tone this codebase
            actually has — `text-warning` generates no rule at all (see BalanceTrancheEditor). */
         /* ⚠️ THE ACTION SITS UNDER THE TEXT, NOT BESIDE IT, and that is a fix rather than a
