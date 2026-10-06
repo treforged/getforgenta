@@ -96,13 +96,23 @@ export async function consumeFreeBankLink(
   userId: string,
   provider: string,
   providerItemId: string,
-): Promise<void> {
-  await supabase
+): Promise<boolean> {
+  // ⚠️ THE WRITE USED TO IGNORE ITS OWN ERROR (found 2026-10-06, Sam's e21772b8 probe). A failed
+  // grant write leaves no row, so decideBankLink would offer the same account a free link again
+  // after an unlink - an item Tre pays for each time - and nothing anywhere would say so. The
+  // link itself has already succeeded, so this does not fail the request; it LOGS under a stable
+  // tag that a log search can find, and returns false so a caller or test can see it.
+  const { error } = await supabase
     .from('free_bank_link_grants')
     .upsert(
       { user_id: userId, provider, provider_item_id: providerItemId },
       { onConflict: 'user_id', ignoreDuplicates: true },
     );
+  if (error) {
+    console.error('free_link_grant_write_failed', { provider, message: error.message });
+    return false;
+  }
+  return true;
 }
 
 /** The message a person sees when the paywall is the thing standing in the way. */

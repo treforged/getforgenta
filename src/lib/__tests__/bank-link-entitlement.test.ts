@@ -15,8 +15,9 @@
 // the unlink case fails; treat a lookup error as "no grant" and the error case fails; drop the
 // live-connection check and the simultaneous-second-link case fails.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
+  consumeFreeBankLink,
   decideBankLink,
   FREE_LINK_LIMIT,
 } from '../../../supabase/functions/_shared/bank-link-entitlement';
@@ -136,5 +137,32 @@ describe('decideBankLink', () => {
 
   it('grants exactly one free link', () => {
     expect(FREE_LINK_LIMIT).toBe(1);
+  });
+});
+
+describe('consumeFreeBankLink', () => {
+  const grantClient = (error: { message: string } | null, seen: unknown[]) => ({
+    from(table: string) {
+      if (table !== 'free_bank_link_grants') throw new Error(`unexpected table: ${table}`);
+      return { upsert: async (row: unknown, opts: unknown) => { seen.push(row, opts); return { error }; } };
+    },
+  });
+
+  it('writes one grant per user, keeping the FIRST item on a retry, and reports success', async () => {
+    const seen: unknown[] = [];
+    const ok = await consumeFreeBankLink(grantClient(null, seen), 'user-1', 'plaid', 'item-1');
+    expect(ok).toBe(true);
+    expect(seen).toEqual([
+      { user_id: 'user-1', provider: 'plaid', provider_item_id: 'item-1' },
+      { onConflict: 'user_id', ignoreDuplicates: true },
+    ]);
+  });
+
+  it('does not swallow a failed write: it logs a stable tag and returns false', async () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const ok = await consumeFreeBankLink(grantClient({ message: 'permission denied' }, []), 'user-1', 'plaid', 'item-1');
+    expect(ok).toBe(false);
+    expect(spy).toHaveBeenCalledWith('free_link_grant_write_failed', { provider: 'plaid', message: 'permission denied' });
+    spy.mockRestore();
   });
 });
