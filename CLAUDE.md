@@ -313,6 +313,11 @@ section states reasoning, not measurement, and says so.
   catalog (f9b0da16), turns on Apple Pay, "Use these rates" must fill 2%, Gas 3 is typed over it, and Save must send ONE
   PATCH with card_rewards {base_pct 2, categories {gas 3}}. Also measures the first row of rate boxes lines up (spread 0).
   Red under: Save dropping categories, a dead "Use these rates", and the old inline-span markup (6.3px spread).
+- `npm run check:intro-offer` - the WEB paywall's first-year intro offer (ask a6375f1c) at 390x844, signed in. Answers
+  `create-checkout` in-browser (nothing reaches Stripe) and `user_subscriptions` as empty (reads as free). Offer on: $10.00 /
+  $1.00 with "Then $89.99/yr" / "Then $9.99/mo", no SAVE 25%, NO struck-through text (no "was" price, ask 599911a7); Get sends
+  intro:true; a 409 shows a message and drops the offer. Controls: offer off shows $89.99 + SAVE 25%; a 400 (old deployed
+  function) shows no offer. Red three ways (intro flag dropped, a struck "was" price, SAVE 25% kept).
 - `npm run check:card-advisor` - Debt > "Which Card?" (ask 1f3217bb) at 390x844, signed in: `/debt?tab=use` opens the panel
   (testid AND aria-selected), typing 300 turns "Enter an amount" into "Use <card>" - or the no-room line ONLY when every
   card row says "Not enough room" - and pressing Gas sets aria-pressed. Writes nothing. Proven red by hiding the answer

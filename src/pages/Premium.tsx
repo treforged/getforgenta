@@ -12,6 +12,9 @@ import { tracedInvoke } from '@/lib/tracer';
 import { toast } from 'sonner';
 import NativePaywall from '@/components/premium/NativePaywall';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
+import { useIntroOffer, INTRO_OFFER_QUERY_KEY } from '@/hooks/useIntroOffer';
+import { INTRO_CENTS, REGULAR_CENTS, formatCents } from '@/lib/intro-offer';
+import { useQueryClient } from '@tanstack/react-query';
 
 // Initialise Stripe outside the component so the promise is stable across renders
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY ?? '');
@@ -38,6 +41,11 @@ export default function Premium() {
   const [phase, setPhase] = useState<Phase>('pricing');
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [checkoutPlan, setCheckoutPlan] = useState<'monthly' | 'yearly'>('yearly');
+  // First-year intro offer (ask a6375f1c). The server decides; any failure means no offer.
+  // ⚠️ NEVER a crossed-out "was" price (Sam/Ruby, ask 599911a7): the regular price is stated
+  // plainly as what it costs AFTER the first year, never as a struck-through reference price.
+  const offer = useIntroOffer(!isNative && !isPremium && !isLoading);
+  const queryClient = useQueryClient();
 
   const fetchClientSecret = useCallback(async (plan: 'monthly' | 'yearly') => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -49,14 +57,32 @@ export default function Premium() {
     const { data, error } = await tracedInvoke<{ client_secret: string }>(supabase, 'create-checkout', {
       body: {
         plan,
+        ...(offer[plan] ? { intro: true } : {}),
         ui_mode: 'embedded',
         return_url: `${window.location.origin}/premium/success`,
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      // 409 = the offer is no longer this user's (or was switched off). Re-ask the server so the
+      // page drops the offer, and say so - never silently re-run at full price.
+      if (offer[plan]) {
+        await queryClient.invalidateQueries({ queryKey: [INTRO_OFFER_QUERY_KEY] });
+        throw new Error('The first-year offer is not available on this account. The regular price is shown now.');
+      }
+      throw error;
+    }
     return data?.client_secret ?? null;
-  }, []);
+  }, [offer, queryClient]);
+
+  const planLabel = (plan: 'monthly' | 'yearly'): string => {
+    if (offer[plan]) {
+      return plan === 'yearly'
+        ? `${formatCents(INTRO_CENTS.yearly)} first year`
+        : `${formatCents(INTRO_CENTS.monthly)}/mo first year`;
+    }
+    return plan === 'yearly' ? formatCents(REGULAR_CENTS.yearly) : `${formatCents(REGULAR_CENTS.monthly)}/mo`;
+  };
 
   if (isNative) return <NativePaywall />;
 
@@ -163,10 +189,13 @@ export default function Premium() {
             className={`flex-1 py-2 text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${checkoutPlan === 'yearly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
           >
-            Yearly — $89.99
+            Yearly — {planLabel('yearly')}
+            {/* 25% is against the REGULAR monthly price; under the intro offer it is not true. */}
+            {!offer.yearly && (
             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${checkoutPlan === 'yearly' ? 'bg-white/20 text-white' : 'bg-gold/15 text-gold'}`}>
               SAVE 25%
             </span>
+            )}
           </button>
           <button
             onClick={() => handleSwitchPlan('monthly')}
@@ -174,7 +203,7 @@ export default function Premium() {
             className={`flex-1 py-2 text-xs font-semibold transition-all ${checkoutPlan === 'monthly' ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
             style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
           >
-            Monthly — $9.99/mo
+            Monthly — {planLabel('monthly')}
           </button>
         </div>
 
@@ -259,9 +288,12 @@ export default function Premium() {
                 style={{ borderRadius: 'calc(var(--radius) - 2px)' }}
               >
                 Yearly
+                {/* 25% is against the REGULAR monthly price; under the intro offer it is not true. */}
+                {!offer.yearly && (
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${selectedPlan === 'yearly' ? 'bg-white/20 text-white' : 'bg-gold/15 text-gold'}`}>
                   SAVE 25%
                 </span>
+                )}
               </button>
               <button
                 onClick={() => setSelectedPlan('monthly')}
@@ -275,7 +307,21 @@ export default function Premium() {
           )}
 
           {/* Price display */}
-          {!isPremium && selectedPlan === 'yearly' ? (
+          {!isPremium && offer[selectedPlan] ? (
+            <div className="space-y-2" data-testid="intro-offer-price">
+              <p className="font-display font-bold text-3xl tracking-tight text-gold">
+                {formatCents(INTRO_CENTS[selectedPlan])}
+                <span className="text-base text-muted-foreground font-normal">{selectedPlan === 'monthly' ? '/mo' : ''}</span>
+              </p>
+              <span className="inline-block bg-gold/15 border border-gold/40 text-gold text-xs font-bold tracking-wide px-2.5 py-1 rounded-full uppercase">
+                {selectedPlan === 'monthly' ? 'For your first 12 months' : 'For your whole first year'}
+              </span>
+              <p className="text-xs text-muted-foreground">
+                Then {selectedPlan === 'monthly' ? `${formatCents(REGULAR_CENTS.monthly)}/mo` : `${formatCents(REGULAR_CENTS.yearly)}/yr`}.
+                {' '}New subscribers only. Cancel anytime.
+              </p>
+            </div>
+          ) : !isPremium && selectedPlan === 'yearly' ? (
             <div className="space-y-2">
               <p className="font-display font-bold text-3xl tracking-tight text-gold">
                 $89.99<span className="text-base text-muted-foreground font-normal">/yr</span>
@@ -322,7 +368,7 @@ export default function Premium() {
                 className="w-full bg-primary text-primary-foreground py-2.5 text-xs font-semibold btn-press flex items-center justify-center gap-2"
                 style={{ borderRadius: 'var(--radius)' }}
               >
-                {selectedPlan === 'yearly' ? 'Get Yearly — $89.99' : 'Get Monthly — $9.99/mo'}
+                {selectedPlan === 'yearly' ? `Get Yearly — ${planLabel('yearly')}` : `Get Monthly — ${planLabel('monthly')}`}
               </button>
               <p className="text-xs text-muted-foreground text-center mt-1">
                 Activated instantly after checkout
