@@ -94,6 +94,22 @@ export async function getOfferings(): Promise<PurchasesOfferings | null> {
   return Purchases.getOfferings();
 }
 
+/**
+ * iOS intro-offer eligibility per product id, as RevenueCat's INTRO_ELIGIBILITY_STATUS number
+ * (2 = eligible). EVERY failure, and every non-iOS platform, returns {} - which the paywall reads
+ * as "no offer". Android needs no call: Play only lists offers the user is eligible for.
+ */
+export async function getIntroEligibility(productIds: readonly string[]): Promise<Readonly<Record<string, number>>> {
+  if (!isNative() || configuredUserId === null || Capacitor.getPlatform() !== 'ios' || productIds.length === 0) return {};
+  try {
+    const { Purchases } = await import('@revenuecat/purchases-capacitor');
+    const result = await Purchases.checkTrialOrIntroductoryPriceEligibility({ productIdentifiers: [...productIds] });
+    return Object.fromEntries(Object.entries(result).map(([id, e]) => [id, Number(e?.status)]));
+  } catch {
+    return {};
+  }
+}
+
 export async function purchasePackage(
   pkg: PurchasesPackage,
 ): Promise<CustomerInfo | null> {

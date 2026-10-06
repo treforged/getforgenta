@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import type { PurchasesOfferings, PurchasesPackage } from '@revenuecat/purchases-capacitor';
 import {
   getOfferings,
+  getIntroEligibility,
   purchasePackage,
   restorePurchases,
   presentCodeRedemptionSheet,
@@ -12,6 +13,7 @@ import {
 } from '@/lib/purchases';
 import { useSubscription } from '@/hooks/useSubscription';
 import { AI_ADVISOR_ENABLED } from '@/lib/feature-flags';
+import { nativeIntroOffer, type NativePlatform } from '@/lib/native-intro-offer';
 
 const FEATURE_LIST = [
   'Advanced dashboard',
@@ -24,6 +26,8 @@ const FEATURE_LIST = [
 ];
 
 const isAndroid = Capacitor.getPlatform() === 'android';
+const platform: NativePlatform = isAndroid ? 'android' : 'ios';
+const isAnnualPkg = (pkg: PurchasesPackage): boolean => pkg.packageType === 'ANNUAL' || pkg.identifier === '$rc_annual';
 
 type RedeemPhase = 'idle' | 'instructions' | 'returning' | 'manual-restore';
 
@@ -36,6 +40,8 @@ export default function NativePaywall() {
   const [restoring, setRestoring] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [redeemPhase, setRedeemPhase] = useState<RedeemPhase>('idle');
+  // iOS intro-offer eligibility by product id (ask a6375f1c). Empty = no offer shown.
+  const [introEligibility, setIntroEligibility] = useState<Readonly<Record<string, number>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -48,6 +54,9 @@ export default function NativePaywall() {
           (p) => p.packageType === 'ANNUAL' || p.identifier === '$rc_annual',
         );
         setSelectedPkg(annual ?? pkgs[0] ?? null);
+        getIntroEligibility(pkgs.map((p) => p.product.identifier))
+          .then((e) => { if (!cancelled) setIntroEligibility(e); })
+          .catch(() => { /* no offer shown */ });
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -232,6 +241,9 @@ export default function NativePaywall() {
   }
 
   const packages = offerings.current.availablePackages;
+  const selectedOffer = selectedPkg
+    ? nativeIntroOffer(selectedPkg.product, isAnnualPkg(selectedPkg), platform, introEligibility[selectedPkg.product.identifier])
+    : null;
 
   return (
     <div className="p-4 pb-4 max-w-sm mx-auto space-y-4">
@@ -258,8 +270,8 @@ export default function NativePaywall() {
       <div className="space-y-2">
         {packages.map((pkg) => {
           const isSelected = selectedPkg?.identifier === pkg.identifier;
-          const isAnnual =
-            pkg.packageType === 'ANNUAL' || pkg.identifier === '$rc_annual';
+          const isAnnual = isAnnualPkg(pkg);
+          const offer = nativeIntroOffer(pkg.product, isAnnual, platform, introEligibility[pkg.product.identifier]);
           return (
             <button
               key={pkg.identifier}
@@ -281,10 +293,17 @@ export default function NativePaywall() {
                       </span>
                     )}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {pkg.product.priceString}
-                    {isAnnual ? '/year' : '/month'}
-                  </p>
+                  {offer ? (
+                    <p className="text-xs mt-0.5" data-testid="native-intro-offer">
+                      <span className="font-semibold text-gold">{offer.introPrice}</span>
+                      <span className="text-muted-foreground"> for your {offer.term}, then {offer.thenPrice}</span>
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {pkg.product.priceString}
+                      {isAnnual ? '/year' : '/month'}
+                    </p>
+                  )}
                 </div>
                 <div
                   className={`w-4 h-4 rounded-full border-2 transition-all ${
@@ -310,7 +329,7 @@ export default function NativePaywall() {
           <>
             <Crown size={15} className="text-primary-foreground/80" />
             {selectedPkg
-              ? `Get Premium — ${selectedPkg.product.priceString}`
+              ? `Get Premium — ${selectedOffer ? `${selectedOffer.introPrice} ${selectedOffer.term}` : selectedPkg.product.priceString}`
               : 'Get Premium'}
           </>
         )}
