@@ -513,7 +513,8 @@ export default function Forecast({ simple = false }: { simple?: boolean } = {}) 
         />
 
         {!forecastInputsLoading && !simple && <ShortfallLevers shortMonths={shortMonths} compute={computeLevers} />}
-        {!forecastInputsLoading && simple && <ForecastSimpleSummary lowPoint={lowPoint} shortMonthCount={shortMonths.length} />}
+        {/* No inputs = nothing on file: the hero already says so, so no "$0.00 lowest point" beside it (walk:empty, 2026-10-06). */}
+        {!forecastInputsLoading && simple && !noInputs && <ForecastSimpleSummary lowPoint={lowPoint} shortMonthCount={shortMonths.length} />}
       </div>
 
       {showDemoGuides && !simple && (
