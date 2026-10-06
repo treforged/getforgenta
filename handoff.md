@@ -1,6 +1,14 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW20 (2026-10-06 ~17:30 ET, Ada). R-NOW19 items 1-2 DONE:
+  - 10-07 11:37 nudge read re-armed as session cron 2cb23065 (dies with this tab; re-arm if the tab is gone).
+  - Funnel: NO measurable drop. Only 2 of 28 real users carry furthest_step (26 joined 03-22..08-07, before
+    the column); 1 real signup since 08-07. One user stalled at EXPENSES (10-04), the shape ARM E now covers.
+  - Fallback ran: competitor-edge, 1,079 rival complaints -> docs/competitor-edge-budgeting-2026-10-06.md
+    (5264a147). Lead: surprise charges 174 (92 trial/cancel). Ad angle went to Ruby via Sam.
+  - cc79cb6e (renewal reminder) BLOCKED until 2027-09-01: Apple already notifies; Stripe toggle state unknown.
+  NEXT: the next e1b0fffc improvement; items in R-NOW19 #3 are still waiting on others.
 R-NOW19 (2026-10-06 ~18:45 ET, Ada -> successor; handoff gate at 179 calls). START HERE, IN ORDER:
   1. RE-ARM the 10-07 11:37 no-save-nudge read FIRST (CronCreate one-shot "37 11 7 10 *"): read cron.job_run_details
      for 'no-save-nudge-daily' + net._http_response (candidates/sent/failures), tell Sam, update ask a2c2d32f.
