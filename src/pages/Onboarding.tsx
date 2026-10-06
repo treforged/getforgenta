@@ -804,7 +804,14 @@ export default function Onboarding() {
                     <span className="font-semibold">{data.goals.filter(g => g.name).length}</span>
                   </div>
                 )}
-                {data.weeklyGross && (
+                {/* With no bills entered (e.g. "Save what I have" on Expenses), "after expenses" would be the
+                    whole take-home presented as what is left - a confident number with nothing behind it. */}
+                {data.weeklyGross && totalExpenses === 0 && (
+                  <p className="py-2 text-xs text-muted-foreground" data-testid="finish-no-expenses">
+                    Add your bills under Plan to see what is left each month.
+                  </p>
+                )}
+                {data.weeklyGross && totalExpenses > 0 && (
                   <div className="flex justify-between py-2 text-xs">
                     <span className="text-muted-foreground">Available after expenses</span>
                     <span className={`font-semibold ${net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>

@@ -248,6 +248,9 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
     .waitFor({ timeout: 8000 }).then(() => true).catch(() => false);
   const savedBeforeFinish = st.savePress !== null;
   const partnerCard = await page.getByTestId('finish-partner').isVisible().catch(() => false);
+  // No bills entered: the finish must not print take-home as "Available after expenses".
+  const noExpHint = await page.getByTestId('finish-no-expenses').isVisible().catch(() => false);
+  const afterExpRow = await page.getByText(/Available after expenses/).first().isVisible().catch(() => false);
   await shot('finish');
 
   const finalWrites = await press(final.role, final.re, final.name);
@@ -264,6 +267,7 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
     [`first save is on "${savePressName}"`, st.savePress === savePressName, `was ${st.savePress ?? 'NONE'}`],
     ...(saveEarly ? [['the early save writes the income', earlySave.some((w) => w.path.startsWith('profiles') && /weekly_gross_income/.test(w.fields)),
       earlySave.map((w) => `${w.path} {${w.fields}}`).join('; ') || 'no writes']] : []),
+    ...(saveEarly ? [['finish shows the add-bills hint, not "Available after expenses"', noExpHint && !afterExpRow, `hint=${noExpHint} afterRow=${afterExpRow}`]] : []),
     ...(!saveEarly && arm === 'ARM A' ? [['"Save what I have" shows on Expenses once income is in', st.earlyLinkShown === true, `visible=${st.earlyLinkShown}`]] : []),
     ['finish screen shown, and only after the save', finishShown && savedBeforeFinish, `shown=${finishShown} savedBefore=${savedBeforeFinish}`],
     [`"${final.name}" does not save the wizard again`, finalWrites.filter((w) => w.isWizardSave).length === 0,
