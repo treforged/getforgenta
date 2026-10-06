@@ -6,6 +6,8 @@ R-NOW13 (2026-10-06 ~13:30 ET, Ada). R-NOW12 items 2-4 DONE:
   - 7c503ea2 native paywall: src/lib/native-intro-offer.ts (iOS needs eligibility 2, Android trusts introPrice) +
     NativePaywall.introOffer.test.tsx (red 2 ways; test:tz 6152 x3). NOT device-verified. Pushed, origin 0/0.
   - Console list filed as ask e9a278bd (owner Sam) and sent to Sam. The create-checkout deploy is Tre's, in his session.
+  - 599911a7 + 8dd3c5ab closed (Ruby's 3 ad facts). Answering (3) found a gap: a reauth_required bank showed nothing.
+    6d974248 Accounts > Banks strip + bd3ba569 Home BrokenLinkBanner (outranks consent/2FA). Gate check:relink-prompt.
   NEXT: (1) after the deploy + coupons exist, re-run check:intro-offer and call create-checkout action:'offer' for real.
   (2) CronCreate d9e48030 fires 10-07 11:37 (session-only; re-arm if this tab dies). (3) e1b0fffc standing.
 R-NOW12 (2026-10-06 ~15:00 ET, Ada -> successor). START HERE, IN ORDER:
@@ -13495,36 +13497,34 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 12:51 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 13:26 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (8 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M src/pages/Premium.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
 ?? press-walk-frames/
-?? src/hooks/useIntroOffer.ts
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+c5ed602e [handoff]: R-NOW13 - intro offer web + native shipped, console list with Sam (e9a278bd)
+7c503ea2 [premium]: native paywall names the store intro offer when the user is eligible (a6375f1c)
+de726b9f [premium]: web paywall shows the first-year intro offer when the server says so (a6375f1c)
 5ef97954 [handoff]: R-NOW12 - intro offer mid-flight (server shipped undeployed, web paywall uncommitted)
 680d11f1 [premium]: first-year intro offer - server half (opt-in, fails closed, NOT YET DEPLOYED)
 c875d4b1 [nav]: the Debt highlight dot sits on the icon's corner with a ring, not on the glyph
 9d2e7b92 [handoff]: R-NOW11 - three e1b0fffc slices shipped, wake 5041ac9e still session-only
 8c0bbc04 [nav]: the desktop rail shows one selected row - Debt's emphasis is a dot, not a second fill
-b6a782d7 [docs]: walk:empty gate line - reads /budget and percentages, joined text nodes
-a8bcc49f [empty-state]: Plan shows a new user what to add first, not a donut of five "(0%)" and "$0.00 this month"
-1631c871 [handoff]: R-NOW11 - walk:empty fix shipped, no-save-nudge wake armed (session-only)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
