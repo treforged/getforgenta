@@ -1,6 +1,16 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW5 (2026-10-05 ~23:55 ET, Ada). START HERE:
+  1. eb7282e9 Play ship fallback 06:39 ET 10-06 is armed in THIS tab (CronCreate e7f2fea8). A tab that is not this one
+     must re-arm it ('39 6 6 10 *') or do it by hand at that time - steps in `ask show eb7282e9`.
+  2. [x] e1b0fffc (c) spent-of-planned SHIPPED: 7c6ce402 + b179d250 - Budget Simple 'Spent so far' card,
+     src/components/budget/SpentOfPlanned.tsx + src/lib/budget-spent.ts (18 tests). SPENT = bank rows month-to-date
+     (measured: bank charges never reach `transactions`); category = matched rule > user override > Plaid map;
+     Debt Payments/Income/Savings/Investing excluded both sides. Gate check:spent-of-planned (red exit 1 proven).
+     JS only - reaches phones via Vercel. NOT done: desktop render check, and a look on Tre's own account (he is Advanced).
+  3. NEXT e1b0fffc: PROPOSAL.md Simple table - verify Dashboard 'Due this week (bills AND debt minimums in one list)'
+     and Debt 'interest this month' exist (grep the caller first) before building either.
 R-NOW4 (2026-10-05 ~23:10 ET, Ada getforgenta-fd -> successor). START HERE, IN ORDER:
   1. RE-ARM eb7282e9 (Play ship fallback, 06:39 ET 10-06): CronCreate '39 6 6 10 *' one-shot - my f9096417 dies with this tab.
      Then follow `ask show eb7282e9` exactly at that time.
