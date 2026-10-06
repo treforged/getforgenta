@@ -54,7 +54,7 @@ function FirstUpsell({
             Get more done with Forgenta Premium
           </p>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Connect your bank once and let Forgenta do the heavy lifting — transactions, balances, and projections stay up to date automatically.
+            Let Forgenta do the heavy lifting — your banks sync every morning, so transactions, balances, and projections stay up to date automatically.
           </p>
         </div>
       </div>
