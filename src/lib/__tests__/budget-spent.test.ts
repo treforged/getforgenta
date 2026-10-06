@@ -51,11 +51,12 @@ describe('computeMonthSpent', () => {
     expect(r).toEqual({ totalCents: 30000, byCategory: { Rent: 10000, Groceries: 10000, Utilities: 10000 }, countedRows: 3 });
   });
 
-  it('6. a LOAN_PAYMENTS row matched to a Debt Payments rule counts', () => {
+  it('6. a LOAN_PAYMENTS row counts only when matched to a spending rule; Debt Payments never counts', () => {
     const r = computeMonthSpent({ ...base,
-      bank: [b('1', '2026-10-15', 100, 'LOAN_PAYMENTS')],
-      matchedCategory: new Map([['1', 'Debt Payments']]) });
-    expect(r).toEqual({ totalCents: 10000, byCategory: { 'Debt Payments': 10000 }, countedRows: 1 });
+      bank: [b('1', '2026-10-15', 100, 'LOAN_PAYMENTS'), b('2', '2026-10-15', 7, 'LOAN_PAYMENTS'), b('3', '2026-10-15', 9, 'FOOD_AND_DRINK')],
+      matchedCategory: new Map([['1', 'Car'], ['2', 'Debt Payments']]),
+      overrides: new Map([['3', 'Debt Payments']]) });
+    expect(r).toEqual({ totalCents: 10000, byCategory: { Car: 10000 }, countedRows: 1 });
   });
 
   it('7. an override to Savings is not spending', () => {

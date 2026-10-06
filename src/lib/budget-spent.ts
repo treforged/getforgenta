@@ -34,7 +34,11 @@ export const NOT_SPENDING_PROVIDER: ReadonlySet<string> = new Set([
   'LOAN_PAYMENTS',
   'INCOME',
 ]);
+// 'Debt Payments' pays down EARLIER spending, so counting it here would count a purchase twice, and the
+// plan side (BudgetControl passes fixed + variable rules minus this category) leaves it out to match.
+// Measured 2026-10-05: Tre had set a $198.17 loan payment to 'Debt Payments' himself.
 export const NOT_SPENDING_CATEGORIES: ReadonlySet<string> = new Set([
+  'Debt Payments',
   'Income',
   'Savings',
   'Investing',

@@ -1463,7 +1463,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
       {simple && (
         <SpentOfPlanned
           rules={[...incomeRules, ...fixedRules, ...variableRules, ...debtRules, ...transferRules]}
-          plannedRules={[...fixedRules, ...variableRules].filter(r => r.active).map(r => ({ category: r.category, amount: toCurrentMonthAmount(r) }))}
+          plannedRules={[...fixedRules, ...variableRules].filter(r => r.active && r.category !== 'Debt Payments').map(r => ({ category: r.category, amount: toCurrentMonthAmount(r) }))}
         />
       )}
 
