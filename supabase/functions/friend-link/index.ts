@@ -328,7 +328,9 @@ async function readDisplayName(supabase: any, userId: string): Promise<string | 
     console.error("friend-link: display name lookup failed:", error.message);
     return null;
   }
-  return (data as { display_name: string | null } | null)?.display_name ?? null;
+  // `||`, not `??`: most profiles store an EMPTY name, not null (19 of 34 on 2026-10-05), and `??`
+  // let "" through - the invite then read " invited you to ..." with no name (ask b6b27be2).
+  return (data as { display_name: string | null } | null)?.display_name?.trim() || null;
 }
 
 /**
