@@ -36,6 +36,7 @@
     "check:loan-chart": "node scripts/check-loan-chart.mjs",
     "check:partner-view": "node scripts/check-partner-view.mjs",
     "check:invite-resume": "node scripts/check-invite-resume.mjs",
+    "check:rail-click": "node scripts/check-rail-click.mjs",
     "check:goal-starts": "node scripts/check-goal-starts.mjs",
     "check:forecast-table": "node scripts/check-forecast-table.mjs",
     "check:plan-bar": "node scripts/check-plan-rules-bar.mjs",

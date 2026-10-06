@@ -57,14 +57,18 @@ export default function PayMoreCard({ compute }: Props) {
           {state.report.basePayoff === undefined && (
             <p className="mt-3 text-xs text-muted-foreground">Today your cards are not paid off within the forecast. With a little more:</p>
           )}
-          <ul className="mt-3 space-y-1.5" data-testid="pay-more-options">
+          <ul className="mt-3 space-y-1.5 max-w-md" data-testid="pay-more-options">
             {state.report.options.map(o => (
-              <li key={o.extraMonthly} className="flex items-baseline justify-between gap-3 text-sm">
+              // "Sooner" sits UNDER the date, not beside it: side by side at 390px the right column
+              // took the row and squeezed "$100.00 more a month" to one word per line (2026-10-05).
+              // The date column never shrinks (a shrinking one let the date spill past the card at
+              // 320px, clipped); the amount may wrap to a second line instead.
+              <li key={o.extraMonthly} className="flex items-start justify-between gap-3 text-sm">
                 <span className="min-w-0">{formatCurrency(o.extraMonthly)} more a month</span>
                 <span className="shrink-0 text-right">
-                  <span className="font-semibold">Debt-free {o.payoffMonth}</span>
+                  <span className="block font-semibold whitespace-nowrap">Debt-free {o.payoffMonth}</span>
                   {o.monthsSooner !== null && (
-                    <span className="ml-1.5 text-xs text-success-text">{o.monthsSooner} {o.monthsSooner === 1 ? 'month' : 'months'} sooner</span>
+                    <span className="block text-xs text-success-text whitespace-nowrap">{o.monthsSooner} {o.monthsSooner === 1 ? 'month' : 'months'} sooner</span>
                   )}
                 </span>
               </li>

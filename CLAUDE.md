@@ -315,6 +315,9 @@ section states reasoning, not measurement, and says so.
   pay-more-payoff.test.ts (6, red two ways) and pay-more-payoff.realData.test.ts (shortcut == full re-render at 4 amounts).
   The DEMO arm starts on Home: the hero's "See how to finish sooner" link must be ABSENT in Advanced and present in Simple,
   and pressing it must reach the card (red both ways, exit 1).
+  `VIEW=advanced` (with DEMO=1) runs the card in ADVANCED, where it renders since 2026-10-05 (e1b0fffc (a)); red on the
+  Simple-only page (exit 1). Rows were re-laid out the same day: at 390 the amount wrapped one word per line, and at 320
+  the date spilled past the card (a box check could not see it - measure the TEXT with a Range).
 - `npm run measure:detail-load` - an INVENTORY of cards, dollar figures and phone screens per route (ask 7515c3fa).
   VIEW_MODE=simple reads every route in the Simple view; PRESS_ROUTE=/debt presses Simple, Show each account and
   Show advanced detail there and fails if the count does not drop and return. WIDTH=1440 for desktop.
@@ -341,6 +344,9 @@ section states reasoning, not measurement, and says so.
   not onboarded -> /onboarding (control); after the onboarded write /dashboard must land on /account?partner_code=X with the field
   filled; a second visit stays on /dashboard. Red on the pre-fix guard (lands /dashboard). A version that CONSUMED the code on read
   also failed it: React StrictMode runs the resume effect twice. Does NOT cover the native app (email links open Safari).
+- `npm run check:rail-click` - at 1440 on /demo: the desktop rail CLOSES after a MOUSE click (it used to stay 234px over the
+  page because the clicked link kept focus and the rail opened on `focus-within`) and still OPENS for KEYBOARD focus. Control:
+  hover widens it. Red both ways (focus-within: arm 2; no focus open: arm 3). Does NOT cover touch or other widths.
 - `npm run check:goal-starts` - the Goals tab EMPTY STATE at 390 and 1440, signed in, savings_goals answered `[]` in-browser
   (nothing written): one start button per goal type except Custom, and PRESSING each opens "New Savings Goal" with that type
   selected. Control: the empty-state text renders. Proven red with every button opening Custom (8 of 8 fail). Frames

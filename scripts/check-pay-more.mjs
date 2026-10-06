@@ -8,7 +8,8 @@
 // account is never changed. Numbers are owned by pay-more-payoff.test.ts and its realData pin.
 //
 // EXITS: 0 pass . 1 a check failed . 2 could not test (env, sign-in, server, card never rendered)
-// DOES NOT COVER: desktop widths, Advanced (the card is Simple-only), or whether the dates are RIGHT.
+// VIEW=advanced (with DEMO=1) runs the same card in Advanced, where it also renders since 2026-10-05.
+// DOES NOT COVER: desktop widths, or whether the dates are RIGHT.
 // check:goal-grid - the Dashboard's Goal Progress card at 390x844 AND 1440x900, signed in as the walk account.
 // The walk account has NO goals, so the savings_goals read is answered IN THE BROWSER (route.fulfill)
 // with 1, 2 and 3 goals in turn - nothing is written. For each count and width, EVERY ROW of tiles
@@ -19,6 +20,8 @@
 import { readFileSync } from 'node:fs';
 
 const BASE = 'http://localhost:8080';
+const VIEW = process.env.VIEW === 'advanced' ? 'advanced' : 'simple';
+const VIEW_TAB = VIEW === 'advanced' ? 'Advanced' : 'Simple';
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 
 const env = readFileSync('.env.local', 'utf8');
@@ -80,7 +83,7 @@ await ctx.route(`${url}/**`, async (route) => {
       let body = await resp.text();
       try {
         const j = JSON.parse(body);
-        const set = (o) => ({ ...o, view_mode: 'simple' });
+        const set = (o) => ({ ...o, view_mode: VIEW });
         body = JSON.stringify(Array.isArray(j) ? j.map(set) : set(j));
       } catch { /* not JSON: pass through */ }
       return await route.fulfill({ response: resp, body });
@@ -104,7 +107,7 @@ if (process.env.DEMO === '1') {
   for (let i = 0; i < 6 && (await page.locator('div.backdrop-blur-sm, div.modal-overlay').count()); i += 1) {
     await page.keyboard.press('Escape'); await page.waitForTimeout(500);
   }
-  // Home's hero carries a "finish sooner" link in Simple ONLY (the card does not exist in Advanced).
+  // Home's hero carries a "finish sooner" link in Simple ONLY (Advanced Home has the full debt detail).
   const heroLink = page.getByTestId('hero-finish-sooner');
   const viewTab = (name) => page.getByRole('tab', { name });
   await viewTab('Advanced').waitFor({ timeout: 30000 }).catch(() => {});
@@ -117,15 +120,18 @@ if (process.env.DEMO === '1') {
   if (inAdvanced !== 0) { await browser.close(); fail(1, 'the hero shows "finish sooner" in Advanced, where the card does not exist.'); }
   if (inSimple !== 1) { await browser.close(); fail(1, 'the hero has no "finish sooner" link in Simple.'); }
   await heroLink.first().click();
-  const simpleTab = page.getByRole('tab', { name: 'Simple' });
-  await simpleTab.waitFor({ timeout: 30000 }).catch(() => {});
-  if (await simpleTab.getAttribute('aria-selected') !== 'true') await simpleTab.click();
+  const viewTabOnDebt = page.getByRole('tab', { name: VIEW_TAB });
+  await viewTabOnDebt.waitFor({ timeout: 30000 }).catch(() => {});
+  if (await viewTabOnDebt.getAttribute('aria-selected') !== 'true') await viewTabOnDebt.click();
+  await page.waitForTimeout(1500);
+  console.log(`view on /debt: ${VIEW_TAB} selected = ${await viewTabOnDebt.getAttribute('aria-selected')}`);
+  if (await viewTabOnDebt.getAttribute('aria-selected') !== 'true') { await browser.close(); fail(2, `could not select ${VIEW_TAB} on /debt (control).`); }
 } else {
   await page.goto(`${BASE}/debt`, { waitUntil: 'domcontentloaded' });
 }
 const card = page.getByTestId('pay-more-card');
 const shown = await card.waitFor({ timeout: 30000 }).then(() => true).catch(() => false);
-if (!shown) { await page.screenshot({ path: 'test-results/pay-more-missing.png' }); await browser.close(); fail(2, 'the Finish sooner card never rendered on /debt in Simple (control).'); }
+if (!shown) { await page.screenshot({ path: 'test-results/pay-more-missing.png' }); await browser.close(); fail(VIEW === 'advanced' ? 1 : 2, `the Finish sooner card never rendered on /debt in ${VIEW_TAB}.`); }
 const pageText = await page.locator('main').first().innerText().catch(() => '');
 const headline = pageText.split(String.fromCharCode(10)).filter((l) => /[A-Z][a-z]{2} \d{4}/.test(l));
 const pageMonths = new Set(headline.flatMap((l) => l.match(/[A-Z][a-z]{2} \d{4}/g) ?? []));
@@ -136,7 +142,7 @@ if (!(await run.count())) { await browser.close(); fail(2, 'no "Show me" button 
 await run.click();
 const result = card.locator('[data-testid="pay-more-options"], [data-testid="pay-more-none"]');
 const got = await result.first().waitFor({ timeout: 90000 }).then(() => true).catch(() => false);
-await page.screenshot({ path: `test-results/pay-more-simple${process.env.DEMO === '1' ? '-demo' : ''}.png` });
+await page.screenshot({ path: `test-results/pay-more-${VIEW}${process.env.DEMO === '1' ? '-demo' : ''}.png` });
 const failures = [];
 if (!got) failures.push('pressing "Show me" produced neither options nor the no-change line within 90 s');
 if (await run.count()) failures.push('"Show me" is still on the card after the press');

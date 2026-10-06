@@ -30,7 +30,8 @@ type Props = {
   trajectory?: PayoffTrajectory | null;
   /**
    * Simple view only (ask e1b0fffc): a link under the payoff date to Debt's "Finish sooner" card.
-   * Off in Advanced, where that card does not render, so the link never lands on nothing.
+   * The card renders in both views since 2026-10-05; the link stays Simple-only because Advanced Home
+   * already carries the full debt detail and this is the Simple path's one route to it.
    */
   showFinishSooner?: boolean;
 };

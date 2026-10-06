@@ -608,7 +608,9 @@ export default function DebtPayoff() {
           <ConsolidationPanel accounts={accounts ?? []} plans={paymentPlans ?? []} />
         </ErrorBoundary>
       )}
-      {activeTab === 'cards' && isSimple && openCreditCards.length > 0 && (
+      {/* Both views (ask e1b0fffc idea (a), 2026-10-05): it is the most direct "save money" lever on
+          the page, and Advanced users are the ones most likely to act on it. Shipped Simple-only first. */}
+      {activeTab === 'cards' && openCreditCards.length > 0 && (
         <ErrorBoundary variant="widget" label="Finish sooner">
           <PayMoreCard compute={computePayMore} />
         </ErrorBoundary>
