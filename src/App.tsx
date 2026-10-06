@@ -7,6 +7,7 @@ import ConnectionNotice from '@/components/shared/ConnectionNotice';
 import BackendHealthBanner from '@/components/shared/BackendHealthBanner';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { stashInviteFromSearch, peekPendingInvite, clearPendingInvite } from "@/lib/pending-invite";
 import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation, useNavigationType } from "react-router";
 import { Capacitor } from '@capacitor/core';
 import { MotionConfig } from 'framer-motion';
@@ -181,19 +182,45 @@ function GateNotice({ label }: { label: string }) {
   return <div className="min-h-screen bg-background flex items-center justify-center"><LoadingMark label={label} /></div>;
 }
 
+/**
+ * Sends a signed-in, set-up user back to the invite they arrived with before /auth or /onboarding
+ * took the query string away (ask 4f623f93, `src/lib/pending-invite.ts`). Takes it in an effect, so
+ * a render that is thrown away cannot consume it, and `target` is read once by the guard, so an
+ * effect StrictMode runs twice navigates to the same place twice rather than back where it began.
+ */
+function ResumePendingInvite({ target }: { target: string }) {
+  const navigate = useNavigate();
+  useEffect(() => {
+    clearPendingInvite();
+    navigate(target, { replace: true });
+  }, [navigate, target]);
+  return <GateNotice label="Opening your invite…" />;
+}
+
 function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.ReactNode; skipOnboardingCheck?: boolean }) {
   const { user, loading } = useAuth();
   const { isDemo } = useDemo();
+  const { search } = useLocation();
   // `profiles.onboarding_completed` is the store, with the old localStorage key as a cache and a
   // migration source (src/lib/onboarding-state.ts). A device that already holds the key answers
   // immediately; everyone else waits for one small query rather than being bounced into a wizard
   // they finished on another device. `unknown` — the profile could not be read — never gates.
   const onboarding = useOnboardingStatus();
   if (loading) return <GateNotice label="Authenticating…" />;
-  if (!user && !isDemo) return <Navigate to="/auth" replace />;
+  // ⚠️ BOTH BOUNCES BELOW DROP THE QUERY STRING, and an invite email's code exists nowhere else.
+  // Stash it first, so the new partner the email told to "create an account first" still has it.
+  if (!user && !isDemo) {
+    stashInviteFromSearch(search);
+    return <Navigate to="/auth" replace />;
+  }
   if (!skipOnboardingCheck && user && !isDemo) {
     if (onboarding.status === 'pending') return <GateNotice label="Loading your setup…" />;
-    if (onboarding.status === 'needs-onboarding') return <Navigate to="/onboarding" replace />;
+    if (onboarding.status === 'needs-onboarding') {
+      stashInviteFromSearch(search);
+      return <Navigate to="/onboarding" replace />;
+    }
+    const inviteTarget = peekPendingInvite();
+    if (inviteTarget) return <ResumePendingInvite target={inviteTarget} />;
   }
   return <>{children}</>;
 }
