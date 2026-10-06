@@ -1,6 +1,11 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW3 (2026-10-05 ~22:00 ET, Ada). Tre meant PARTNER linking. Tested end to end with throwaways (all deleted, 0 rows):
+  works = invite+email, free 403, accept via link, both linked, desktop partner view. FIXED + pushed: c2e35e99 phone entry
+  (check:partner-view), 8deabd10 code survives /auth+/onboarding (check:invite-resume, src/lib/pending-invite.ts),
+  e7c2dd85 blank inviter name (partner-link + friend-link DEPLOYED). NEXT: new ask - partner view shows write controls.
+  eb7282e9 wake still armed in this session (f9096417, 06:39 ET 10-06).
 R-NOW2 (2026-10-05 ~21:10 ET, Ada). DONE: 336b096c shipped 876e06c4 (check:loan-chart, red 3 -> green 1). Account linking
   answered: 10 connections/4 users, nightly sync 13:00Z today OK, last NEW link 09-05 (Robinhood), 0 link-token calls in 24h;
   iOS native link still unproven on a device. eb7282e9 wake armed in THIS session (CronCreate f9096417, 06:39 ET 10-06).
@@ -13359,17 +13364,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 20:49 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 21:23 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M src/components/vehicles/LoanCard.tsx
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13380,14 +13384,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+d48a7def [handoff]: R-NOW2 - loan chart dedupe shipped; linking answered; eb7282e9 wake re-armed
+876e06c4 [debt]: Auto Loans draws each car's payoff graph once, not twice (ask 336b096c)
 8b6c0bff [handoff]: R-NOW - loan chart dedupe uncommitted for render check; account-linking question to verify
 04b642db [handoff]: iOS 1319 uploaded with the security fix; hero link shipped
 2f29a721 [dashboard]: Simple Home links the payoff date to "Finish sooner" (ask e1b0fffc)
 c986dee0 [handoff]: Capacitor security fix shipped; iOS upload run to verify; spent-of-planned scoped
 2af5d323 [security]: Capacitor 8.5.2 (2 critical Dependabot alerts) + two dev-only parser fixes
 e90e9d1f [handoff]: Finish sooner card shipped; next ideas listed
-ca3dc82d [debt]: "Finish sooner" on Debt's Simple view - pay $X more, debt-free by <date> (ask e1b0fffc)
-00f4805c [handoff]: Simple measured at desktop; blockers re-tested
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
