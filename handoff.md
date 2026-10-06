@@ -4,7 +4,8 @@
 R-NOW3 (2026-10-05 ~22:00 ET, Ada). Tre meant PARTNER linking. Tested end to end with throwaways (all deleted, 0 rows):
   works = invite+email, free 403, accept via link, both linked, desktop partner view. FIXED + pushed: c2e35e99 phone entry
   (check:partner-view), 8deabd10 code survives /auth+/onboarding (check:invite-resume, src/lib/pending-invite.ts),
-  e7c2dd85 blank inviter name (partner-link + friend-link DEPLOYED). NEXT: new ask - partner view shows write controls.
+  e7c2dd85 blank inviter name (partner-link + friend-link DEPLOYED); 531cc678 own-account notices hidden in partner view.
+  NEXT: STANDING e1b0fffc (a) Finish sooner card in Advanced Debt.
   eb7282e9 wake still armed in this session (f9096417, 06:39 ET 10-06).
 R-NOW2 (2026-10-05 ~21:10 ET, Ada). DONE: 336b096c shipped 876e06c4 (check:loan-chart, red 3 -> green 1). Account linking
   answered: 10 connections/4 users, nightly sync 13:00Z today OK, last NEW link 09-05 (Robinhood), 0 link-token calls in 24h;
@@ -13364,7 +13365,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 21:23 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 21:55 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13384,14 +13385,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+11a87c07 [handoff]: R-NOW3 - partner linking tested, 3 fixes shipped; next: partner view write controls
+e7c2dd85 [invites]: an invite from someone with no display name says "A Forgenta member" (ask b6b27be2)
+8deabd10 [invites]: a partner or friend invite code survives sign-up and onboarding (ask 4f623f93)
+c2e35e99 [partner]: a phone can open the partner's budget from the linked card (ask 07351a98)
 d48a7def [handoff]: R-NOW2 - loan chart dedupe shipped; linking answered; eb7282e9 wake re-armed
 876e06c4 [debt]: Auto Loans draws each car's payoff graph once, not twice (ask 336b096c)
 8b6c0bff [handoff]: R-NOW - loan chart dedupe uncommitted for render check; account-linking question to verify
 04b642db [handoff]: iOS 1319 uploaded with the security fix; hero link shipped
-2f29a721 [dashboard]: Simple Home links the payoff date to "Finish sooner" (ask e1b0fffc)
-c986dee0 [handoff]: Capacitor security fix shipped; iOS upload run to verify; spent-of-planned scoped
-2af5d323 [security]: Capacitor 8.5.2 (2 critical Dependabot alerts) + two dev-only parser fixes
-e90e9d1f [handoff]: Finish sooner card shipped; next ideas listed
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
