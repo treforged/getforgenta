@@ -14,7 +14,7 @@
 export const APP_STORE_ID = '6762540239';
 export const APP_STORE_URL = `https://apps.apple.com/us/app/forgenta-track-build-wealth/id${APP_STORE_ID}`;
 export const APP_STORE_REVIEWS_URL = `${APP_STORE_URL}?see-all=reviews`;
-const LOOKUP_URL = `https://itunes.apple.com/lookup?id=${APP_STORE_ID}&country=us`;
+export const APP_STORE_LOOKUP_URL = `https://itunes.apple.com/lookup?id=${APP_STORE_ID}&country=us`;
 const TIMEOUT_MS = 5_000;
 
 export interface StoreRating {
@@ -39,7 +39,7 @@ export function parseAppStoreLookup(body: unknown): StoreRating | null {
 /** Fetches the live rating. Never throws: every failure is null. */
 export async function fetchAppStoreRating(fetchImpl: typeof fetch = fetch): Promise<StoreRating | null> {
   try {
-    const res = await fetchImpl(LOOKUP_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const res = await fetchImpl(APP_STORE_LOOKUP_URL, { signal: AbortSignal.timeout(TIMEOUT_MS) });
     if (!res.ok) return null;
     return parseAppStoreLookup(await res.json());
   } catch {
