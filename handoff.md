@@ -19,6 +19,13 @@ R-NEXT (2026-10-05 ~18:50 ET, Ada). BOTH ITEMS OF THE PREVIOUS R-NEXT ARE DONE A
       engine - measured). Gate: npm run check:pay-more (DEMO=1 exercises rows). Shortcut == full re-render on the capture.
       NEXT IDEAS: (a) show the same card in Advanced Debt; (b) Dashboard Simple could link to it; (c) Spending/Budget
       'spent of planned' bar from the spec (needs per-category actuals - check budget-month-totals.ts first).
+  [x] SECURITY 2af5d323 (ask 4af5f448): Dependabot 2 critical (Capacitor WebView proxy path runs remote content at
+      the app origin) + high + moderate -> all 4 read 'fixed'. Capacitor 8.5.2; SPM Package.swift regenerated (was a stale
+      exact 8.3.1 with Windows paths; CI regenerates it anyway). iOS upload DISPATCHED: run 37392580077 - read its UPLOAD
+      STEP (not the run conclusion). Android ships on push (run on 2af5d323).
+  SCOPED, NOT BUILT: (c) above. budget-month-totals.ts / BudgetTotalsCard are PLAN figures only; actual spend lives in
+      supabase/functions/spend-by-category/aggregate.ts (aggregateSpend, NOT_SPENDING). Spent-of-planned needs a rule
+      category <-> transaction category match - decide the matching rule first (bank categories differ from rule ones).
 R-SIMPLE (2026-10-05 ~18:30 ET, Ada): SHIPPED Home, Debt, Accounts Simple views + new accounts default Simple (879d7448, Tre '1. yes'); layout ask 4ee0a129 DONE (check:grid-orphans, 49 reads 0 findings, red-proven). Gates: measure:detail-load (VIEW_MODE / PRESS_ROUTE / WIDTH), check:grid-orphans, scripts/check-new-account-simple.cjs (needs a SQL throwaway). NEXT on 5b166e10: Budget, Forecast, Transactions Simple; then the first-run double-dialog ask.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
