@@ -1,6 +1,22 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW9 (2026-10-06 ~07:10 ET, Ada -> successor). START HERE, IN ORDER:
+  1. ask 9d793687 (Sam): DRAFT, DO NOT SEND, one win-back email for the real accounts that saved nothing.
+     Write it to claudecontext/drafts/2026-10-06_forgenta-winback.md: one 60-second action (finish setup), link
+     https://getforgenta.com/onboarding (the wizard now resumes the step on the SAME device - 54c59fcf; on a new
+     device it starts at Welcome, say so), an unsubscribe line, and a physical address line (CAN-SPAM).
+     Recipients: COUNT ONLY, never addresses. Measured 10-06: 17 real accounts with no budget/debt/account/goal/
+     transaction rows, 5 of them have recurring rules -> 12 truly saved nothing; 2 of the 17 never confirmed email
+     and never signed in (exclude them - say the count after exclusion). Re-run the SQL in the 54c59fcf commit
+     body's spirit (exclude RFC test domains). Check profiles for a marketing-consent column first (the query was
+     blocked by the handoff gate before it ran).
+     Send path to NAME (not use): Resend batch API, as supabase/functions/newsletter-digest/index.ts does -
+     from NEWSLETTER_FROM (default "Forgenta <noreply@treforged.com>"), mailto List-Unsubscribe header to
+     contact@treforged.com. A one-off send would be a new function or a one-shot call; that is Tre's yes via Sam.
+     Then tell Sam (SendMessage to the TRE-Forged session) the draft path, the count and the send path.
+  2. Then idle until > 10 signups are tracked (onboarding_started_at set, created after 2026-09-05 11:08Z), then re-measure.
+  3. 6cdc485c (Plan/Garage slot) and ff52631d (GitHub ticket) wait on Tre - Sam has them.
 R-NOW8 (2026-10-06 ~01:45 ET, Ada). START HERE:
   1. [x] eb7282e9 + 7ef43384 DONE 06:40 ET: none of 29 runs since 10-05 14:00Z deployed; dispatched run 37451288979 ->
      Play Production step success, log 'status: completed', no userFraction (VERSION_CODE 1268). The 10:00Z cron did not fire again (6dce46c4).
@@ -13423,7 +13439,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 06:40 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 07:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13443,14 +13459,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+eeb63711 [handoff]: R-NOW8 - funnel measured, resume-step fix (54c59fcf)
+54c59fcf [onboarding]: a reload or relaunch reopens setup where the user left it (b3f0bbcc)
+37ec85c0 [handoff]: R-NOW8 - Play fallback shipped (run 37451288979)
 7986402c [handoff]: R-NOW8 - bounded writes shipped (bb3cc353)
 bb3cc353 [onboarding]: every write the first-run and sign-in paths wait on is bounded (61c40702)
 3413615c [handoff]: R-NOW8 - upsell screen removed, See-your-plan hang fixed
 89ab1b1d [onboarding]: "See your plan" can no longer hang on the release flag (769b6e40)
 2478dee9 [onboarding]: drop the "Are you sure?" second upsell screen (579f2b33)
-4701cf99 [handoff]: R-NOW8 - pitch copy, review card dropped
-653a6be6 [onboarding]: premium pitch no longer says "Connect your bank once" (2fb9bc69)
-cbdf37da [handoff]: R-NOW8 - partner question shipped (b3c12107); Home review card next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
