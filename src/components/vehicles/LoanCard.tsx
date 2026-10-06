@@ -1,15 +1,13 @@
 import { useState, useMemo } from 'react';
 import { Edit2, Trash2, Car, AlertTriangle, Undo2 } from 'lucide-react';
 import ProgressBar from '@/components/shared/ProgressBar';
-import { formatCurrency, formatYAxisTick } from '@/lib/calculations';
+import { formatCurrency } from '@/lib/calculations';
 import { buildAmortizationSchedule, type LumpSumPayment } from '@/lib/vehicle-loan-engine';
 import { extraAwarePayoffMonthIndex } from '@/lib/extra-aware-payoff';
 import { buildAutoExtraByTarget } from '@/lib/auto-extra-projection';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import type { CarFund } from '@/lib/types';
 import LumpSumPanel from './LumpSumPanel';
-import { selectPointOnTouch } from '@/lib/chart-touch';
 
 /**
  * The loan-phase card: real terms, the amortization to payoff, and the payoff date the money he
@@ -137,40 +135,6 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
 
   const pct = cf.loan_amount > 0 ? ((cf.loan_amount - effective.remainingBalance) / cf.loan_amount) * 100 : 0;
 
-  // The engine's array is indexed by FORECAST month (index 0 is the current month)
-  // while the schedule is indexed by payment number, so the two are joined on the
-  // calendar month rather than on position.
-  const nowBaseMonth = (() => { const n = new Date(); return n.getFullYear() * 12 + n.getMonth(); })();
-  const chartData = effective.schedule.map(r => {
-    const d = new Date(r.date + 'T00:00:00');
-    const idx = (d.getFullYear() * 12 + d.getMonth()) - nowBaseMonth;
-    // undefined, never 0: recharts skips an undefined point but would draw a line
-    // down to zero for a 0, inventing a paid-off loan past the projection horizon.
-    // ⚠️ ONE CHART, ONE CONVENTION. The solid line is `r.endBalance` — the balance at the END of
-    // the month. The engine's array is the balance a month OPENS at (reduced from index i
-    // INCLUSIVE by that month's extra), so plotting `extraBalances[idx]` beside it drew the two
-    // lines a month out of step: measured 2026-08-27 on a C5 fixture, Oct 2026 solid $15,674.80
-    // against dashed $15,962.28 — the gap is exactly that month's principal, and it put the
-    // ACCELERATED line ABOVE the un-accelerated one. The extras line looked worse than doing
-    // nothing.
-    //
-    // End of month i is what month i+1 opens at, plus back the extra that month i+1 has already
-    // had subtracted from it — because the reducer takes each month's extra off its own entry.
-    const nextIdx = idx + 1;
-    const autoBalance = receivesAutoExtra && extraBalances && idx >= 0 && nextIdx < extraBalances.length
-      ? Math.max(0, extraBalances[nextIdx] + (autoExtraMonths?.[nextIdx] ?? 0))
-      : undefined;
-    return { month: r.month, date: r.date, balance: r.endBalance, autoBalance };
-  });
-
-  // One tick per calendar year (first chart point in each year) so the x-axis reads in years, not raw payment numbers.
-  const yearTicks: string[] = [];
-  const seenYears = new Set<string>();
-  chartData.forEach(d => {
-    const year = d.date.slice(0, 4);
-    if (!seenYears.has(year)) { seenYears.add(year); yearTicks.push(d.date); }
-  });
-
   const payoffDateFmt = new Date(effective.payoffDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
   return (
@@ -251,50 +215,13 @@ export default function LoanCard({ cf, onEdit, onDelete, onUndo, deleteConfirm, 
         </div>
       </div>
 
-      {chartData.length > 1 && (
-        <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={chartData} margin={{ left: 0, right: 12, top: 8, bottom: 28 }} onTouchStart={selectPointOnTouch}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(0,0%,15%)" />
-            {yearTicks.slice(1).map(t => (
-              <ReferenceLine key={t} x={t} stroke="hsl(0,0%,22%)" strokeDasharray="2 4" />
-            ))}
-            <XAxis
-              dataKey="date"
-              ticks={yearTicks}
-              tickFormatter={(d: string) => d.slice(0, 4)}
-              tick={{ fontSize: 12, fill: 'hsl(0,0%,100%)' }}
-              axisLine={false}
-              tickLine={false}
-              label={{ value: 'Year', position: 'insideBottom', offset: -8, fontSize: 12, fill: 'hsl(0,0%,100%)' }}
-            />
-            <YAxis tick={{ fontSize: 12, fill: 'hsl(0,0%,100%)' }} axisLine={false} tickLine={false} tickFormatter={formatYAxisTick} width={48} />
-            <Tooltip
-              contentStyle={{ background: 'hsl(0,0%,8%)', border: '1px solid hsl(0,0%,15%)', borderRadius: 'var(--radius)', fontSize: 12 }}
-              labelStyle={{ color: 'hsl(0,0%,100%)' }}
-              itemStyle={{ color: 'hsl(0,0%,100%)' }}
-              labelFormatter={(d) => new Date(String(d) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
-              formatter={(v, n) => [formatCurrency(Number(v)), n === 'With auto extra' ? 'With auto extra' : 'Remaining']}
-            />
-            <Line dataKey="balance" name="Remaining" stroke="hsl(43,56%,52%)" strokeWidth={2} dot={false} />
-            {receivesAutoExtra && (
-              <Line
-                type="monotone"
-                dataKey="autoBalance"
-                name="With auto extra"
-                stroke="hsl(var(--primary))"
-                strokeDasharray="4 3"
-                strokeWidth={2}
-                dot={false}
-                connectNulls={false}
-              />
-            )}
-          </LineChart>
-        </ResponsiveContainer>
-      )}
-
+      {/* No per-loan chart (Tre, 2026-10-05: "users dont need to see there car payoff graph twice").
+          The Auto Loans tab already draws every loan's run, with and without the extra, in
+          LiabilityTrajectoryChart directly above these cards. The caption below keeps the one fact
+          only this card states: how much extra goes in and when that pays the loan off. */}
       {receivesAutoExtra && (
         <p className="text-[10px] text-muted-foreground">
-          The dashed line adds {formatCurrency(nextAutoExtra)}/mo of extra principal, from
+          The plan adds {formatCurrency(nextAutoExtra)}/mo of extra principal, from
           left-over cash after the bills{autoPayoffLabel ? `, paying this loan off by ${autoPayoffLabel}` : ''}.
           You set that order under "Where the extra money goes".
         </p>

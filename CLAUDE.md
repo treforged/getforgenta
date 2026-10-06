@@ -328,6 +328,9 @@ section states reasoning, not measurement, and says so.
   answered in-browser with 1, 2 and 3 goals (nothing written) and EVERY ROW of tiles must span the card. Proven red
   at 1440 on the fixed `md:grid-cols-3` (848px unused at 1 goal, 424px at 2) and at 390 by forcing 2 columns
   (174px at 3 goals). Does NOT cover widths in between or the empty state.
+- `npm run check:loan-chart` - Debt > Auto Loans draws the payoff graph ONCE (ask 336b096c) at 390 and 1440, signed in:
+  car_funds answered in-browser with 2 loans (writes aborted); control = both names render; then exactly 1 chart.
+  Red on the pre-fix LoanCard (3 charts = trajectory + one per loan). Other loan tabs grep-verified to draw only the trajectory.
 - `npm run check:goal-starts` - the Goals tab EMPTY STATE at 390 and 1440, signed in, savings_goals answered `[]` in-browser
   (nothing written): one start button per goal type except Custom, and PRESSING each opens "New Savings Goal" with that type
   selected. Control: the empty-state text renders. Proven red with every button opening Custom (8 of 8 fail). Frames
