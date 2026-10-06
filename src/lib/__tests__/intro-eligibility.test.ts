@@ -35,6 +35,16 @@ describe('decideIntroEligibility - new subscribers only, fails closed', () => {
       .toEqual({ eligible: false, reason: 'comp' });
   });
 
+  it('a FREE row is eligible even though is_comp defaults to true (one abandoned checkout must not cost the offer)', () => {
+    expect(decideIntroEligibility({ is_comp: true, plan: 'free', subscription_status: 'inactive' }, false))
+      .toEqual({ eligible: true, reason: null });
+  });
+
+  it('a lapsed comp grant (premium plan, no money) is still not eligible', () => {
+    expect(decideIntroEligibility({ is_comp: true, plan: 'premium', subscription_status: 'canceled' }, false))
+      .toEqual({ eligible: false, reason: 'comp' });
+  });
+
   it('a lapsed premium row with no subscription ids still fails on the Stripe history', () => {
     expect(decideIntroEligibility({ plan: 'premium', subscription_status: 'canceled' }, true))
       .toEqual({ eligible: false, reason: 'ever_subscribed' });

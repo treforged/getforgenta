@@ -31,8 +31,8 @@ const bodySchema = z.object({
   action: z.enum(['checkout', 'offer']).default('checkout'),
 }).strict();
 
-// The intro coupons are created in Stripe by hand (monthly: $8.99 off, repeating 12 months;
-// yearly: $79.99 off, once). Unset means the offer is OFF for that plan - fail closed.
+// The intro coupons are created in Stripe by hand (monthly: $9.00 off, repeating 12 months;
+// yearly: $80.00 off, once - $0.99/$9.99, ask 852772a5). Unset means the offer is OFF for that plan - fail closed.
 const INTRO_COUPONS = {
   monthly: Deno.env.get("STRIPE_INTRO_COUPON_MONTHLY") ?? null,
   yearly: Deno.env.get("STRIPE_INTRO_COUPON_YEARLY") ?? null,
