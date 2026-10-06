@@ -326,6 +326,11 @@ section states reasoning, not measurement, and says so.
   Testimonials live in `src/data/testimonials.ts` (empty until Ruby approves one; rewarded ones show the FTC disclosure).
   ⚠️ RUN IT WITH `BASE_URL=https://getforgenta.com` TOO: the dev server sends NO CSP, so localhost passed while prod showed
   no rating (connect-src lacked itunes.apple.com). Its inserts are answered in-browser, so a prod run adds no rows.
+- `npm run check:intro-offer-live` - the intro offer against the DEPLOYED create-checkout (check:intro-offer stubs it and
+  was blind to the 'stripe'-default bug, 394158ee). Walk account only; its row is the instrument (free, provider 'stripe',
+  Stripe customer, no sub) and a CONTROL exits 2 if that shape changes. Direct offer call must be eligible, and /premium
+  at 390 must show "$9.99 ... Then $89.99/yr" with the offer call passed through (all other writes aborted, no Stripe
+  session ever made). Red 2026-10-06: walk row provider set to 'apple' -> exit 1; restored to 'stripe'.
 - `npm run check:relink-prompt` - a BROKEN bank link says so (Accounts > Banks, 390x844, signed in). financial_connections
   answered in-browser with one Plaid row: reauth_required must show "sign in again" + Re-link; active must not. Red on the
   pre-fix row, which ignored connection_status and showed only "Updated Oct 3". Rules + 7 tests: src/lib/relink-prompt.ts.

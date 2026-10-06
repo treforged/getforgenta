@@ -110,6 +110,7 @@
     "check:debt-layout": "node scripts/check-debt-layout.mjs",
     "check:rewards-save": "node scripts/check-rewards-save.mjs",
     "check:landing-proof": "node scripts/check-landing-proof.mjs",
+    "check:intro-offer-live": "node scripts/check-intro-offer-live.mjs",
     "check:intro-offer": "node scripts/check-intro-offer.mjs",
     "check:relink-prompt": "node scripts/check-relink-prompt.mjs",
     "check:goal-extras": "node scripts/check-goal-extras.mjs",
