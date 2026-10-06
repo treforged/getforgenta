@@ -14,6 +14,11 @@ R-NEXT (2026-10-05 ~18:50 ET, Ada). BOTH ITEMS OF THE PREVIOUS R-NEXT ARE DONE A
   [x] Simple at DESKTOP (1440, measured 10-05, VIEW_MODE): Home 16->7 cards, Goals 8->5, Accounts 11->3, Debt 8->4,
       Plan 10->2, Forecast 17->4, Transactions 8->3. Forecast frame looked at: clean. Blockers re-tested: native glass
       (f22f17b1/8a202850/5ee1669a) still needs Xcode; 0006cc41 still under 10 premium (5 profiles).
+  [x] STANDING e1b0fffc slice (Sam: big slices OK after 19:40): Debt Simple "Finish sooner" card - pay $100/250/500
+      more a month, debt-free by <date>. Lever = forecastMonthEvents[1..].nonPaycheckIncome (an income RULE is ignored by the
+      engine - measured). Gate: npm run check:pay-more (DEMO=1 exercises rows). Shortcut == full re-render on the capture.
+      NEXT IDEAS: (a) show the same card in Advanced Debt; (b) Dashboard Simple could link to it; (c) Spending/Budget
+      'spent of planned' bar from the spec (needs per-category actuals - check budget-month-totals.ts first).
 R-SIMPLE (2026-10-05 ~18:30 ET, Ada): SHIPPED Home, Debt, Accounts Simple views + new accounts default Simple (879d7448, Tre '1. yes'); layout ask 4ee0a129 DONE (check:grid-orphans, 49 reads 0 findings, red-proven). Gates: measure:detail-load (VIEW_MODE / PRESS_ROUTE / WIDTH), check:grid-orphans, scripts/check-new-account-simple.cjs (needs a SQL throwaway). NEXT on 5b166e10: Budget, Forecast, Transactions Simple; then the first-run double-dialog ask.
 R-FILL-DASH (2026-10-03, executor for ask 1be673ad, dashboard+goals slice; UNCOMMITTED, review then commit): DashboardHero.tsx:158-182, SurplusRankingSection.tsx:417-605, SavingsGoals.tsx:983-990/1167-1169, DebtRecommendationsWidget.tsx:104-111. Originals in backups/2026-10-03_fill-dash/. Frames test-results/fill-dash-*. Left for an owner: Dashboard.tsx Goal Progress + Upcoming This Week; shared AccountUpdateReminder/FreeBankLinkNotice.
 R0 (09-28 ~22:30, cap wrap): (a) Tre said yes to 496b0500 ('1 yes', 21:49 in Sam's tab) but the auto-mode classifier
