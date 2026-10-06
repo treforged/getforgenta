@@ -6,7 +6,13 @@
 // link (the walk user accepted it); every other write is aborted - nothing is written.
 // Control: /account shows "Linked with". Then "View their budget" must be visible, and PRESSING
 // it must land on /dashboard with the PARTNER VIEW banner. Red on the pre-fix card (no button).
-// Does NOT cover desktop (the sidebar switch), the partner's data, or unlinking.
+// Second half (ask 3201f66a): the viewer's OWN-account notices must not render on the partner's
+// budget - "Connect a bank" there offered the viewer's free slot and did nothing when pressed.
+// The notice reads the VIEWED user's bank links, so on the pre-fix Dashboard it renders in partner
+// view for a partner with none (the stub) - that red run is what proves this absence check can see
+// it. Mount control: "Command Center" must be on screen before the absence is read.
+// Does NOT cover desktop (the sidebar switch), the partner's data, other own-account banners
+// (they need state the walk account lacks), or unlinking.
 import { readFileSync } from 'node:fs';
 
 const BASE = 'http://localhost:8080';
@@ -86,6 +92,7 @@ await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb
 await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
   version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
 })));
+const OWN_NOTICE = 'Connect a bank';
 await page.goto(`${BASE}/account?section=profile`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(7000);
 for (let i = 0; i < 6 && (await page.locator('div.backdrop-blur-sm, div.modal-overlay, [role="dialog"]').count()); i += 1) {
@@ -106,7 +113,13 @@ await page.waitForTimeout(4000);
 const path = new URL(page.url()).pathname;
 const bannerAfter = await page.getByText('Partner view', { exact: false }).filter({ visible: true }).count();
 await page.screenshot({ path: 'test-results/partner-view-390.png' });
-console.log(`after press: path ${path}, partner-view banner ${bannerBefore} -> ${bannerAfter}`);
+await page.getByText('Command Center', { exact: false }).first().waitFor({ timeout: 15000 }).catch(() => {});
+if (!(await page.getByText('Command Center', { exact: false }).count())) { await browser.close(); fail(2, 'CONTROL FAILED - Home did not mount in partner view.'); }
+await page.waitForTimeout(6000); // the notice loads late; give it time to appear before reading its absence
+// By TEXT, not role: the control is a Link, and a role-scoped locator read 0 on a frame that showed it.
+const pvNotice = await page.getByText(OWN_NOTICE, { exact: true }).filter({ visible: true }).count();
+console.log(`after press: path ${path}, partner-view banner ${bannerBefore} -> ${bannerAfter}, "${OWN_NOTICE}" visible ${pvNotice}`);
 await browser.close();
 if (path !== '/dashboard' || bannerAfter < 1 || bannerBefore !== 0) fail(1, `the press did not open partner view (path ${path}, banner ${bannerBefore} -> ${bannerAfter})`);
-console.log('PASS - a phone can open the partner view from the linked card.');
+if (pvNotice !== 0) fail(1, `the viewer's own "${OWN_NOTICE}" notice renders on the partner's budget`);
+console.log('PASS - a phone can open the partner view, and it shows none of the viewer own-account notices.');

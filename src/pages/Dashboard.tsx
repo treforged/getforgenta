@@ -1342,15 +1342,19 @@ export default function Dashboard() {
           founder note and the tour in source order: those two are a new user's first run, and this
           one refuses to render for a new user at all, so they can never stack up on one screen. */}
       {!isDemo && <WhatsNewDialog />}
-      <AccountUpdateReminder />
+      {/* ⚠️ EVERYTHING FROM HERE TO THE SECURITY BANNER IS ABOUT THE VIEWER'S OWN ACCOUNT, so none of
+          it renders in PARTNER VIEW (ask 3201f66a). Measured 2026-10-05 at 390: on a partner's budget
+          "Connect a bank" offered the viewer's free bank slot and did nothing when pressed - no
+          dialog, no toast - because every write is refused in that lens. */}
+      {!isPartnerView && <AccountUpdateReminder />}
       {/* Free first bank link, for somebody who has never linked one. Fires on OPEN, so it
           cannot reach a dormant user - it makes a return worth something rather than causing one.
           See the component for what it reaches and what it cannot. */}
-      <FreeBankLinkNotice onVisibleChange={setBankNoticeVisible} />
-      {!isDemo && <SubscriptionExpiryBanner />}
-      {!isDemo && <StatementConsentBanner onVisibleChange={setConsentBannerVisible} />}
+      {!isPartnerView && <FreeBankLinkNotice onVisibleChange={setBankNoticeVisible} />}
+      {!isDemo && !isPartnerView && <SubscriptionExpiryBanner />}
+      {!isDemo && !isPartnerView && <StatementConsentBanner onVisibleChange={setConsentBannerVisible} />}
 
-      {!isDemo && showSecurityBanner && bankNoticeVisible === false && !consentBannerVisible && (
+      {!isDemo && !isPartnerView && showSecurityBanner && bankNoticeVisible === false && !consentBannerVisible && (
         /* Tokens, not raw palette classes. `text-gold` is the warning tone this codebase
            actually has — `text-warning` generates no rule at all (see BalanceTrancheEditor). */
         /* ⚠️ THE ACTION SITS UNDER THE TEXT, NOT BESIDE IT, and that is a fix rather than a

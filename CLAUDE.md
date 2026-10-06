@@ -334,6 +334,8 @@ section states reasoning, not measurement, and says so.
 - `npm run check:partner-view` - a PHONE can open the partner's budget (ask 07351a98): at 390, partner_links answered in-browser
   with one active link (writes aborted); control = "Linked with"; "View their budget" must be visible and PRESSING it must land on
   /dashboard with the PARTNER VIEW banner. Red on the pre-fix card (0 buttons; the only switch was the desktop sidebar).
+  Second half (ask 3201f66a): the viewer's own "Connect a bank" notice must NOT render in partner view - found BY TEXT (it is a
+  Link; a role-scoped locator read 0 on a frame showing it, and passed the red run). Red on the pre-fix Dashboard: 1.
 - `npm run check:invite-resume` - a partner/friend invite code SURVIVES /auth and /onboarding (ask 4f623f93). Needs a throwaway
   `@forgenta.test` user made in SQL (INVITE_RESUME_EMAIL / INVITE_RESUME_PASSWORD), DELETED after. Arms: signed-out invite -> /auth;
   not onboarded -> /onboarding (control); after the onboarded write /dashboard must land on /account?partner_code=X with the field
