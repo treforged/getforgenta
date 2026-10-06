@@ -1,6 +1,24 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW (2026-10-05 ~20:45 ET, Ada getforgenta-a7 -> successor). TRE ASKED TWO THINGS - ANSWER BOTH IN YOUR FIRST REPLY:
+  1. ask 336b096c 'users dont need to see there car payoff graph twice. same for anyother type of loan.'
+     UNCOMMITTED IN THE TREE: src/components/vehicles/LoanCard.tsx - the per-loan LineChart is REMOVED (the Auto Loans tab
+     already draws LiabilityTrajectoryChart above the cards; LoanCard renders only there, VehicleMoneyPanels <- DebtPayoff:567).
+     Caption kept, reworded 'The plan adds $X/mo ...'. tsc 0, eslint clean. Backup: backups/2026-10-05_simple-tx/LoanCard.tsx.
+     'Any other loan': VERIFIED by grep - mortgage/student/other tabs render only LiabilityTrajectoryChart (no per-loan chart).
+     TODO: (a) RENDER-check /debt?tab=auto at 390 and 1440 on an account WITH a car loan (Tre's has one; walk account unknown -
+     SQL: select phase,count(*) from car_funds join auth.users on id=user_id where email='deck-walk@forgenta.test' group by 1;
+     if none, answer the car_funds read in-browser like STUB_GOALS in scripts/measure-detail-load.mjs) and assert ONE
+     .recharts-surface per page on that tab (red: restore the backup -> 1 + N loans); (b) test:tz; (c) commit with
+     Release-Note, push, verify 0/0; (d) ask done 336b096c. JS only -> reaches phones via Vercel, no store build.
+  2. Tre: 'btw, account linking works now right?' - UNVERIFIED, DO NOT ANSWER FROM MEMORY. Most likely = Plaid bank linking
+     (handoff ~line 11785 'native Plaid linking is CURRENTLY...'). Check: list_edge_functions (plaid-create-link-token,
+     plaid-exchange*), get_logs for them, and SQL on plaid_items / accounts created in the last 14 days. If he meant Leo's
+     click sign-in, that is ask 56cf92ba (magiclink template). Answer with the evidence, one line.
+  3. eb7282e9 Play ship fallback at 06:39 ET 10-06 - the CronCreate in getforgenta-a7 dies with that tab: ARM YOUR OWN.
+  4. STANDING e1b0fffc: idea (a) Finish sooner card in Advanced Debt; (c) spent-of-planned (scoped below).
+  iOS 1319 (security fix 2af5d323) is UPLOADED to TestFlight; Tre has been told to install it.
 R-NEXT (2026-10-05 ~18:50 ET, Ada). BOTH ITEMS OF THE PREVIOUS R-NEXT ARE DONE AND PUSHED:
   [x] 47a25afa first-run double dialog: 04edfa63. The wizard (finish AND skip) writes the whats_new flag via
       recordCurrentReleaseSeen (onboarding-state.ts). Data split: 2 onboarded accounts lack new_user_done, so
@@ -13337,7 +13355,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-05 20:12 by handoff_hook. Everything below this heading is
+_Written 2026-10-05 20:30 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13357,14 +13375,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+04b642db [handoff]: iOS 1319 uploaded with the security fix; hero link shipped
+2f29a721 [dashboard]: Simple Home links the payoff date to "Finish sooner" (ask e1b0fffc)
 c986dee0 [handoff]: Capacitor security fix shipped; iOS upload run to verify; spent-of-planned scoped
 2af5d323 [security]: Capacitor 8.5.2 (2 critical Dependabot alerts) + two dev-only parser fixes
 e90e9d1f [handoff]: Finish sooner card shipped; next ideas listed
 ca3dc82d [debt]: "Finish sooner" on Debt's Simple view - pay $X more, debt-free by <date> (ask e1b0fffc)
 00f4805c [handoff]: Simple measured at desktop; blockers re-tested
 ff7d5366 [handoff]: 5ce71f3a shipped; eb7282e9 wake-up armed
-02afccab [simple]: Goals Simple view; walk:press and contrast sweeps run in Simple (ask 5ce71f3a)
-795990ae [handoff]: R-NEXT - 47a25afa and 5b166e10 shipped; Simple-view sweeps (5ce71f3a) next
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
