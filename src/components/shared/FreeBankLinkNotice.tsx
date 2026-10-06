@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { Landmark, X } from 'lucide-react';
 import { useDemo } from '@/contexts/DemoContext';
 import { useAccounts } from '@/hooks/useSupabaseData';
+import { useFinancialConnections } from '@/hooks/useFinancialConnections';
 
 /**
  * "Your first bank connection is free" - shown in-app to somebody who has never linked one.
@@ -49,6 +50,11 @@ interface Props {
 export default function FreeBankLinkNotice({ onVisibleChange }: Props = {}) {
   const { isDemo } = useDemo();
   const { data: accounts, loading } = useAccounts();
+  // ⚠️ ACCOUNTS ALONE ARE NOT ENOUGH (2026-10-06). A connection that broke, or that pulled no
+  // accounts, leaves zero linked accounts - and this notice then told that user to connect a bank.
+  // The server (`decideBankLink`) counts ANY financial_connections row, so for a free user that
+  // press is a SECOND link and ends on the paywall. Every row counts here too, revoked included.
+  const { allConnections, loading: connectionsLoading } = useFinancialConnections();
   const [dismissed, setDismissed] = useState(false);
   // A LAZY INITIALISER rather than an effect, so the store is read exactly once at mount instead of
   // on every render, and without the `set-state-in-effect` suppression the sibling component needs.
@@ -76,7 +82,7 @@ export default function FreeBankLinkNotice({ onVisibleChange }: Props = {}) {
   const linkedCount = (accounts ?? []).filter((a) => a.plaid_account_id && a.active).length;
   const visible: boolean | null = isDemo || dismissed || everDismissed
     ? false
-    : loading ? null : linkedCount === 0;
+    : loading || connectionsLoading ? null : linkedCount === 0 && allConnections.length === 0;
   useEffect(() => { onVisibleChange?.(visible); }, [visible, onVisibleChange]);
 
   if (isDemo || dismissed || everDismissed) return null;
@@ -84,10 +90,8 @@ export default function FreeBankLinkNotice({ onVisibleChange }: Props = {}) {
   // ⚠️ Wait for the real answer. Showing this while accounts are still loading would flash
   // "you have never linked a bank" at somebody who has eight, which is a confident wrong claim
   // about their own money - the same shape as rendering an absent value as zero.
-  if (loading) return null;
-
-  const linked = (accounts ?? []).filter((a) => a.plaid_account_id && a.active);
-  if (linked.length > 0) return null;
+  // One rule for both the report and the render: `visible` is null while either read loads.
+  if (visible !== true) return null;
 
   return (
     <div

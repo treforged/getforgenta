@@ -34,6 +34,9 @@ const state = {
 };
 
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: state.isDemo }) }));
+vi.mock('@/hooks/useFinancialConnections', () => ({
+  useFinancialConnections: () => ({ allConnections: [], loading: false }),
+}));
 vi.mock('@/hooks/useSupabaseData', () => ({
   useAccounts: () => ({ data: state.accounts, loading: state.loading }),
 }));

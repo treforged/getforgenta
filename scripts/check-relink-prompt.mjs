@@ -140,7 +140,8 @@ const readDashboard = async (status, consent) => {
   const brokenBanner = page.getByTestId('broken-link-banner');
   const consentBanner = page.getByTestId('statement-consent-banner');
   await page.waitForTimeout(1500);
-  const out = { broken: await brokenBanner.count(), consent: await consentBanner.count(), text: '', afterDismiss: null };
+  const out = { broken: await brokenBanner.count(), consent: await consentBanner.count(), text: '', afterDismiss: null,
+    freeNotice: await page.getByText('Your first bank connection is free').count() };
   if (out.broken) {
     out.text = await brokenBanner.innerText();
     await page.screenshot({ path: `test-results/relink-dashboard-${status}.png` });
@@ -158,6 +159,7 @@ console.log(`dashboard active+consent (control): ${JSON.stringify(dashHealthy)}`
 if (dashHealthy.broken !== 0 || dashHealthy.consent !== 1) await done(2, 'CONTROL FAILED: an active row with consent needed should show the consent banner only.');
 if (dashBroken.broken !== 1 || !/Probe Bank needs you to sign in again/.test(dashBroken.text)) await done(1, 'the Dashboard shows no broken-link banner for a reauth_required bank.');
 if (dashBroken.consent !== 0) await done(1, 'the consent banner shows at the same time as the broken-link banner.');
+if (dashBroken.freeNotice || dashHealthy.freeNotice) await done(1, 'the "first bank connection is free" notice shows to a user who already has a connection.');
 if (!dashBroken.afterDismiss || dashBroken.afterDismiss.broken !== 0 || dashBroken.afterDismiss.consent !== 1) {
   await done(1, `Dismiss did not hand over to the consent banner: ${JSON.stringify(dashBroken.afterDismiss)}.`);
 }

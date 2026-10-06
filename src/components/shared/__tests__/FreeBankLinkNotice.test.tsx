@@ -15,9 +15,13 @@ const state = {
   isDemo: false,
   loading: false,
   accounts: [] as Array<{ plaid_account_id: string | null; active: boolean }>,
+  connections: [] as Array<{ connection_status: string }>,
 };
 
 vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => ({ isDemo: state.isDemo }) }));
+vi.mock('@/hooks/useFinancialConnections', () => ({
+  useFinancialConnections: () => ({ allConnections: state.connections, loading: false }),
+}));
 vi.mock('@/hooks/useSupabaseData', () => ({
   useAccounts: () => ({ data: state.accounts, loading: state.loading }),
 }));
@@ -37,6 +41,7 @@ beforeEach(() => {
   state.isDemo = false;
   state.loading = false;
   state.accounts = [];
+  state.connections = [];
 });
 
 describe('FreeBankLinkNotice - who sees it', () => {
@@ -50,6 +55,18 @@ describe('FreeBankLinkNotice - who sees it', () => {
     state.accounts = [{ plaid_account_id: null, active: true }];
     renderNotice();
     expect(screen.getByText('Your first bank connection is free')).toBeTruthy();
+  });
+
+  it('is SILENT for a user whose connection exists but brought in no accounts (broken or empty link)', () => {
+    state.connections = [{ connection_status: 'reauth_required' }];
+    renderNotice();
+    expect(screen.queryByText('Your first bank connection is free')).toBeNull();
+  });
+
+  it('is SILENT once any connection row exists, revoked included - the server counts it', () => {
+    state.connections = [{ connection_status: 'revoked' }];
+    renderNotice();
+    expect(screen.queryByText('Your first bank connection is free')).toBeNull();
   });
 
   it('is SILENT for a user who already linked a bank', () => {
