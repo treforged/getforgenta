@@ -505,8 +505,10 @@ export default function Forecast({ simple = false }: { simple?: boolean } = {}) 
       {/* On a wide screen the milestone and the short months that cause it sit side by side:
           alone, each was a 1296px card with its text in the left corner (Tre, 2026-10-03, ask
           1be673ad: "fill in their boxes more or reduce the box sizes"). A phone stacks them, and
-          with no short months the milestone keeps the full row. gap-5 is the stack-section gap. */}
-      <div className={`grid gap-5 ${!forecastInputsLoading && (simple || shortMonths.length > 0) ? 'lg:grid-cols-2' : ''}`}>
+          with no short months the milestone keeps the full row. gap-5 is the stack-section gap.
+          The Simple summary is hidden when nothing is on file, so the split must be too: the
+          empty hero used to sit in half a row beside a blank column (walk:empty 1440, 2026-10-07). */}
+      <div className={`grid gap-5 ${!forecastInputsLoading && ((simple && !noInputs) || (!simple && shortMonths.length > 0)) ? 'lg:grid-cols-2' : ''}`}>
         <ForecastHero
           milestones={projections.milestones}
           emptyReason={noInputs ? 'no-inputs' : 'no-milestones'}

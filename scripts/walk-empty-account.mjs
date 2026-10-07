@@ -23,7 +23,8 @@
  * after the run. Credentials come from EMPTY_WALK_EMAIL / EMPTY_WALK_PASSWORD and are never stored.
  * The only write is the shared first-run PATCH (onboarding_completed + dialog flags) on that user.
  *
- * DOES NOT COVER: the onboarding wizard itself (check:first-save owns it), desktop widths, presses.
+ * Also fails on a LONE TILE: one card alone in a 2+ column grid row (half the row blank).
+ * DOES NOT COVER: the onboarding wizard itself (check:first-save owns it), presses. WIDTH=1440 walks desktop.
  * EXITS: 0 no finding . 1 a finding . 2 could not test
  */
 import { readFileSync } from 'node:fs';
@@ -145,6 +146,33 @@ if (!(await figures()).some((f) => f.fig === '$1,234')) await done(2, 'CONTROL F
 await page.evaluate(() => { const d = document.createElement('span'); for (const t of ['Fixed', ' (', '12', '%)']) d.appendChild(document.createTextNode(t)); document.body.appendChild(d); });
 if (!(await figures()).some((f) => f.fig === '12%')) await done(2, 'CONTROL FAILED: a planted "Fixed (12%)" split across text nodes was not read - the share reader is blind.');
 
+// LONE TILE (2026-10-07, walk:empty at 1440): a CSS grid with 2+ column tracks holding ONE visible
+// card leaves the other column(s) blank - the empty Forecast hero sat in half a row because the split
+// was keyed on the view, not on whether its partner card rendered. Only card-sized children count.
+const loneTiles = () => page.evaluate(() => {
+  const out = [];
+  for (const g of document.querySelectorAll('*')) {
+    const cs = getComputedStyle(g);
+    if (cs.display !== 'grid') continue;
+    const tracks = cs.gridTemplateColumns.split(' ').filter((t) => t && t !== 'none').length;
+    if (tracks < 2) continue;
+    const kids = [...g.children].filter((c) => { const r = c.getBoundingClientRect(); return r.width > 0 && r.height > 0; });
+    if (kids.length !== 1) continue;
+    const k = kids[0].getBoundingClientRect(); const gr = g.getBoundingClientRect();
+    if (k.height < 80 || k.width > gr.width * 0.75) continue;
+    out.push(`${Math.round(k.width)} of ${Math.round(gr.width)}px: "${(kids[0].innerText || '').trim().slice(0, 50)}"`);
+  }
+  return out;
+});
+await page.evaluate(() => {
+  const g = document.createElement('div'); g.id = 'zz-lone-probe';
+  g.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;width:800px';
+  const c = document.createElement('div'); c.style.height = '120px'; c.textContent = 'planted lone tile';
+  g.appendChild(c); document.body.appendChild(g);
+});
+if (!(await loneTiles()).some((t) => t.includes('planted lone tile'))) await done(2, 'CONTROL FAILED: a planted 1-of-2 grid tile was not flagged - the lone-tile reader is blind.');
+await page.evaluate(() => document.getElementById('zz-lone-probe')?.remove());
+
 const { mkdirSync } = await import('node:fs');
 mkdirSync('test-results/empty-walk', { recursive: true });
 // SETTLE, never a fixed sleep (2026-10-01): a 6 s wait read /dashboard as 52 characters of SKELETON
@@ -184,11 +212,13 @@ for (const route of ROUTES) {
   // Ask 23fe1862 (Sam's gate): an empty account must show NO "Safe to Spend until <date>" figure.
   // That label only renders beside a figure, so its presence alone is the finding.
   const sts = route === '/dashboard' && (await page.evaluate(() => /safe to spend until/i.test(document.body.innerText)));
-  const bad = r.boundary || r.junk.length > 0 || r.text < 40 || invented.length > 0 || sts;
+  const lone = await loneTiles();
+  const bad = r.boundary || r.junk.length > 0 || r.text < 40 || invented.length > 0 || sts || lone.length > 0;
   if (bad) findings += 1;
   console.log(`${bad ? 'FINDING' : 'ok     '} ${route.padEnd(26)} -> ${landed.padEnd(14)} text ${String(r.text).padStart(5)}`
     + `${r.boundary ? ' ERRORBOUNDARY' : ''}${r.junk.length ? ` junk ${r.junk.join(',')}` : ''}${r.text < 40 ? ' BLANK' : ''}`
-    + `${MONEY_ROUTES.has(route) ? ` figures ${invented.length}` : ''}${sts ? ' SAFE-TO-SPEND FIGURE' : ''}`);
+    + `${MONEY_ROUTES.has(route) ? ` figures ${invented.length}` : ''}${sts ? ' SAFE-TO-SPEND FIGURE' : ''}${lone.length ? ` LONE-TILE ${lone.length}` : ''}`);
+  for (const t of lone) console.log(`          lone tile ${t}`);
   for (const f of invented.slice(0, 12)) console.log(`          invented ${f.fig.padEnd(10)} in "${f.ctx}"`);
   const name = route.replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'root';
   await page.screenshot({ path: `test-results/empty-walk/${WIDTH === 390 ? '' : `${WIDTH}-`}${name}.png`, fullPage: false });

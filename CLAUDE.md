@@ -250,7 +250,10 @@ section states reasoning, not measurement, and says so.
   account wrote no rows, so every figure is invented or a confident $0; Sam's rule), with a planted
   "$1,234" as control. Since 2026-10-06 it also reads /budget and PERCENTAGES ("Fixed (0%)"), joining
   each element's own text nodes: React splits `{label} ({pct}%)` into four nodes, and a per-node reader
-  passed five "(0%)" rows. Control: a planted "Fixed (12%)" built from four separate nodes. `WIDTH=1440` walks desktop. Proven red with the pre-fix engine ($20k-$80k axis) and on the pre-empty-state
+  passed five "(0%)" rows. Control: a planted "Fixed (12%)" built from four separate nodes. `WIDTH=1440` walks desktop.
+  Since 2026-10-07 it also fails on a LONE TILE (one card alone in a 2+ column grid, half the row blank); control: a
+  planted 1-of-2 tile. Its first 1440 run found the empty Forecast hero (half a row) and the empty Garage tile (423 of
+  1296px); red on the pre-fix Forecast (exit 1), both fixed, 10/10 at 1440 and 390. Proven red with the pre-fix engine ($20k-$80k axis) and on the pre-empty-state
   app (19 $0 figures). Each route is read only once no `.skeleton-shimmer` shows and two reads agree:
   a 6 s sleep read a skeleton Dashboard as "figures 0". Never-settled routes exit 2. Still LOOK AT
   the frames: it reads figures, not meaning.

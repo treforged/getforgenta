@@ -189,8 +189,10 @@ export default function Vehicles() {
             );
           })}
           {roster.length === 0 && (
-            /* A tile like a car's, not a 205px p-12 box holding an icon and two short lines. */
-            <div className="card-forged p-4 flex items-center gap-3">
+            /* A short tile, not a 205px p-12 box holding an icon and two short lines. It spans the
+               row with its lines centred: alone in one column it left two blank columns beside it
+               at desktop width (walk:empty LONE-TILE, 2026-10-07). */
+            <div className="card-forged p-4 flex items-center justify-center gap-3 col-span-full">
               <Car size={20} className="text-muted-foreground shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm text-muted-foreground">No vehicles yet.</p>
