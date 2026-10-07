@@ -175,7 +175,12 @@ if (process.env.VIEW_MODE) {
   console.log(`view mode forced: ${process.env.VIEW_MODE}`);
 }
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
+// `--landing` reads the SIGNED-OUT pages (2026-10-07): no contrast probe had ever read the landing page,
+// where the FTC testimonial disclosure lives. No session is written, so `/` renders the landing.
+const LANDING = process.argv.includes('--landing');
+if (!LANDING) {
+  await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
+}
 // ⚠️ THE THEME IS SET THROUGH THE APP'S OWN MECHANISM, NOT BY FLIPPING A CLASS ON <html>.
 // `src/lib/theme.ts` also sets `root.style.colorScheme`, and this repo has already recorded that
 // a bare class flip is NOT a theme switch where the app sets the colour scheme inline - the light
@@ -192,7 +197,7 @@ await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.string
 // structurally blind to text nobody repointed, so THIS is the only gate that can catch a
 // low-contrast string whose colour nobody thought to look for. A one-route version left that
 // job undone on 83% of the app.
-const ROUTES = ['/dashboard', '/budget', '/debt', '/forecast', '/account', '/settings'];
+const ROUTES = LANDING ? ['/'] : ['/dashboard', '/budget', '/debt', '/forecast', '/account', '/settings'];
 const OVERLAY = 'div.backdrop-blur-sm, div.modal-overlay';
 
 const readPage = () => page.evaluate(() => {
@@ -417,6 +422,8 @@ const perRouteExamined = new Map();   // route -> how many strings it actually r
 for (const route of ROUTES) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(5000);
+  // A signed-out walk that got bounced is measuring the wrong page; refuse rather than report it.
+  if (LANDING && new URL(page.url()).pathname !== route) fail(2, `${route} redirected to ${page.url()}.`);
   // ⚠️ ESCAPE ALONE IS NOT ENOUGH, and /forecast is the case that proved it. It auto-opens a real
   // "Forecast Assumptions" dialog that survived six Escapes and an overlay click, so the gate
   // refused at exit 2 - correctly, but a gate that exits 2 on an ordinary run is a gate nobody

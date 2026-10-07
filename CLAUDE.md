@@ -154,6 +154,9 @@ section states reasoning, not measurement, and says so.
   Proven RED with the real legend defect. Does NOT cover: light mode, desktop widths, error states,
   anything behind an interaction, or whether disabled/placeholder text is legitimately exempt — it
   says so and asks you to check each finding by hand.
+- `npm run check:landing-contrast` - the same probe SIGNED OUT on `/` (`--landing`), light then dark. No contrast probe had
+  read the landing before 2026-10-07. Red on the old stat labels (text-foreground/60): 4.21:1, exit 1; now 0 of 49. A redirect
+  away from `/` exits 2. Does NOT see the testimonial disclosure while `src/data/testimonials.ts` is empty.
 - ⚠️ **SINCE 2026-10-07 THE WALK-UP ARM COMPOSITES TRANSLUCENT TEXT INSTEAD OF SKIPPING IT.** Chrome reports every
   `text-x/NN` colour as oklab(), which the old rgba regex read as null, so ALL opacity text and every oklch colour was
   invisible to check:*-contrast. Colours now resolve through a canvas and blend over the opaque surface. First run found 5

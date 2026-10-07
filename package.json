@@ -102,6 +102,7 @@
     "check:dark-contrast": "node scripts/check-dark-contrast.mjs",
     "check:nav-highlight": "node scripts/check-nav-highlight.mjs",
     "check:light-contrast": "node scripts/check-dark-contrast.mjs --theme light",
+    "check:landing-contrast": "node scripts/check-dark-contrast.mjs --landing --theme light && node scripts/check-dark-contrast.mjs --landing --theme dark",
     "check:dark-contrast:desktop": "node scripts/check-dark-contrast.mjs --width 1440",
     "check:light-contrast:desktop": "node scripts/check-dark-contrast.mjs --theme light --width 1440",
     "check:destructive-contrast": "node scripts/check-destructive-contrast.mjs",
