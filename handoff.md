@@ -1,6 +1,14 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW32 (2026-10-07 ~10:40 ET, Ada getforgenta-e8). R-NOW31 items 1-2 DONE:
+  - Session crons re-armed HERE: 2ed9ad39 (11:37 nudge), 89f1fd2e (11:41 db1d6813), 0c41cf11 (13:06 push-send), b5bac19d
+    (cancel buckets), f151e067 (free-link). RE-ARM if this tab is gone. Missed 09:13 cancel read: 0 rows; grants 0.
+  - b0b54c92 + 9ecc8edf DONE on Tre's "yes create 6.8.2": 12472894 added CREATE_VERSION; run 37632069958 created iOS 6.8.2
+    (5ea06946, Prepare for Submission), name + keywords read back. Build 6.8.2 (1399) uploaded, run 37632259369, altool
+    "UPLOAD SUCCEEDED". SUBMITTING 6.8.2 for review = Tre's yes (attach build 1399).
+  - e1b0fffc DONE 934bfed0: check:narrow-overflow (320px, /demo) 17 -> 0 cut; residue: nav labels truncate at 320.
+  NEXT: e1b0fffc. Ideas: an OVERLAP probe (the 320 gate cannot see overlap; two defects were found only by eye).
 R-NOW31 (2026-10-07 ~09:45 ET, Ada -> successor; handoff gate at 189 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
@@ -13794,7 +13802,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 08:58 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 09:44 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13814,14 +13822,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ecd24b2d [handoff]: R-NOW31 - gate at 189 calls; crons, cancel read, ASO on Tre's yes
+ad239116 [aso]: a read with no open iOS version exits 0 with a notice, not red (b0b54c92)
+88975fb3 [handoff]: R-NOW30 - coupon cap done, ASO ready
+5cf745b7 [aso]: dispatch-only workflow to set the App Store name + keywords on the open iOS version (b0b54c92)
+bc8724fd [stripe]: FRIENDSFOREVER26 capped at 20 total uses (14 left) via stripe-coupon-cap (49d21f71)
 18741aea [handoff]: R-NOW30 - d6d54c90 deployed on Tre's yes
 e545818d [handoff]: R-NOW30 - c6028af7 STS window note
 c6028af7 [ux]: Safe to Spend drawer leads with its window note; check asserts it is on screen on open (e1b0fffc)
-8b7c0827 [handoff]: R-NOW30 - routes/nav green, STS horizon label negative
-a1d59120 [handoff]: R-NOW30 - first-save/one-banner green, demo pending row
-69e4bc88 [demo]: /demo shows Safe to Spend's "Pending charges" row; check:safe-to-spend asserts it (e1b0fffc)
-ab0b9c38 [handoff]: R-NOW30 - empty-account grid sweep and first-run walk green
-863254ad [test]: check:grid-orphans can walk an empty account (GRID_EMAIL); empty run clean 49/49 (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
