@@ -10,6 +10,17 @@ R-NOW24 (2026-10-06 late, Ada getforgenta-8d). R-NOW23 items 1-2 DONE:
     no lighter dark body weight). Sent to Sam.
   - f5608641 glass: cd1fc1bf pushed (chrome overlays scroller under the sim flag only). Sim run 37568011814 dispatched;
     compare its 04-glass-strip.png with run 36804677471's grey frame, send both to Sam, close f5608641.
+  - f5608641 DONE: sim 37568011814 shows blurred gold content under the strip (vs flat grey). Its red step is the LOCK
+    step (control launch 1 frame, exit 2 = could not test); failed job re-run - read it and tell Sam flaky or real.
+  - 2c1170b3 DONE: wizard Income step asks "Money in checking right now" (no-bank path) -> Home shows a number at finish.
+  - f07700ff SEO (IN PROGRESS, Sam + Tre): split agreed with Ellis (treforged.com = brand + long-tail how-to; getforgenta =
+    head terms). Promised URLs (static pages in public/<slug>/index.html, Vercel serves files before the SPA rewrite):
+    /best-budget-app/ /simple-budget-app/ /free-budget-app/ /safe-to-spend/ /vs/ynab/ /vs/monarch/ /vs/rocket-money/.
+    Tell Ellis one line when they return 200. Also: sitemap.xml entries, llms.txt, SoftwareApplication aggregateRating ONLY
+    from the live App Store lookup (5.0/5 ratings on 10-06), internal links from answers/ + landing footer.
+    Home <title> lacks "budget app" - it is Ruby's approved string (6bc8a99a): PROPOSE to Ruby, do not override.
+    Competitor prices on vs pages MUST be verified live (WebSearch/their pricing pages) with the date on the page.
+    ASO subtitle/keyword proposal goes to Tre via Sam. Reel Dd8jsuhtBmp caption: optimize for AI search engines.
   - de23e8d4 DONE (pushed): tinted :root, destructive 0 55% 45%, dark letter-spacing. 66f3467e = pre-existing
     check:text-scale "$0" pinned span.
 R-NOW23 (2026-10-06 ~23:20 ET, Ada -> successor; handoff gate). START HERE, IN ORDER:
@@ -13648,7 +13659,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 22:40 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 23:51 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13668,14 +13679,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+19300b88 [gate]: check:text-scale skips Recharts' offscreen measuring span (66f3467e)
+e28f6aee [handoff]: R-NOW24 - glass sim run pending, dark-mode fixes shipped
+829ded50 [theme]: dark-mode.md fixes - tinted first-paint palette, lighter destructive fill, dark letter spacing (de23e8d4)
+cd1fc1bf [glass]: native strip blurs real content - chrome overlays the scroller under the sim flag (f2bd47fd)
+d5c83096 [handoff]: R-NOW24 - pending debits shipped, dark-mode audit, glass-over-webview next
+7ed2d853 [safe-to-spend]: subtract PENDING checking debits (e1b0fffc)
 01b569a9 [handoff]: R-NOW23 - pending-debit Safe to Spend slice designed for the successor
 7805467c [handoff]: R-NOW22 - landing text, Semgrep, title live; pending-debit gap in Safe to Spend
-d2f96f06 [landing]: title and description lead with safe-to-spend (ask 6bc8a99a, Ruby)
-112b6655 [security]: local Semgrep pass in the pre-commit hook (ask 77cfda79)
-9838b181 [landing]: static landing text for crawlers that run no JavaScript
-c52a4e74 [handoff]: R-NOW21 - re-arm 3 crons, then static landing text for non-JS crawlers
-32cbe72a [handoff]: FCP stop, monitoring trade, share card
-88110a2f [landing]: a share card and structured data, so a posted link shows a picture
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
