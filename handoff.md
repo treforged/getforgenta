@@ -25,7 +25,7 @@ R-NOW24 (2026-10-06 late, Ada getforgenta-8d). R-NOW23 items 1-2 DONE:
     lives there; free-tier drafts rejected), llms.txt, sitemap 27 (CF edge cached 20 until ~4h max-age; origin 27),
     /answers/ links, gate seo-pages.gate.test.ts. Home title now "Forgenta: Budget App That Shows What Is Safe to Spend"
     (Sam decided; tell Ruby as INFO). Ellis linked his calculators/posts (79ec19b).
-    COMMITTED LOCALLY, NOT PUSHED (Tre told Sam 'no push until GitHub resets' - confirm with Sam, then push and
+    COMMITTED LOCALLY, NOT PUSHED (Sam CONFIRMED the hold covers getforgenta; he checks GitHub at 01:47 and tells the successor by name to push, verify by contents, and
     dispatch the sim run). Was: UNCOMMITTED IN TREE (gate test:tz running when written): useSimGlassExperiment one-shot flag (REAL cause of sim
     37568011814's red Lock step - the persisted glass flag made the Lock launch scroll, control 0/32) + its test (red
     proven) + NotFound noindex/title (cbf3535a). If test:tz is green: commit both, push, dispatch "iOS Simulator
@@ -13673,11 +13673,11 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 23:51 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 00:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 0 ahead, 0 behind
+- **vs upstream:** 2 ahead, 0 behind  <- UNPUSHED
 
 - **Uncommitted (6 file(s)):**
 
@@ -13693,14 +13693,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-19300b88 [gate]: check:text-scale skips Recharts' offscreen measuring span (66f3467e)
-e28f6aee [handoff]: R-NOW24 - glass sim run pending, dark-mode fixes shipped
-829ded50 [theme]: dark-mode.md fixes - tinted first-paint palette, lighter destructive fill, dark letter spacing (de23e8d4)
-cd1fc1bf [glass]: native strip blurs real content - chrome overlays the scroller under the sim flag (f2bd47fd)
-d5c83096 [handoff]: R-NOW24 - pending debits shipped, dark-mode audit, glass-over-webview next
-7ed2d853 [safe-to-spend]: subtract PENDING checking debits (e1b0fffc)
-01b569a9 [handoff]: R-NOW23 - pending-debit Safe to Spend slice designed for the successor
-7805467c [handoff]: R-NOW22 - landing text, Semgrep, title live; pending-debit gap in Safe to Spend
+ad27ea26 [handoff]: R-NOW24 - local commit awaiting push permission
+5ada7adc [glass][seo]: one-shot sim glass flag (fixes the red Lock step) + noindex on the not-found page (cbf3535a)
+2710ded2 [handoff]: R-NOW24 - glass-flag fix and soft-404 in tree, gate running
+2c6731c7 [handoff]: R-NOW24 - SEO part 1 live, home title, next soft-404 and ASO
+b0842249 [seo]: home title carries "Budget App" (Sam's decision on f07700ff)
+531bcd56 [seo]: head-term and comparison pages, llms.txt, sitemap and internal links (f07700ff)
+f5dc21b1 [handoff]: R-NOW24 - glass proven, first-run checking field, SEO plan for f07700ff
+a4d2d584 [onboarding]: ask the checking balance beside pay, so Home shows a Safe to Spend number at the end of the wizard (2c1170b3)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
