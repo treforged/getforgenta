@@ -41,7 +41,7 @@ export default function DemoBanner() {
           {' · '}
           {description}
         </span>
-        <span className="text-[11px] text-muted-foreground hidden min-[360px]:inline md:hidden">Sample profile</span>
+        <span className="text-[11px] text-muted-foreground hidden min-[360px]:block md:hidden truncate min-w-0">Sample profile</span>
       </div>
 
       {/* Two audiences, two ways out (`useDemoSession`). A visitor is being sold to. Someone who

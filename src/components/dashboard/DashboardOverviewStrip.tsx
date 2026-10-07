@@ -45,7 +45,9 @@ export interface DashboardOverviewStripProps {
   onLiquidCashClick?: () => void;
 }
 
-const LABEL = 'text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium';
+// [overflow-wrap:anywhere]: one-word labels ("Investments") cannot wrap, so at 150% text on a phone they
+// ran into the next tile (check:narrow-overflow TEXT_SCALE=150). At 100% nothing breaks.
+const LABEL = 'text-[9px] sm:text-[10px] text-muted-foreground uppercase tracking-wider font-medium [overflow-wrap:anywhere]';
 const SUB_FIGURE = 'text-sm sm:text-base font-display font-bold mt-0.5';
 
 const money = (v: number) => formatCurrency(v);

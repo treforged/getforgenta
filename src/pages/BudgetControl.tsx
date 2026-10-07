@@ -1611,7 +1611,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
           <div className="card-forged p-4 sm:p-5 space-y-2">
             <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-3">
               <h3 className="text-sm sm:text-base font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Income Rules</h3>
-              <div className="ml-auto flex items-center gap-3">
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1">
                 {incomeRules.length > 0 && <span className="whitespace-nowrap text-sm sm:text-base font-display font-bold text-success-text">{formatCurrency(totalRecurringIncome)} {CURRENT_MONTH_LABEL}</span>}
                 <button onClick={() => openAdd('income')} className="btn btn-sm text-primary font-medium hover:underline"><Plus size={10} /> Add Income</button>
               </div>

@@ -1300,7 +1300,8 @@ export default function Transactions() {
         onDismiss={dismissDuplicate}
       />
 
-      {ledgerDetail && <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      {/* rem-based minimum: with large text the tiles drop to two or one across instead of cutting the figure. */}
+      {ledgerDetail && <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,5.75rem),1fr))] gap-2 sm:gap-3">
         <div className="card-forged px-2 py-3 sm:p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Income</p>
           <p className="text-xs min-[360px]:text-sm font-display font-bold text-success-text">{formatCurrency(totals.income)}</p>

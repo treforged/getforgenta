@@ -13,6 +13,7 @@
  * EXITS: 0 pass . 1 a finding . 2 could not test.
  * It also flags two text runs whose characters OVERLAP (fixed/sticky chrome left out; planted control).
  * It also requires every bottom-nav label to be WHOLE (no ellipsis), since the sweep skips ellipsis text.
+ * TEXT_SCALE=150 sets the root font to 150% (the measurable half of Dynamic Type).
  * SIGNED_IN=1 reads the walk account instead of /demo; table writes are aborted, rpc passes.
  * Does NOT cover: vertical clipping, dialogs or menus, or whether a wrap looks right.
  */
@@ -57,6 +58,12 @@ if (SIGNED_IN) await ctx.route(/supabase\.co\/(rest|functions|storage)\//, (rout
   if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS' || rpc) return route.continue();
   blocked += 1; return route.abort();
 });
+// TEXT_SCALE=150: the root font at 150%, the half of Dynamic Type a browser can measure (as check:text-scale).
+const TEXT_SCALE = Number(process.env.TEXT_SCALE || 100);
+if (TEXT_SCALE !== 100) await ctx.addInitScript((pct) => {
+  const set = () => { document.documentElement.style.fontSize = `${pct}%`; };
+  if (document.documentElement) set(); document.addEventListener('DOMContentLoaded', set);
+}, TEXT_SCALE);
 const page = await ctx.newPage();
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
 await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
@@ -118,7 +125,14 @@ function findOverlap() {
     const st = getComputedStyle(el);
     if (st.visibility === 'hidden' || Number(st.opacity) === 0) continue;
     const r = document.createRange(); r.selectNodeContents(n);
-    const rects = [...r.getClientRects()].filter((q) => q.width > 1 && q.height > 1 && q.bottom > 0 && q.top < innerHeight);
+    // Clip each box to every ancestor (itself included) that hides overflow: a truncated caption's
+    // characters run on under its own clip, and a Range does not know that.
+    let cl = -Infinity; let ct = -Infinity; let cr = Infinity; let cb = Infinity;
+    for (let c = el; c && c !== document.body; c = c.parentElement) {
+      if (/(hidden|clip)/.test(getComputedStyle(c).overflowX)) { const b = c.getBoundingClientRect(); cl = Math.max(cl, b.left); cr = Math.min(cr, b.right); ct = Math.max(ct, b.top); cb = Math.min(cb, b.bottom); }
+    }
+    const rects = [...r.getClientRects()].map((q) => ({ left: Math.max(q.left, cl), right: Math.min(q.right, cr), top: Math.max(q.top, ct), bottom: Math.min(q.bottom, cb) }))
+      .filter((q) => q.right - q.left > 1 && q.bottom - q.top > 1 && q.bottom > 0 && q.top < innerHeight);
     if (rects.length) runs.push({ el, pin: pinned(el), t: n.textContent.trim().slice(0, 30), rects });
   }
   const out = [];
@@ -206,4 +220,4 @@ const navBad = navCut.filter((n) => n.cut);
 console.log(`nav labels: ${navCut.map((n) => n.t + (n.cut ? ` (CUT ${n.need}>${n.have}px)` : '')).join(', ')}`);
 findings += navBad.length;
 if (SIGNED_IN) console.log(`signed in (walk account); ${blocked} write(s) aborted in-browser`);
-await done(findings ? 1 : 0, findings ? `FAIL: ${findings} cut text run(s) at ${WIDTH}px.` : `PASS: 0 cut text runs on ${ROUTES.length} routes at ${WIDTH}px.`);
+await done(findings ? 1 : 0, findings ? `FAIL: ${findings} cut text run(s) at ${WIDTH}px.` : `PASS: 0 cut text runs on ${ROUTES.length} routes at ${WIDTH}px${TEXT_SCALE !== 100 ? `, text ${TEXT_SCALE}%` : ''}.`);
