@@ -58,6 +58,7 @@ describe('assetAccountIdsOf', () => {
       { id: 123, account_type: 'checking' },
       { id: true, account_type: 'checking' },
     ];
-    expect(assetAccountIdsOf(accounts)).toEqual(new Set());
+    // Rows straight from the database are untyped at runtime; the cast models a malformed row.
+    expect(assetAccountIdsOf(accounts as unknown as Parameters<typeof assetAccountIdsOf>[0])).toEqual(new Set());
   });
 });
