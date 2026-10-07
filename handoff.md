@@ -1,6 +1,21 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
+  1. RE-ARM the session crons (they die with this tab):
+     a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
+     b. one-shot "41 11 7 10 *": db1d6813 PART 1 POSITIVE PROOF. For plaid-daily-sync (13:00Z), unverified-nudge-daily
+        (15:00Z), no-save-nudge-daily (15:30Z): read cron.job_run_details for today's run and net._http_response rows
+        created within 2 min of each start_time; require status_code 200, not 403. If all 200: `ask done db1d6813` with
+        those ids (part 2 = 0c8a1277). Any 403 = Vault secret and function secret disagree; fix before 10-08.
+        revenue-push (05:30Z) and newsletter-digest (Mondays) prove at their next runs. verify_jwt false on all 6 (checked).
+     c. "13 9,21 * * *" cancel buckets and d. "17 9,21 * * *" free-link grant (prompts in R-NOW21 #1 b/c).
+  2. e74da89c re-test (was about to run): select source, count(*), max(created_at) from widget_refresh_events
+     where created_at > now() - interval '3 days' group by 1. Rows -> widgets refresh; 0 rows -> still blocked.
+  3. d6d54c90 HELD: og-anniversary / push-send prod deploys need Tre's yes IN THE ADA TAB (Sam). Do not deploy without it.
+  4. e1b0fffc standing. No ROADMAP file exists; cc79cb6e, 798c0ed9, 0006cc41 are correctly blocked (reasons on the rows).
+     Ideas: run `--more` on check:dark-contrast after any UI change; walk:press is the next untouched full walk.
+  Gates that now exist (2026-10-07): check:nav-highlight, check:landing-contrast, check-dark-contrast --more, pre-push tsc.
 R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
   - Session crons re-armed: 5e9fe77d (11:37 nudge read), 9bbde3b9 (cancel buckets), d24c21b9 (free-link grant),
     72f96fc2 (11:41 ET: db1d6813 part 1 POSITIVE proof - plaid 13:00Z, unverified 15:00Z, no-save 15:30Z must log 200).
@@ -13736,7 +13751,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 04:43 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 07:24 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13756,14 +13771,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-145d09a1 [handoff]: R-NOW28 - month0 free-tier retry failed, scored
-012b80f9 [handoff]: R-NOW28 - pre-push tsc
-7dafb833 [ci]: pre-push refuses a push while tsc --noEmit is red
-100083ff [handoff]: R-NOW28 - other-account-cash tests
-87b3fe5a fix(test): other-account-cash malformed-row case typechecks (tsc was red after ea11292d)
-ea11292d test: pin otherAssetSourceId and assetAccountIdsOf (e1b0fffc)
-ea88b688 [handoff]: R-NOW28 - free-tier test slices
-ea2a088c test: pin toScheduledObligations (Bills This Week source) (e1b0fffc)
+38923d9b [handoff]: R-NOW28 - Garage contrast
+fae22993 [a11y]: Garage gold buttons readable in light mode; contrast probe walks 8 more screens (e1b0fffc)
+810a71d5 [handoff]: R-NOW28 - helper-test series done
+9cb6c209 test: pin hasPinnedStatement (interest-saving statement eligibility) (e1b0fffc)
+1f45c6ce test: javascript: bypass forms refused; reviewer first-run shape pinned
+83230a05 [handoff]: R-NOW28 - content-filter tests
+18e5bc4c test: pin the profanity filter and link safety check (e1b0fffc)
+ed428dc2 [handoff]: R-NOW28 - net-worth-snapshot tests, teach lesson
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
