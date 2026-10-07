@@ -1,6 +1,20 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW25 (2026-10-07 ~01:55 ET, Ada -> successor; handoff gate at 208 calls). START HERE, IN ORDER:
+  1. RE-ARM session crons (die with each tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
+     "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant (R-NOW21 #1 b/c).
+  2. VERIFY DEPLOY FIX 3c? (last commit "[deploy]: ignoreCommand diffs against the last DEPLOYED sha"): curl -s
+     "https://getforgenta.com/?v=$RANDOM" | grep -o '<title>[^<]*' must read "Forgenta: Budget App That Shows What Is
+     Safe to Spend". If not, read Vercel deployments for the getforgenta project (MCP list_deployments) - the old
+     ignoreCommand (HEAD^..HEAD) skipped every push ending in a docs/handoff commit. Then JS-render
+     https://getforgenta.com/no-such-page-xyz/ (playwright) and require meta robots=noindex + "Page not found" title;
+     close cbf3535a with that. Tell Sam the deploy bug + fix (it likely skipped earlier deploys too).
+  3. Sim run 37577846273 (afcb2821): the "Lock - no content before the lock" step must be GREEN now that the glass
+     flag is one-shot. Tell Sam. If red again, read the control line in --log-failed.
+  4. f07700ff remaining: b0b54c92 ASO question is on Tre's list (docs/aso-proposal-2026-10-07.md); soft-404 STATUS
+     code (true 404 for non-app paths) is not done - low priority, would need a route allowlist in vercel.json.
+  5. Then e1b0fffc standing: next improvement from ask list --owner Ada.
 R-NOW24 (2026-10-06 late, Ada getforgenta-8d). R-NOW23 items 1-2 DONE:
   - Session crons re-armed: 0cb35f3d (10-07 11:37 nudge read), 4f564178 (cancel buckets), a9cfa862 (free-link grant).
   - e1b0fffc pending checking debits SHIPPED: safe-to-spend-pending.ts + drawer row "Pending charges". Pending row equal
