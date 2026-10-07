@@ -15,6 +15,10 @@ R-NOW20 (2026-10-06 ~17:30 ET, Ada). R-NOW19 items 1-2 DONE:
     (cancel buckets) and b63524bf (grant row) check twice a day - RE-ARM them if this tab is gone.
   - Landing->signup (30d prod): web 22 first-screen -> 3 actions -> 0; iOS 9 -> 7 -> 1. No step provable;
     landing_viewed began 10-06. Read again 10-20 (a640c0d7).
+  - Landing speed (10-06 night): 09ededa1 + 58d25db9 logo 1.4 MB -> 149 KB under a NEW name
+    /logo-transparent-384.png (Cloudflare kept the old bytes under the old name - verify with a PLAIN curl,
+    never ?v=). 95272cc1 monitoring starts load+4s. Prod median of 3: LCP 14.7 -> 7.0 s, TBT ~400 -> 265 ms.
+    Next speed lever: prod FCP ~4.2 s (server response + critical JS).
   NEXT: the next e1b0fffc improvement; items in R-NOW19 #3 are still waiting on others.
 R-NOW19 (2026-10-06 ~18:45 ET, Ada -> successor; handoff gate at 179 calls). START HERE, IN ORDER:
   1. RE-ARM the 10-07 11:37 no-save-nudge read FIRST (CronCreate one-shot "37 11 7 10 *"): read cron.job_run_details
@@ -13587,39 +13591,34 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 18:01 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 21:05 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (11 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
- M src/components/shared/DemoBanner.tsx
- M src/components/shared/__tests__/DemoSession.test.tsx
- M src/lib/signup-funnel.ts
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
 ?? press-walk-frames/
-?? supabase/migrations/20261006c_signup_funnel_demo_signup.sql
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+09ededa1 [perf]: shrink the logo from 1,430 KB to 149 KB - landing LCP median 13.6 s -> 7.1 s (mobile)
+37e75ce7 [handoff]: R-NOW20 evening - cancel buckets, grant-write fix, demo step, landing read
+36c86846 [funnel]: count presses on the demo's Sign Up Free, so demo conversion is measurable
 fc402db4 [bank-link]: the free-link grant write reports its own failure instead of swallowing it
 ea984968 [auth]: time sign-in cancels on the phone, so an instant failure stops reading as a cancel
 ac37a012 [handoff]: R-NOW20 - funnel unmeasurable (2 of 28 tracked), competitor-edge done, renewal reminder parked
 5264a147 docs: competitor-edge read of 5 budgeting apps - surprise charges lead (174 of 1,079 complaints)
 edf55348 [handoff]: R-NOW19 - successor resume queue: re-arm nudge read, Sam's onboarding-funnel slice
-5583c794 [handoff]: R-NOW18 - live intro gate, walk green, Android sign-in premise likely robots
-ca4ca61a test: check:intro-offer-live - the intro offer against the DEPLOYED create-checkout
-17cc12d0 [handoff]: R-NOW17 - testimonial grant, landing social proof live, CSP lesson in the gate notes
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
