@@ -17,6 +17,7 @@ R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
   - e1b0fffc DONE f312cd52: tile hint icons muted/60 (2.69:1 light) -> full; faded-muted gate exempts aria-hidden only.
   NEXT: db1d6813 close after 72f96fc2 (11:41 ET); then next e1b0fffc improvement.
   - HTML-sink sweep (05:40, NEGATIVE on record): src has ONE sink (exportPdf document.write, fixed 0c8a1277; no dangerouslySetInnerHTML/innerHTML/insertAdjacentHTML). Edge HTML: newsletter-digest, friend-link, partner-link, unverified-nudge, og-consent-* all wrap every interpolation in esc(). Nothing to fix.
+  - Free-tier test slices: f434ecb7 sanitize (groq), 9131468f sanitizePayload now cleans jsonb (balance_tranches.label), ea2a088c upcoming-obligations (qwen3:14b, unchanged). NEXT helpers without tests: other-account-cash.ts, month0-drawer-lines.ts, net-worth-snapshot.ts.
   Sam 05:30: cap 78% - route the next e1b0fffc slices to the free tier (llm.py) while waiting.
 R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
@@ -13735,7 +13736,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 03:59 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 04:15 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13755,14 +13756,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-fadb4780 [handoff]: R-NOW28 - translucent-text contrast gate shipped (ea15c0fe)
-ea15c0fe [a11y]: contrast probe measures translucent text; five low-contrast strings fixed (e1b0fffc)
-362ca389 [handoff]: R-NOW28 - exportPdf escaped, nav highlight fixed, cron-secret proof armed for 11:41
-92d2578a [ui]: highlighted nav item keeps a gold icon and dot, label is full contrast (be864a14)
-0c8a1277 [security]: escape every user string in the PDF exports (db1d6813, part 2)
-4389b56b [handoff]: R-NOW27 - cron-secret verify, drift to Sam, exportPdf next
-9582465b [functions]: cron secrets compared in constant time in 8 functions (db1d6813, part 1)
-6e160de2 [db]: drop the never-applied promo giveaway objects (f5b0efcb)
+25191dd0 [handoff]: R-NOW28 - HTML sink sweep clean
+1813d5d5 [handoff]: R-NOW28 - hint icons
+f312cd52 [a11y]: tappable-tile hint icons use full muted grey (e1b0fffc)
+b99e3182 [handoff]: R-NOW28 - landing contrast
+19f5d00e [a11y]: contrast probe reads the signed-out landing page (check:landing-contrast)
+391949fb [a11y]: landing stat labels and testimonial disclosure use the muted token (e1b0fffc)
+68baa72b [handoff]: R-NOW28 - muted/NN sweep ba00f5a9
+ba00f5a9 [a11y]: no faded muted-grey text anywhere; gate refuses it (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
