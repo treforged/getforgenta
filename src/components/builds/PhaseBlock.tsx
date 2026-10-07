@@ -471,7 +471,7 @@ export default function PhaseBlock({
                           </span>
                         )}
                         {linkedTx && (
-                          <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-success/40 text-success/80">
+                          <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-success/40 text-success-text">
                             ✓ {formatCurrency(Number(linkedTx.amount))} · {linkedTx.date}
                           </span>
                         )}

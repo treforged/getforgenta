@@ -9,7 +9,9 @@ import path from 'node:path';
 // "Spent so far" card ("$X over plan").
 //
 // Allowed: `text-destructive-foreground` (text ON a red fill) and `text-destructive-text`.
-const BAD = /\btext-destructive(?![-\w])/g;
+// The same holds for green (2026-10-07): `text-success/80` on a Garage phase badge read 3.72:1 dark,
+// 3.73:1 light; `text-success-text` reads 6.71 / 5.58.
+const BAD = /\btext-(?:destructive|success)(?![-\w])/g;
 const SRC = path.resolve(__dirname, '../..');
 
 function sourceFiles(dir: string): string[] {
@@ -20,7 +22,7 @@ function sourceFiles(dir: string): string[] {
   });
 }
 
-describe('red text uses the text token, never the fill red', () => {
+describe('red and green text use the text tokens, never the fill colours', () => {
   const files = sourceFiles(SRC);
 
   it('the scan sees the app (positive control)', () => {
@@ -31,10 +33,11 @@ describe('red text uses the text token, never the fill red', () => {
   it('the pattern catches the defect and spares the allowed classes', () => {
     expect('text-sm text-destructive mt-1'.match(BAD)).toHaveLength(1);
     expect('text-destructive/80'.match(BAD)).toHaveLength(1);
-    expect('text-destructive-text text-destructive-foreground'.match(BAD)).toBeNull();
+    expect('text-success/80'.match(BAD)).toHaveLength(1);
+    expect('text-destructive-text text-destructive-foreground text-success-text/70'.match(BAD)).toBeNull();
   });
 
-  it('no source file paints text in the fill red', () => {
+  it('no source file paints text in a fill colour', () => {
     const hits = files.flatMap((f) =>
       readFileSync(f, 'utf-8').split(/\r?\n/).flatMap((line, i) =>
         line.match(BAD) ? [`${path.relative(SRC, f)}:${i + 1}`] : []));

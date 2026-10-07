@@ -1237,7 +1237,7 @@ export default function BankActivity() {
                         decision on the charge to correct one of them. */}
                     <button
                       onClick={() => removeLink.mutate(link.id)}
-                      className="text-success/70 hover:text-success-text"
+                      className="text-success-text/70 hover:text-success-text"
                       title="Undo just this link"
                       aria-label={`Undo ${linkLabel(link)}`}
                     >
