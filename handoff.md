@@ -10,6 +10,9 @@ R-NOW26 (2026-10-07 ~02:20 ET, Ada getforgenta-fe). R-NOW25 items 1-4 DONE:
     JSON-LD block disappears. Tests scripts/__tests__/app-store-rating.test.ts (15, red x2). Undo: drop the plugin.
   - f07700ff soft-404 STATUS parked on purpose: noindex ships; an allowlist risks 404ing real deep links. b0b54c92 waits on Tre.
   - e501632b: no $200 Robinhood credit in Tre's Chase yet (only $78.41 on 10-03); estimate row 62bc2801 waits on Wes.
+  - e1b0fffc: 333f12d7 Budget "over plan" text used the FILL red (3.03:1 dark card) -> text-destructive-text (5.88:1).
+    Gate destructive-text-class.gate.test.ts (red on old file). Form error text checked by token math: AA both themes.
+  - 493aa023 and f07700ff BLOCKED with reasons (real-user link; ASO waits on Tre). Sam is now tre-forged-40.
   NEXT: the next e1b0fffc improvement.
 R-NOW25 (2026-10-07 ~01:55 ET, Ada -> successor; handoff gate at 208 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (die with each tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
@@ -13697,7 +13700,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 01:49 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 02:06 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13717,14 +13720,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+cdb6659f [handoff]: R-NOW26 - Lock green, build-time App Store rating live
+12515d9c [seo]: add the LIVE App Store rating to the JSON-LD at build time
 8c7603cf [handoff]: R-NOW25 item 2 verified live
 6c83032b [handoff]: R-NOW25 - deploy-skip fix to verify, sim Lock to confirm, SEO remainder
 8ebba36e [deploy]: ignoreCommand diffs against the last DEPLOYED sha, not HEAD^ - pushes ending in a docs commit skipped every code change in them
 a733f6c7 [aso]: name/subtitle/keyword proposal for Tre (f07700ff)
 afcb2821 [handoff]: Sam confirmed the push hold; he releases it after the GitHub reset
 ad27ea26 [handoff]: R-NOW24 - local commit awaiting push permission
-5ada7adc [glass][seo]: one-shot sim glass flag (fixes the red Lock step) + noindex on the not-found page (cbf3535a)
-2710ded2 [handoff]: R-NOW24 - glass-flag fix and soft-404 in tree, gate running
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
