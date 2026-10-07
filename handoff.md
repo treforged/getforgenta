@@ -1,6 +1,15 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW22 (2026-10-06 ~23:00 ET, Ada getforgenta-45). R-NOW21 items 1-2 DONE, all pushed 0/0:
+  - Session crons re-armed: b7ab5a72 (10-07 11:37 nudge read), dd3b1609 (cancel buckets), 6f44aa3d (free-link grant).
+    Session-only: RE-ARM them if this tab is gone.
+  - 9838b181 static landing text (#seo-landing, sibling of #root, removed on mount): prod plain curl 272 words.
+  - 112b6655 Semgrep pre-commit (77cfda79 done). d2f96f06 title/description = Ruby's safe-to-spend strings (6bc8a99a done).
+  - 6fb2b8fc done: per-feature answers sent to Ruby. GAP FOUND: Safe to Spend does NOT subtract PENDING debit
+    charges on checking (plaid.ts:153 uses balances.current = posted). A "safe" figure can read HIGH. Candidate next slice.
+  - 8a202850: the frame already existed (sim run 36804677471). Sent to Tre; f2bd47fd needs-tre (keep native glass or park; Ada says park).
+    The "no Xcode" premise on 8a202850/f22f17b1 was false (CI simulator) and is rewritten.
 R-NOW21 (2026-10-06 ~21:45 ET, Ada -> successor; handoff gate at 196 calls). START HERE, IN ORDER:
   1. RE-ARM THREE SESSION CRONS (they died with the old tab):
      a. one-shot "37 11 7 10 *": the no-save-nudge read (R-NOW19 #1 text below), tell Sam, update a2c2d32f.
@@ -13610,34 +13619,40 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 21:36 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 22:16 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (12 file(s)):**
 
 ```
-M deno.lock
+M .githooks/pre-commit
+ M CLAUDE.md
+ M deno.lock
  M supabase/.temp/cli-latest
+ M supabase/functions/_shared/og-consent-page.ts
 ?? .claude/settings.local.json.bak-20261001-cron
+?? .semgrep/
 ?? _inbox/
 ?? press-walk-frames/
+?? scripts/__tests__/semgrep-staged.test.mjs
+?? scripts/semgrep-staged.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+9838b181 [landing]: static landing text for crawlers that run no JavaScript
+c52a4e74 [handoff]: R-NOW21 - re-arm 3 crons, then static landing text for non-JS crawlers
 32cbe72a [handoff]: FCP stop, monitoring trade, share card
 88110a2f [landing]: a share card and structured data, so a posted link shows a picture
 d77f6d97 [perf]: the boot-splash logo is the first paint, so fetch a 12 KB WebP first
 fa7b5783 [handoff]: landing speed slices and the plain-curl lesson
 95272cc1 [perf]: start monitoring after the page has painted - landing LCP 7.4 s -> 5.8 s, TBT 445 -> 188 ms
 58d25db9 [perf]: serve the small logo under a NEW name - Cloudflare kept the old 1.4 MB file
-09ededa1 [perf]: shrink the logo from 1,430 KB to 149 KB - landing LCP median 13.6 s -> 7.1 s (mobile)
-37e75ce7 [handoff]: R-NOW20 evening - cancel buckets, grant-write fix, demo step, landing read
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
