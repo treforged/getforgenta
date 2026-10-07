@@ -1405,7 +1405,8 @@ export default function BankActivity() {
                             },
                           );
                         }}
-                        className="btn btn-sm btn-ghost text-primary hover:text-primary/80"
+                        // whitespace-normal: at 320px "Matches your entry on <date>" ran past the card.
+                        className="btn btn-sm btn-ghost text-primary hover:text-primary/80 whitespace-normal h-auto text-left"
                       >
                         <Link2 size={11} />{' '}
                         {discrepancyByCharge[txn.id]

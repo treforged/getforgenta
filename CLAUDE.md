@@ -379,6 +379,12 @@ section states reasoning, not measurement, and says so.
 - `npm run check:budget-tiles` - at 390x844, signed in: the dashboard's This Month's Budget tiles (two across on
   a phone since 2026-09-28) keep every figure on one line and inside its tile, and it prints the section height
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.
+- `npm run check:narrow-overflow` - TEXT CUT OFF at 320x568 (iPhone SE 1st gen; deployment target 15.0 still runs it) on
+  /demo, 9 main routes, no credentials. Measures each text run's CHARACTERS (a Range) against the viewport and every clipping
+  ancestor; skips sideways scrollers, ellipsis, sr-only, svg. Planted control: clipped nowrap flagged, wrapping not. First run
+  2026-10-07: 17 cut (transaction amounts past the card, header buttons cut both sides, "Matches your entry" button, a stat
+  figure, a tile label); 0 after. `WIDTH=390` also 0. Does NOT see overlap (the demo banner caption, nav labels - found by
+  LOOKING at the frame), truncation, dialogs, or signed-in data. Frames: test-results/narrow-overflow/.
 - `npm run check:grid-orphans` - every CSS grid of card-sized tiles on the 7 main screens at 360, 390, 768, 1024,
   1280, 1440 and 1920, signed in: fails on an ORPHAN last row (fewer tiles than the first row and >25% of the width
   empty) and on an OVERSIZED tile (>1.4x its siblings' median width with its text spanning <60% of it).

@@ -134,7 +134,7 @@ export default function MobileNav() {
                   </span>
                 )}
               </div>
-              <span className="truncate">{item.label}</span>
+              <span className="truncate max-w-full text-[11px] min-[360px]:text-xs">{item.label}</span>
             </Link>
           );
         })}

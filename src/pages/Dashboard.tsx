@@ -1421,7 +1421,7 @@ export default function Dashboard() {
               own line the row is the only thing there, and left-aligning it put it out of step
               with the panel pills directly beneath, which have always been centred. At sm+ the
               parent is a `justify-between` row again and the buttons belong at the end. */}
-          <div className="flex flex-row items-center justify-center sm:justify-end gap-1.5 shrink-0">
+          <div className="flex flex-row flex-wrap items-center justify-center sm:justify-end gap-1.5 shrink-0">
             {!isSimple && (<button
               onClick={() => setCustomizing(true)}
               className="flex items-center justify-center gap-1.5 bg-secondary border border-border px-2.5 py-1.5 text-[11px] font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors"

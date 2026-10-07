@@ -1300,15 +1300,15 @@ export default function Transactions() {
         onDismiss={dismissDuplicate}
       />
 
-      {ledgerDetail && <div className="grid grid-cols-3 gap-3">
-        <div className="card-forged p-3 text-center">
+      {ledgerDetail && <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="card-forged px-2 py-3 sm:p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Income</p>
           <p className="text-sm font-display font-bold text-success-text">{formatCurrency(totals.income)}</p>
           {totals.projectedIncome > 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedIncome)} projected</p>
           )}
         </div>
-        <div className="card-forged p-3 text-center">
+        <div className="card-forged px-2 py-3 sm:p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Total Cash Out</p>
           <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(totals.expense)}</p>
           {totals.debtService > 0 && (
@@ -1318,7 +1318,7 @@ export default function Transactions() {
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedExpense)} projected</p>
           )}
         </div>
-        <div className="card-forged p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net)}</p></div>
+        <div className="card-forged px-2 py-3 sm:p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net)}</p></div>
       </div>}
 
       {ledgerDetail && Object.keys(spendBySource).length > 0 && (
@@ -1349,15 +1349,17 @@ export default function Transactions() {
           const canConvertToPlan = (isPremium || isDemo)
             && planDraftFromTransaction(t, { paymentSource: normalizeSource(t.payment_source) }).ok;
           return (
-            <div key={t.id} className={`flex items-center justify-between px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-adjusted/40' : ''}`}>
-              <div className="flex items-center gap-3">
+            <div key={t.id} className={`flex items-center justify-between gap-2 px-4 py-3 ${t.isGenerated ? 'bg-muted/5' : ''} ${t.isDebtPayment ? 'border-l-2 border-l-primary/40' : ''} ${isRecon ? 'border-l-2 border-l-adjusted/40' : ''}`}>
+              {/* min-w-0 + flex-1: on a 320px phone the amount group used to push this row
+                  past its card (check:narrow-overflow, "$110.00" ending at 336 in a 307 card). */}
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 {isRecon
                   ? <SlidersHorizontal size={14} className="text-gold" />
                   : <span className="text-base leading-none w-5 text-center shrink-0">{t.isDebtPayment ? '💳' : t.isCarLoanPayment ? '🚗' : t.type === 'income' ? '💰' : (CATEGORY_EMOJI[t.category] ?? '📦')}</span>
                 }
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-medium">{t.note || '—'}</p>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="text-xs font-medium break-words">{t.note || '—'}</p>
                     {/* THE WORD, NOT ONLY THE ICON. A projection must be unmistakable at a glance
                         and never merely subtler: a tint and a glyph both fail for a colourblind
                         user and both vanish in bright sun on a phone. A row a real bank charge has
@@ -1420,7 +1422,7 @@ export default function Transactions() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 shrink-0 max-w-[55%]">
                 <span className={`text-xs font-semibold font-display whitespace-nowrap ${isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? 'text-success-text' : 'text-destructive-text') : t.type === 'income' ? 'text-success-text' : 'text-destructive-text'}`}>
                   {isRecon ? (reconDelta !== undefined && reconDelta >= 0 ? '+' : '') : (t.type === 'income' ? '+' : '-')}{isRecon && reconDelta !== undefined ? formatCurrency(reconDelta) : formatCurrency(Number(t.amount))}
                 </span>

@@ -81,7 +81,7 @@ function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass
     >
       <span className="flex items-center gap-1.5 min-w-0">
         <Icon size={14} className={cn('shrink-0', ACCENT_TEXT[accent])} aria-hidden="true" />
-        <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wide leading-snug whitespace-nowrap min-w-0">
+        <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wide leading-snug min-[360px]:whitespace-nowrap min-w-0">
           {label}
         </span>
         <BarChart2 size={12} className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" data-testid="budget-tile-glyph" />
