@@ -61,7 +61,7 @@ export default function SocialProof({
               <blockquote className="text-sm text-foreground">&ldquo;{item.quote}&rdquo;</blockquote>
               <p className="mt-2 text-xs text-foreground/70">{item.name}</p>
               {item.rewarded && (
-                <p className="mt-1 text-[11px] text-foreground/60" data-testid="testimonial-disclosure">
+                <p className="mt-1 text-[11px] text-muted-foreground" data-testid="testimonial-disclosure">
                   {t('socialProof.rewardDisclosure')}
                 </p>
               )}

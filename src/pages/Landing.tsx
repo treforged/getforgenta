@@ -266,7 +266,7 @@ export default function Landing() {
                 <p className="font-display font-extrabold text-3xl md:text-4xl text-gold">
                   <AnimatedCounter target={s.value} suffix={s.suffixKey ? t('stats.' + s.suffixKey) : (s.suffix ?? '')} />
                 </p>
-                <p className="text-[10px] text-foreground/60 mt-1 uppercase tracking-wider">{t('stats.' + s.key)}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider">{t('stats.' + s.key)}</p>
               </motion.div>
             ))}
           </div>
