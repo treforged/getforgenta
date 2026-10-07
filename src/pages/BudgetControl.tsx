@@ -1508,7 +1508,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             // The legend is a COLUMN beside the donut at every width (it used to sit under the donut on a
             // phone and run along one line beside it on desktop, leaving the card's right side empty).
             // `flex-1` + `items-center` centre the pair when the card is stretched to its neighbour's height.
-            <div className="flex-1 flex flex-row items-center gap-4 sm:gap-6">
+            <div className="flex-1 flex flex-row flex-wrap items-center gap-4 sm:gap-6">
               <svg viewBox="0 0 36 36" className="w-32 h-32 lg:w-40 lg:h-40 shrink-0 -rotate-90">
                 <circle cx="18" cy="18" r={R} fill="transparent" stroke="hsl(var(--secondary))" strokeWidth="3.5" />
                 {seg(fixedPct,    0,                                          'hsl(0, 65%, 45%)'  )}

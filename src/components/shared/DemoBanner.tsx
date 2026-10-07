@@ -30,7 +30,7 @@ export default function DemoBanner() {
       // ⚠️ NO SAFE-AREA INSET HERE. `DashboardLayout`'s sticky wrapper owns it, and this banner
       // sits BELOW `MobileTopBar` inside that wrapper — so an inset here was only ever correct on
       // the one path where the bar was hidden, and doubled everywhere else.
-      className="bg-card border-b border-border/80 px-3 sm:px-5 pt-2.5 pb-2.5 flex items-center justify-between gap-3"
+      className="bg-card border-b border-border/80 px-3 sm:px-5 pt-2.5 pb-2.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
     >
       <div className="flex items-center gap-2.5 min-w-0">
         <span className="shrink-0 text-[9px] font-bold uppercase tracking-widest text-primary bg-primary/15 px-2 py-0.5" style={{ borderRadius: 'var(--radius)' }}>

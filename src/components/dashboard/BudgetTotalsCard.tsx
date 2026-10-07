@@ -72,7 +72,7 @@ function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass
       onClick={onOpen}
       aria-label={`${label} ${value}${sub ? `, ${sub}` : ''} — show how it adds up`}
       className={cn(
-        'card-forged relative overflow-hidden w-full h-full text-left p-3 md:px-4 flex flex-col justify-start gap-1',
+        'card-forged relative overflow-hidden w-full h-full text-left p-3 md:px-4 flex flex-col justify-start gap-1 @max-[12.5rem]:col-span-2',
         'hover:border-primary/20 transition-colors duration-300',
         ACCENT_GLOW[accent],
         wide && 'max-md:grid max-md:grid-cols-[minmax(0,1fr)_auto] max-md:items-center max-md:gap-x-3',
@@ -273,7 +273,8 @@ export default function BudgetTotalsCard() {
           tile is double width (Tre, 2026-10-05: "the monthly income box is to big"). Every figure in the
           section shares ONE type size (chosen from the longest), so figures in a row sit on one
           baseline and nothing re-fits as a number changes. */}
-      <div className="grid grid-cols-2 md:grid-cols-12 gap-3">
+      {/* @container: with large text on a narrow phone (~10.8rem wide) every tile takes the full row. */}
+      <div className="grid grid-cols-2 md:grid-cols-12 gap-3 @container">
         {tiles.map(t => (
           <BudgetTile key={t.label} {...t} figureClass={figureClass} />
         ))}
