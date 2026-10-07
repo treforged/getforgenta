@@ -22,7 +22,9 @@ R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
     is before payday and equals the card. No change.
   - e1b0fffc DONE c6028af7 (Sam's follow-up): that window note now LEADS the drawer (CalcDrawer `summary`), 1056px -> 118px
     on 844; check:safe-to-spend asserts it is on screen on open (red on old drawer).
-  NEXT: 11:37 + 11:41 reads (crons a7d22393, 4bf61fd4).
+  - d6d54c90 DONE on Tre's '1. yes': og-anniversary v15 + push-send v16 deployed from HEAD (verify_jwt false). og dry run 200,
+    bad secret 403. push-send 403 x2 (no valid call: real pushes). Its 200 proves at push-send-daily 17:00Z: cron 9a29c64f 13:06 ET.
+  NEXT: 11:37 + 11:41 reads (crons a7d22393, 4bf61fd4); 13:06 push-send read (9a29c64f). RE-ARM all if this tab is gone.
 R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
   1. RE-ARM the session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
