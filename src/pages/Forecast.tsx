@@ -381,7 +381,7 @@ export default function Forecast({ simple = false }: { simple?: boolean } = {}) 
             surface already puts it. It had been sitting at the end of the action row, so on this
             page alone its position was a function of how many buttons happened to be premium-gated
             — the same drift #112 fixed everywhere else and missed here. */}
-        <div className="flex items-start justify-between gap-2 sm:gap-3 min-w-0">
+        <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3 min-w-0">
           <div className="min-w-0">
             <h1 className="font-display font-bold text-xl sm:text-2xl tracking-tight">Forecast</h1>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 sm:mt-1 truncate">60-month projections driven by live data</p>
