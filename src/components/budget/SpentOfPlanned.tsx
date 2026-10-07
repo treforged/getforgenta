@@ -109,7 +109,7 @@ const SpentOfPlanned = ({ rules, plannedRules }: Props) => {
       </p>
       <ProgressBar value={spentCents} max={plannedCents} thick className="mt-2" />
       {spentCents > plannedCents && plannedCents > 0 && (
-        <p className="text-sm text-destructive mt-1">
+        <p className="text-sm text-destructive-text mt-1">
           {formatCurrency((spentCents - plannedCents) / 100)} over plan
         </p>
       )}
@@ -127,7 +127,7 @@ const SpentOfPlanned = ({ rules, plannedRules }: Props) => {
               </div>
               {row.plannedCents > 0 && <ProgressBar value={row.spentCents} max={row.plannedCents} className="mt-1" />}
               {row.plannedCents > 0 && row.spentCents > row.plannedCents && (
-                <p className="text-xs text-destructive">{formatCurrency((row.spentCents - row.plannedCents) / 100)} over</p>
+                <p className="text-xs text-destructive-text">{formatCurrency((row.spentCents - row.plannedCents) / 100)} over</p>
               )}
             </li>
           ))}
