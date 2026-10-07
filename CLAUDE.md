@@ -154,6 +154,11 @@ section states reasoning, not measurement, and says so.
   Proven RED with the real legend defect. Does NOT cover: light mode, desktop widths, error states,
   anything behind an interaction, or whether disabled/placeholder text is legitimately exempt — it
   says so and asks you to check each finding by hand.
+- ⚠️ **SINCE 2026-10-07 THE WALK-UP ARM COMPOSITES TRANSLUCENT TEXT INSTEAD OF SKIPPING IT.** Chrome reports every
+  `text-x/NN` colour as oklab(), which the old rgba regex read as null, so ALL opacity text and every oklch colour was
+  invisible to check:*-contrast. Colours now resolve through a canvas and blend over the opaque surface. First run found 5
+  real strings (budget-equation operators 2.17:1, lesson '2 min' 3.13, Dashboard month 3.87, Forecast receipts hint 3.87,
+  Debt cash-floor warning amber-600 2.93) - all fixed. Red on the old nav: 'Debt' 3.56:1, exit 1. Findings now print colour + class.
 - ⚠️ **ALL FOUR contrast scripts now run a PIXEL ARM too (2026-09-29, ask ea989790):** each on-screen string
   is measured against the worst pixel under its own glyph rect with text hidden, so a glow, gradient or
   image background is no longer invisible. A planted grey-on-grey `background-image` string is the control

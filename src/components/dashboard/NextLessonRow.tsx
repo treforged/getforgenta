@@ -61,7 +61,7 @@ export default function NextLessonRow() {
           {progress.streak}
         </span>
       )}
-      <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">{lesson.minutes} min</span>
+      <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{lesson.minutes} min</span>
       <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
     </button>
   );

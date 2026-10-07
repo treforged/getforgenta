@@ -27,7 +27,7 @@ export default function ReceiptsDisclosure({ title, summary, open, onToggle, chi
       >
         <span className="min-w-0">
           <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
-          <span className="block text-[10px] text-muted-foreground/80 mt-0.5">
+          <span className="block text-[10px] text-muted-foreground mt-0.5">
             {summary} · tap to {open ? 'close' : 'open'}
           </span>
         </span>

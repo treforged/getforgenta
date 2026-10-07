@@ -1787,7 +1787,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <p
                   role="status"
                   data-testid="cash-floor-warning"
-                  className="text-[10px] text-amber-600 dark:text-amber-500 flex items-start gap-1"
+                  className="text-[10px] text-amber-700 dark:text-amber-500 flex items-start gap-1"
                 >
                   <AlertTriangle size={10} className="shrink-0 mt-[2px]" />
                   <span>{cashFloorWarning.message}</span>

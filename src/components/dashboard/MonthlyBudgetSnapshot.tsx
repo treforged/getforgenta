@@ -288,7 +288,7 @@ export default function MonthlyBudgetSnapshot({
                   )}
                 >
                   <div className="flex items-center gap-2 text-muted-foreground min-w-0">
-                    <span className="font-mono text-[10px] font-bold text-muted-foreground/50 w-3 shrink-0 text-center">
+                    <span className="font-mono text-[10px] font-bold text-muted-foreground w-3 shrink-0 text-center">
                       {row.sign}
                     </span>
                     {onClick ? (

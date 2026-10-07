@@ -196,11 +196,16 @@ const ROUTES = ['/dashboard', '/budget', '/debt', '/forecast', '/account', '/set
 const OVERLAY = 'div.backdrop-blur-sm, div.modal-overlay';
 
 const readPage = () => page.evaluate(() => {
+  // ⚠️ RESOLVED THROUGH A CANVAS, NOT A REGEX (2026-10-07, be864a14). Chrome reports any colour with
+  // opacity - every Tailwind `text-x/NN` - as oklab(), which the old rgba-only regex returned null for,
+  // and the loop below then skipped anything translucent. So `text-primary/75` was invisible to this
+  // gate in both themes while reading 3.73:1 on screen. A canvas resolves any CSS colour to sRGB.
+  const cv = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
   const parse = (s) => {
-    const m = (s || '').match(/rgba?\(([^)]+)\)/);
-    if (!m) return null;
-    const p = m[1].split(',').map(Number);
-    return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 };
+    if (!s || s === 'transparent') return null;
+    cv.clearRect(0, 0, 1, 1); cv.fillStyle = '#000'; cv.fillStyle = s; cv.fillRect(0, 0, 1, 1);
+    const [r, g, b, a] = cv.getImageData(0, 0, 1, 1).data;
+    return { r, g, b, a: a / 255 };
   };
   const lum = ({ r, g, b }) => {
     const f = (v) => { const n = v / 255; return n <= 0.03928 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4; };
@@ -236,10 +241,13 @@ const readPage = () => page.evaluate(() => {
     if (el.closest('[aria-hidden="true"]')) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.opacity === '0') continue;
-    const fg = parse(cs.color);
-    if (!fg || fg.a < 0.95) continue;                    // a translucent colour needs compositing
+    const raw = parse(cs.color);
+    if (!raw || raw.a === 0) continue;
+    // A translucent colour is composited over the opaque surface it sits on, rather than skipped.
+    const surface = surfaceOf(el);
+    const fg = { r: raw.r * raw.a + surface.r * (1 - raw.a), g: raw.g * raw.a + surface.g * (1 - raw.a), b: raw.b * raw.a + surface.b * (1 - raw.a) };
     examined += 1;
-    const r = ratio(fg, surfaceOf(el));
+    const r = ratio(fg, surface);
     if (r < 4.5) {
       out.push({
         text: own.slice(0, 48), ratio: Math.round(r * 100) / 100,
@@ -570,7 +578,7 @@ for (const f of pixelFindings.sort((a, b) => a.ratio - b.ratio)) {
 console.log(`examined ${report.examined} rendered text elements in ${THEME} mode; `
   + `${report.findings.length} below 4.5:1`);
 for (const f of report.findings.sort((a, b) => a.ratio - b.ratio)) {
-  console.log(`  ${String(f.ratio).padStart(5)}:1  ${String(f.route).padEnd(11)} ${f.size}/${f.weight}  ${JSON.stringify(f.text)}`);
+  console.log(`  ${String(f.ratio).padStart(5)}:1  ${String(f.route).padEnd(11)} ${f.size}/${f.weight}  ${JSON.stringify(f.text)}  [${f.color}] .${f.cls}`);
   console.log(`            color=${f.color}  class=${f.cls}`);
 }
 

@@ -1409,7 +1409,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2">
               <h1 className="text-xs uppercase tracking-wider text-muted-foreground">Command Center</h1>
             </div>
-            <p className="text-[11px] text-muted-foreground/80 mt-0.5">
+            <p className="text-[11px] text-muted-foreground mt-0.5">
               {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
             </p>
           </div>
