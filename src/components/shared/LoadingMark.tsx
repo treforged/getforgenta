@@ -17,7 +17,7 @@ export default function LoadingMark({ label, size = 112, loading = true }: Loadi
     <div className="flex flex-col items-center gap-4" role={loading ? 'status' : undefined} aria-live={loading ? 'polite' : undefined}>
       <span className={`inline-flex ${loading ? 'logo-shimmer' : ''}`} data-testid="loading-mark">
         <img
-          src="/logo-transparent.png"
+          src="/logo-transparent-384.png"
           alt={label ? '' : 'Forgenta'}
           style={{ height: size, width: size, objectFit: 'contain' }}
           draggable={false}

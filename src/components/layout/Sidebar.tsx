@@ -179,7 +179,7 @@ export default function Sidebar() {
           aria-label="Forgenta home"
         >
           <img
-            src="/logo-transparent.png"
+            src="/logo-transparent-384.png"
             alt="Forgenta"
             // Kept in proportion with the mobile bar's mark, which went 22 -> 30.
             // ⚠️ THE SIZE IS A CLASS, NOT AN INLINE STYLE, so that it can follow the rail's CSS

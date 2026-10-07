@@ -569,7 +569,7 @@
    "Confirming your email…" step — see AuthCallback.tsx). Reuses the `shimmer` keyframe defined
    above for `skeleton-shimmer`; the only difference is WHAT the sweep is clipped to.
 
-   The gradient is masked to `/logo-transparent.png`'s own alpha channel via `mask-image`, so the
+   The gradient is masked to `/logo-transparent-384.png`'s own alpha channel via `mask-image`, so the
    highlight travels across the mark's silhouette rather than sliding a rectangle over it. If a
    future call site needs a different logo asset, the mask-image below needs updating to match —
    this is deliberately a single hardcoded source rather than a CSS variable indirection, since
@@ -604,8 +604,8 @@
   );
   background-size: 200% 100%;
   background-repeat: no-repeat;
-  -webkit-mask-image: url('/logo-transparent.png');
-  mask-image: url('/logo-transparent.png');
+  -webkit-mask-image: url('/logo-transparent-384.png');
+  mask-image: url('/logo-transparent-384.png');
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-size: contain;

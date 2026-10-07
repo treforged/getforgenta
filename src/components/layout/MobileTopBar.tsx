@@ -108,7 +108,7 @@ export default function MobileTopBar() {
           className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 hover:opacity-80 transition-opacity"
         >
           <img
-            src="/logo-transparent.png"
+            src="/logo-transparent-384.png"
             alt="Forgenta"
             // Sized against the 48px bar rather than the wordmark: 22 read as an afterthought
             // next to FORGENTA. 30 fills the row and still clears it top and bottom.

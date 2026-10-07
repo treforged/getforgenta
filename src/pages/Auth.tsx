@@ -722,7 +722,7 @@ export default function Auth() {
         <div className="w-full max-w-xs space-y-7">
           <div className="text-center auth-logo space-y-3">
             <img
-              src="/logo-transparent.png"
+              src="/logo-transparent-384.png"
               alt="Forgenta"
               style={{ height: 120, width: 120, objectFit: 'contain', display: 'block', margin: '0 auto' }}
               draggable={false}
@@ -1104,7 +1104,7 @@ export default function Auth() {
 
         <div className="text-center mb-3">
           <img
-            src="/logo-transparent.png"
+            src="/logo-transparent-384.png"
             alt="Forgenta"
             style={{ height: 110, width: 110, objectFit: 'contain', display: 'block', margin: '0 auto 6px' }}
             draggable={false}
