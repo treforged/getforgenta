@@ -1,6 +1,15 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW35 (2026-10-07 ~17:35 ET, Ada getforgenta-d1). e133050a pushed (DIALOGS=1 v1: 120 pressed, 37 opened, 0 cut).
+  UNCOMMITTED, NOT YET GREEN: scripts/check-narrow-overflow.mjs (v2: SIGNED_IN allowed with walk:press's rpc guard, press
+  BY TAG not index, dialog named by its own heading, a fresh page before EVERY press), scripts/lib/read-only-rpcs.mjs
+  (moved out of walk-press-every-control.mjs; walk:press start verified: 18 rpcs, both pg_proc controls hold).
+  v2 runs without the fresh-page reload: demo 103 pressed / 82 not pressable / 13 distinct dialogs; signed in 62 / 68 /
+  7 distinct, /net-worth UNSTABLE (exit 2); all 0 cut. The fresh-page run was KILLED by the harness for low system
+  memory - do not re-run two browsers at once. NEXT: run ONE at a time (WIDTH=320 DIALOGS=1, then + SIGNED_IN=1), want
+  not-pressable near 0; commit only on a green run. Sam wants: distinct dialogs measured vs the 22 files, and the
+  signed-in run to reach Garage/StatementImport/ShareCard/BuyIt/LumpSum; native lock/biometric stays a named gap.
 R-NOW34 (2026-10-07 ~16:10 ET, Ada getforgenta-d1). R-NOW33 #1 DONE: crons re-armed HERE - 34776dcb (10-08 09:07 plaid
   proof), ec1a70bd (10-08 13:47 Android), d7def790 (cancel buckets), bf36e8d3 (free-link). RE-ARM if this tab is gone.
   e1b0fffc: 7ea393e9 - check:narrow-overflow WIDTH=1024 TEXT_SCALE=150 SIGNED_IN=1 found the Net Worth strip's CC Debt figure
@@ -13836,34 +13845,38 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 15:42 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 17:23 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (10 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
+ M scripts/check-narrow-overflow.mjs
+ M scripts/walk-press-every-control.mjs
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
 ?? press-walk-frames/
+?? scripts/lib/read-only-rpcs.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+e133050a test: check:narrow-overflow DIALOGS=1 presses every button on /demo and measures what opens (e1b0fffc)
+d92cb2df [handoff]: R-NOW34 - crons re-armed in getforgenta-d1; strip large-text fix 7ea393e9 (e1b0fffc)
+7ea393e9 [ui]: Net Worth strip tiles go two across when large text cannot fit four, so CC Debt is not cut off (e1b0fffc)
+4f1bee6e [handoff]: R-NOW33 - successor re-arms 10-08 crons; e1b0fffc standing
+89b19b4b test: check:health-banner THEME=dark|light measures the notice's contrast as numbers (e1b0fffc)
+ffc7f403 [ui]: Forecast title row wraps, so large text at tablet width cannot run the title under Guide (e1b0fffc)
 05df1e57 [handoff]: R-NOW32 - 150% text, Simple view, notice, nav cap; crons for 10-08
 18baaf08 [nav]: bottom-bar labels capped like an iOS tab bar, so large text cannot make them touch (e1b0fffc)
-d80748f3 [ui]: network notice puts "Try again" under the message; check:health-banner proves it (e1b0fffc)
-88ecf3fb [ui]: Simple view + large text at 320 - Debt hero and the network notice re-flow (e1b0fffc)
-b1408ff9 test: contrast probe takes --width 320 and TEXT_SCALE=150 (969da7ed follow-up)
-c709e29b [ui]: 320px + 150% text reads 0 cut on every route (969da7ed, 6 -> 0)
-127cc0b1 [handoff]: R-NOW32 - timeouts, 150% text, release range fix
-da3f1bed fix(ci): last shipped run also scans scheduled + dispatched runs, so a busy push day cannot hide it
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
