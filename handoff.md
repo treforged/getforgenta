@@ -24,6 +24,10 @@ R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
     on 844; check:safe-to-spend asserts it is on screen on open (red on old drawer).
   - d6d54c90 DONE on Tre's '1. yes': og-anniversary v15 + push-send v16 deployed from HEAD (verify_jwt false). og dry run 200,
     bad secret 403. push-send 403 x2 (no valid call: real pushes). Its 200 proves at push-send-daily 17:00Z: cron 9a29c64f 13:06 ET.
+  - 49d21f71 DONE bc8724fd: FRIENDSFOREVER26 re-issued at 14 left (old promo was capped 10, 6 used) via admin fn stripe-coupon-cap
+    (cron-secret guard). Undo ids in commit. Coupon + 6 active subs untouched (read back).
+  - b0b54c92 TAKEN: aso-metadata.yml (dispatch) reads OK (run 37626351173); NO open iOS version. Next step row 9ecc8edf.
+    Asked Tre: create 6.8.2? On yes: POST appStoreVersions, then apply=true run.
   NEXT: 11:37 + 11:41 reads (crons a7d22393, 4bf61fd4); 13:06 push-send read (9a29c64f). RE-ARM all if this tab is gone.
 R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
   1. RE-ARM the session crons (they die with this tab):
@@ -13775,7 +13779,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 08:32 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 08:58 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13795,14 +13799,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+18741aea [handoff]: R-NOW30 - d6d54c90 deployed on Tre's yes
+e545818d [handoff]: R-NOW30 - c6028af7 STS window note
 c6028af7 [ux]: Safe to Spend drawer leads with its window note; check asserts it is on screen on open (e1b0fffc)
 8b7c0827 [handoff]: R-NOW30 - routes/nav green, STS horizon label negative
 a1d59120 [handoff]: R-NOW30 - first-save/one-banner green, demo pending row
 69e4bc88 [demo]: /demo shows Safe to Spend's "Pending charges" row; check:safe-to-spend asserts it (e1b0fffc)
 ab0b9c38 [handoff]: R-NOW30 - empty-account grid sweep and first-run walk green
 863254ad [test]: check:grid-orphans can walk an empty account (GRID_EMAIL); empty run clean 49/49 (e1b0fffc)
-8a14933f [handoff]: R-NOW30 - widgets closed, walk:empty 1440 lone tiles fixed
-499107be [ux]: empty Forecast hero and Garage tile span their row at desktop; walk:empty flags lone tiles (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
