@@ -42,8 +42,10 @@
     <meta name="twitter:image" content="https://getforgenta.com/og-card.png" />
     <meta name="twitter:title" content="Forgenta: Budget App That Shows What Is Safe to Spend" />
     <meta name="twitter:description" content="Budget with precision. Eliminate debt. Stack savings. Track every goal." />
-    <!-- Structured data for search. No rating on purpose: a static number goes stale, and a
-         rating that disagrees with Apple's is a false claim. Price 0 = the free plan exists. -->
+    <!-- Structured data for search. NO rating is written here on purpose: a static number goes
+         stale, and a rating that disagrees with Apple's is a false claim. The build adds Apple's
+         LIVE rating (scripts/app-store-rating.ts), and omits it when Apple cannot be read.
+         Price 0 = the free plan exists. -->
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Forgenta","url":"https://getforgenta.com/","applicationCategory":"FinanceApplication","operatingSystem":"iOS, Android, Web","description":"Budget, forecast and debt payoff in one app. Know what is safe to spend before payday.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"TRE Forged LLC"},"sameAs":["https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239","https://play.google.com/store/apps/details?id=com.treforged.forged"]}</script>
 
     <!-- Fonts — non-blocking so WKWebView renders immediately -->

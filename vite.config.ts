@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import { configDefaults } from "vitest/config";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { appStoreRatingPlugin } from "./scripts/app-store-rating.ts";
 
 export default defineConfig(({ mode }) => ({
   test: {
@@ -41,7 +42,8 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react()],
+  // appStoreRatingPlugin adds the LIVE App Store rating to the JSON-LD at build time only.
+  plugins: [react(), appStoreRatingPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "./src"),
