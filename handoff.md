@@ -1,6 +1,15 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW24 (2026-10-06 late, Ada getforgenta-8d). R-NOW23 items 1-2 DONE:
+  - Session crons re-armed: 0cb35f3d (10-07 11:37 nudge read), 4f564178 (cancel buckets), a9cfa862 (free-link grant).
+  - e1b0fffc pending checking debits SHIPPED: safe-to-spend-pending.ts + drawer row "Pending charges". Pending row equal
+    to the cent to a dated outflow within -3/+10 days REPLACES the bill (guard test: 1,800 not 600). test:tz 6259 x3.
+    Ruby + Sam told.
+  - eac44776 dark-mode.md source audit: 3 violations -> de23e8d4 (untinted :root bg, destructive fill darker in dark,
+    no lighter dark body weight). Sent to Sam.
+  - NEXT, in order: (1) native glass OVER the WKWebView (new ask, Tre: "can we not fix it?") - CI sim frame proof;
+    (2) de23e8d4 dark-mode fixes with rendered frames both themes + contrast gates.
 R-NOW23 (2026-10-06 ~23:20 ET, Ada -> successor; handoff gate). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons from R-NOW22 if this is a new tab (b7ab5a72 one-shot "37 11 7 10 *" nudge read;
      "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant). Their prompts are in R-NOW21 #1.
@@ -13637,40 +13646,34 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 22:16 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 22:40 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (12 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
-M .githooks/pre-commit
- M CLAUDE.md
- M deno.lock
+M deno.lock
  M supabase/.temp/cli-latest
- M supabase/functions/_shared/og-consent-page.ts
 ?? .claude/settings.local.json.bak-20261001-cron
-?? .semgrep/
 ?? _inbox/
 ?? press-walk-frames/
-?? scripts/__tests__/semgrep-staged.test.mjs
-?? scripts/semgrep-staged.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+01b569a9 [handoff]: R-NOW23 - pending-debit Safe to Spend slice designed for the successor
+7805467c [handoff]: R-NOW22 - landing text, Semgrep, title live; pending-debit gap in Safe to Spend
+d2f96f06 [landing]: title and description lead with safe-to-spend (ask 6bc8a99a, Ruby)
+112b6655 [security]: local Semgrep pass in the pre-commit hook (ask 77cfda79)
 9838b181 [landing]: static landing text for crawlers that run no JavaScript
 c52a4e74 [handoff]: R-NOW21 - re-arm 3 crons, then static landing text for non-JS crawlers
 32cbe72a [handoff]: FCP stop, monitoring trade, share card
 88110a2f [landing]: a share card and structured data, so a posted link shows a picture
-d77f6d97 [perf]: the boot-splash logo is the first paint, so fetch a 12 KB WebP first
-fa7b5783 [handoff]: landing speed slices and the plain-curl lesson
-95272cc1 [perf]: start monitoring after the page has painted - landing LCP 7.4 s -> 5.8 s, TBT 445 -> 188 ms
-58d25db9 [perf]: serve the small logo under a NEW name - Cloudflare kept the old 1.4 MB file
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
