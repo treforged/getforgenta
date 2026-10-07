@@ -11,7 +11,7 @@
  *
  * It never creates a version and never submits anything: the change ships with the next iOS
  * version Tre submits. If no editable version exists it says so and exits 3.
- * Exits: 0 ok . 1 a write or read-back failed . 2 could not read (auth, role, missing secret) . 3 nothing editable.
+ * Exits: 0 ok (a READ with nothing open is 0 + a notice) . 1 a write or read-back failed . 2 could not read . 3 APPLY with nothing open.
  * Undo: rerun with NAME/KEYWORDS set to the old values printed by the READ.
  */
 import { createSign } from 'node:crypto';
@@ -95,7 +95,11 @@ console.log(`LIVE keywords="${liveVLoc?.attributes.keywords}"`);
 
 if (!editInfo || !editVer) {
   console.log(`editable app info: ${editInfo?.id ?? 'none'} . editable iOS version: ${editVer?.attributes.versionString ?? 'none'}`);
-  die(3, 'nothing editable yet: the name and keywords change only on an open (Prepare for Submission) iOS version. Rerun after the next version is created.');
+  const msg = 'no iOS version in Prepare for Submission - nothing to apply. The name and keywords change only on an open version.';
+  // A READ that finds nothing open is a correct no-op, not a failure (Sam 10-07: it showed red every time).
+  // An APPLY that finds nothing open stays red: the requested change did not happen.
+  if (!APPLY) { console.log(`::notice::${msg}`); process.exit(0); }
+  die(3, msg);
 }
 const eLoc = await infoLoc(editInfo.id);
 const vLoc = await verLoc(editVer.id);
