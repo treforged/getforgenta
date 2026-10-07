@@ -253,29 +253,48 @@ if (process.env.DIALOGS === '1') {
   await page.evaluate(() => document.querySelectorAll('[data-planted]').forEach((b) => b.remove()));
   if (!dctl.some((l) => l.includes('PLANTEDDIALOG'))) await done(2, 'CONTROL FAILED: planted cut inside a role=dialog was not flagged.');
   console.log('control: planted cut inside a dialog flagged');
-  let opened = 0; let pressed = 0; const missed = []; const heads = new Set();
+  let opened = 0; let pressed = 0; let revealed = 0; const missed = []; const heads = new Set();
   for (const route of ROUTES) {
     await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
     if ((await settledRead()) === null) { console.log(`${route} dialogs: UNSTABLE`); unstable += 1; continue; }
-    // Names first, then press BY NAME: pressing by index drifted after every reload (120 of ~255 pressed).
-    const all = await page.locator(TRIGGER).evaluateAll((els) => els.map((el) => (el.getAttribute('aria-label') || el.innerText || '').trim().replace(/\s+/g, ' ')));
-    const todo = [...new Set(all.filter((x) => x && !SKIP.test(x)))];
-    const n = all.length;
-    const names = [];
-    for (const want of todo) {
-      // A FRESH page before every press: carrying state between presses (a switched tab, a leftover
-      // overlay) left 68-82 of ~185 buttons unpressable on the first by-name runs.
-      await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(2500); await closeAll();
-      // Tag the first visible button whose label (read the SAME way as above) is `want`, then press the tag.
-      // Matching on the accessible name instead missed 107 of 185: it differs from aria-label/innerText.
-      const tagged = await page.locator(TRIGGER).evaluateAll((els, w) => {
+    // Names first, then press BY LABEL: pressing by index drifted after every reload (120 of ~255 pressed).
+    const labels = (sel) => page.locator(sel).evaluateAll((els) => els.map((el) => (el.getAttribute('aria-label') || el.innerText || '').trim().replace(/\s+/g, ' ')));
+    // Tag the first visible match whose label (read the SAME way) is `w`, then press the tag. Matching on the
+    // accessible name instead missed 107 of 185: it differs from aria-label/innerText.
+    const pressLabel = async (sel, w) => {
+      const tagged = await page.locator(sel).evaluateAll((els, want) => {
         document.querySelectorAll('[data-ovp]').forEach((e) => e.removeAttribute('data-ovp'));
-        const hit = els.find((el) => (el.getAttribute('aria-label') || el.innerText || '').trim().replace(/\s+/g, ' ') === w);
+        const hit = els.find((el) => (el.getAttribute('aria-label') || el.innerText || '').trim().replace(/\s+/g, ' ') === want);
         if (hit) hit.setAttribute('data-ovp', '1'); return Boolean(hit);
-      }, want);
-      if (!tagged) { missed.push(`${route} "${want.slice(0, 30)}"`); continue; }
-      try { await page.locator('[data-ovp="1"]').click({ timeout: 3000 }); } catch { missed.push(`${route} "${want.slice(0, 30)}"`); continue; }
+      }, w);
+      if (!tagged) return false;
+      try { await page.locator('[data-ovp="1"]').click({ timeout: 3000 }); return true; } catch { return false; }
+    };
+    // A FRESH page before every press: carrying state between presses (a switched tab, a leftover overlay)
+    // left 68-82 of ~185 buttons unpressable on the first by-name runs.
+    const fresh = async () => { await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2500); await closeAll(); };
+    const all = await labels(TRIGGER);
+    const base = new Set(all.filter((x) => x && !SKIP.test(x)));
+    const n = all.length;
+    // TWO-STEP: buttons that exist only after a tab or a collapsed section opens (Accounts rows, Debt panels,
+    // Garage builds) were "not pressable" on a fresh page. Open each opener, and queue what it REVEALS.
+    const OPENER = '[role="tab"]:visible, button[aria-expanded="false"]:visible';
+    const jobs = [...base].map((want) => ({ opener: null, want }));
+    const queued = new Set(base);
+    for (const op of [...new Set((await labels(OPENER)).filter((x) => x && !SKIP.test(x)))]) {
+      await fresh();
+      if (!(await pressLabel(OPENER, op))) continue;
+      await page.waitForTimeout(1200);
+      if (await page.locator(OVERLAY).count()) continue; // the opener itself opened a dialog; the base pass measures it
+      for (const w of await labels(TRIGGER)) if (w && !SKIP.test(w) && !queued.has(w)) { queued.add(w); jobs.push({ opener: op, want: w }); }
+    }
+    revealed += jobs.length - base.size;
+    const names = [];
+    for (const { opener, want } of jobs) {
+      await fresh();
+      if (opener && !(await pressLabel(OPENER, opener))) { missed.push(`${route} "${opener.slice(0, 20)}" > "${want.slice(0, 20)}"`); continue; }
+      if (opener) await page.waitForTimeout(1200);
+      if (!(await pressLabel(TRIGGER, want))) { missed.push(`${route} ${opener ? `"${opener.slice(0, 20)}" > ` : ''}"${want.slice(0, 30)}"`); continue; }
       pressed += 1;
       await page.waitForTimeout(900);
       if (!(await page.locator(OVERLAY).count())) continue;
@@ -294,7 +313,7 @@ if (process.env.DIALOGS === '1') {
     await closeAll();
     console.log(`${route}: ${n} button(s), opened: ${names.length ? names.join('; ') : 'none'}`);
   }
-  console.log(`dialogs: ${pressed} pressed, ${missed.length} not pressable, ${opened} opened and measured, ${heads.size} distinct: ${[...heads].join(' | ')}`);
+  console.log(`dialogs: ${revealed} revealed by a tab/disclosure, ${pressed} pressed, ${missed.length} not pressable, ${opened} opened and measured, ${heads.size} distinct: ${[...heads].join(' | ')}`);
   if (missed.length) console.log(`not pressable: ${missed.slice(0, 15).join(', ')}${missed.length > 15 ? ', ...' : ''}`);
   if (!opened) await done(2, 'CONTROL FAILED: no pressed button opened anything, so no dialog was measured.');
   if (unstable) await done(2, `${unstable} route(s) never settled before their dialogs.`);

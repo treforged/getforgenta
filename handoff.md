@@ -1,6 +1,10 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW37 (2026-10-07 ~18:30 ET, Ada getforgenta-d1, PARKED at the weekly wrap-up, meter 86-87% of 98, resets Mon 10-12 18:00).
+  Two-step dialog press committed (signed in 320: 24 distinct dialogs, 0 cut). NEXT (e1b0fffc): why the Accounts tab rows and
+  the five (Garage build/maintenance, StatementImport, ShareCard, BuyIt, LumpSum) are not reached - the Accounts switch is
+  not role=tab, and Garage/StatementImport likely need data or a deeper path. Crons in R-NOW36 die with this tab: RE-ARM.
 R-NOW36 (2026-10-07 ~18:00 ET, Ada getforgenta-d1). R-NOW35 DONE: f1fed993 dialog arm v2 green (demo 16 distinct dialogs,
   signed in 12, 0 cut). Also: e1ab02c5 + 3e970880 CLOSED (constant-time secrets; grant-promo-premium v24, revenuecat v45).
   INCIDENT: the CLI deploy re-created DELETED reddit-scout (88 s, real body) -> now a 410 tombstone v2 (Sam: keep it).
@@ -13853,37 +13857,35 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 17:43 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 18:10 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (9 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
  M scripts/check-narrow-overflow.mjs
- M scripts/walk-press-every-control.mjs
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
 ?? press-walk-frames/
-?? scripts/lib/read-only-rpcs.mjs
 ?? test-results/
 ```
 
 - **Recent commits:**
 
 ```
+f74a0c51 [handoff]: R-NOW36 - dialog v2 green, secrets constant-time, deploy deny list, CAA blocked
+f1fed993 test: dialog arm v2 - signed in under walk:press's rpc guard, fresh page per press, dialogs named by heading (e1b0fffc)
 f6639c60 [security]: deploy:fn refuses deleted or tombstoned edge functions before deploying anything
 6cb0a08c [security]: record that reddit-scout was re-created by a CLI deploy and tombstoned again 88 s later (3e970880)
 e1ab02c5 [security]: compare the service-role key and two webhook secrets in constant time (3e970880)
 1510099c [handoff]: R-NOW35 - dialog arm v2 uncommitted, fresh-page run killed for low memory (e1b0fffc)
 e133050a test: check:narrow-overflow DIALOGS=1 presses every button on /demo and measures what opens (e1b0fffc)
 d92cb2df [handoff]: R-NOW34 - crons re-armed in getforgenta-d1; strip large-text fix 7ea393e9 (e1b0fffc)
-7ea393e9 [ui]: Net Worth strip tiles go two across when large text cannot fit four, so CC Debt is not cut off (e1b0fffc)
-4f1bee6e [handoff]: R-NOW33 - successor re-arms 10-08 crons; e1b0fffc standing
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
