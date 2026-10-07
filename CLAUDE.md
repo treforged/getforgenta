@@ -645,6 +645,12 @@ section states reasoning, not measurement, and says so.
   throwaway clone: planted refused, clean committed. Does NOT cover: SQL inside Postgres functions (plpgsql EXECUTE),
   `--no-verify`, or a fresh clone/machine without the venv (it refuses there; install line is in the script).
   Refresh the OWASP pin: re-download `https://semgrep.dev/c/p/owasp-top-ten`, re-trim to JS/TS, REVIEW, update `OWASP_SHA256`.
+- 🚨 **DEPLOY EDGE FUNCTIONS ONLY WITH `npm run deploy:fn -- <name>...`** (2026-10-07). It refuses any name on
+  `supabase/functions/DEPLOY-DENY.json` or whose folder holds a `PRODUCTION-IS-TOMBSTONED.md`, before deploying anything.
+  A bare `npx supabase functions deploy reddit-scout` RE-CREATED that deleted function with its real body behind a burned
+  secret (live 88 s, now a 410 tombstone). Test: `scripts/lib/__tests__/deploy-deny.test.mjs` (6), red with the list
+  emptied and the tombstone check removed (3 failed). It does NOT stop a bare CLI or an MCP deploy: use the script.
+  Read every deploy back; a `version: 1` means you just CREATED the function.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER

@@ -7,6 +7,7 @@
     "node": ">=22.0.0 <23.0.0"
   },
   "scripts": {
+    "deploy:fn": "node scripts/deploy-function.mjs",
     "dev": "vite",
     "dev:offline": "vite --mode offline --port 8081 --strictPort",
     "build": "vite build",

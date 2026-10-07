@@ -1,0 +1,3 @@
+{
+  "reddit-scout": "Deleted from production 3d6e26a0 (its guard secret was burned). index.ts is the undo path, not a deployable. A CLI deploy re-created it on 2026-10-07; see reddit-scout/PRODUCTION-IS-TOMBSTONED.md."
+}
