@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * check-safe-to-spend.mjs - the Dashboard's "Safe to Spend until <date>" figure (ask 23fe1862),
- * at 390x844, on /demo (no credentials; the demo has a pay schedule, bills and cards).
+ * at 390x844, on /demo (no credentials; the demo has a pay schedule, bills, cards and one pending swipe).
  * NOT the deck-walk account: its income rules and checking are inactive, so it correctly shows
  * the EMPTY state ("Add your pay schedule"), which is walk:empty's territory, not this check's.
  *
@@ -78,4 +78,10 @@ console.log(`drawer: lowest ${low}, floor ${floor}, total ${total}, card ${num(c
 if (low === null || total === null) await done(2, `COULD NOT TEST: drawer rows not read.\n${drawerText.slice(0, 600)}`);
 if (Math.abs(total - Math.max(0, low - floor)) > 0.01) await done(1, `FINDING: drawer total ${total} != max(0, ${low} - ${floor}).`);
 if (Math.abs(Math.round(total) - num(cardValue)) > 1) await done(1, `FINDING: card ${cardValue} disagrees with drawer total ${total}.`);
+// PENDING (10-06 / 10-07): /demo carries ONE unposted $41.27 swipe on Checking (demoPendingDebits),
+// so the drawer must show it as its own row at that amount. Before 10-07 the demo had no pending rows
+// and this check could not see the feature at all; the maths stays owned by the unit tests.
+const pendingRow = lineValue(/Pending charges[^\n]*\n?\s*[−-]?\s*(\$[\d,]+\.\d\d)/);
+console.log(`pending row: ${pendingRow}`);
+if (pendingRow !== 41.27) await done(1, `FINDING: the drawer's "Pending charges" row reads ${pendingRow}, expected 41.27 (demo pending swipe).`);
 await done(0, `PASS: figure ${cardValue} renders, presses open its drawer, and the drawer agrees (lowest ${low} - floor ${floor} = ${total}).`);

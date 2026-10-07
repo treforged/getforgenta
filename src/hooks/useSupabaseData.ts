@@ -14,7 +14,7 @@ import {
   demoAssets, demoLiabilities, demoDebts, demoSavingsGoals, demoCarFunds, demoTransactions,
   demoNetWorthSnapshots, demoCarBuilds, demoCarBuildPhases, demoCarBuildItems,
   demoCarMaintenanceLogs,
-  demoSyncedTransactions, demoAccounts, demoRecurringRules, demoProfile,
+  demoSyncedTransactions, demoPendingDebits, demoAccounts, demoRecurringRules, demoProfile,
 } from '@/lib/demo-data';
 import { PaymentPlan } from '@/lib/payment-plan-generator';
 import type { Tables, TablesInsert } from '@/integrations/supabase/types';
@@ -594,7 +594,8 @@ export function usePendingSyncedDebits() {
     queryKey: ['synced_transactions', 'pending', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
     enabled: isDemo || !!user,
     queryFn: async (): Promise<Pick<SyncedTransactionRow, 'id' | 'account_id' | 'amount' | 'date' | 'name' | 'merchant_name'>[]> => {
-      if (isDemo || !user) return [];
+      if (isDemo) return demoPendingDebits;
+      if (!user) return [];
       const { data, error } = await supabase
         .from('synced_transactions')
         .select('id, account_id, amount, date, name, merchant_name')

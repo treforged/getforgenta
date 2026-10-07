@@ -512,6 +512,13 @@ function demoFeed(): DemoSyncedTransaction[] {
 
 export const demoSyncedTransactions: DemoSyncedTransaction[] = demoFeed();
 
+/** One unposted swipe on demo Checking, dated today, so /demo shows Safe to Spend's "Pending charges"
+ *  row (10-06) and check:safe-to-spend can see it. Its amount matches no demo bill, so it reserves
+ *  rather than replacing one. Kept OUT of demoSyncedTransactions: that feed is settled rows only. */
+export const demoPendingDebits: Pick<DemoSyncedTransaction, 'id' | 'account_id' | 'amount' | 'date' | 'name' | 'merchant_name'>[] = [
+  { id: 'demo-pending-fuel', account_id: 'd1', amount: 41.27, date: d(now.getDate()), name: 'SHELL OIL 57210', merchant_name: 'Shell' },
+];
+
 
 // ── Demo accounts and recurring rules ─────────────────────────────────────
 // MOVED HERE from `useSupabaseData.ts` unchanged, so every demo fixture lives in one file and
