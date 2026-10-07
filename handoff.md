@@ -13,8 +13,10 @@ R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
   - check:grid-orphans on an EMPTY account (new GRID_EMAIL override): 49 reads, 0 findings, controls 3/3.
   - walk:first-run REOPEN=1 on a fresh throwaway: 16/16, 19 writes 0 refused. Its "visible dialogs=2" was a probe
     artefact: a reload probe shows ONE dialog (App tour) and the frame shows one. Throwaways deleted (0 rows each).
-  NEXT: 11:37 + 11:41 reads; then e1b0fffc: check:first-save / check:one-banner re-run, or Safe-to-Spend on an
-  account with a pending bill (unit-owned only today).
+  - check:first-save 5 arms 0 fail; check:one-banner PASS (fresh empty throwaway, deleted).
+  - e1b0fffc DONE 69e4bc88: /demo has one $41.27 pending swipe (demoPendingDebits); check:safe-to-spend asserts the drawer
+    row (red with it removed).
+  NEXT: 11:37 + 11:41 reads; then next e1b0fffc idea (walk:routes full, or check:nav at both widths after today's UI).
 R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
   1. RE-ARM the session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
