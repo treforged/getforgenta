@@ -1,6 +1,24 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW23 (2026-10-06 ~23:20 ET, Ada -> successor; handoff gate). START HERE, IN ORDER:
+  1. RE-ARM the 3 session crons from R-NOW22 if this is a new tab (b7ab5a72 one-shot "37 11 7 10 *" nudge read;
+     "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant). Their prompts are in R-NOW21 #1.
+  2. NEXT SLICE (e1b0fffc, money math, highest effort): SAFE TO SPEND IGNORES PENDING CHECKING DEBITS.
+     Facts: plaid.ts:153 stores depository balance = balances.current (POSTED). Nothing in src subtracts pending
+     synced_transactions (grep "pending" - only card history and floor-buffer read it, both EXCLUDE pending).
+     So a card swipe on checking that has not posted leaves Safe to Spend HIGH, the one direction the file says
+     it must never err. Measured 10-06 night: 2 users, 4 linked checking accounts, 0 pending checking rows right
+     now (they retire on post), 4 pending card rows. Intermittent, real.
+     Design to verify before building: sum pending rows with amount > 0 (Plaid: positive = money out) on the
+     liquid/funding accounts, and add it to undatedReserve in assembleSafeToSpendInput (safe-to-spend.ts ~line 345),
+     plus a "Pending charges" row in the Dashboard calculator drawer (Dashboard.tsx ~822), so lowest point minus
+     floor still equals the card. DOUBLE-COUNT TRAP: a pending row linked to a rule occurrence
+     (synced_transaction_reviews linked_rule) - check whether isRuleOccurrenceConfirmed treats it as paid. If not,
+     that bill is already a dated event, so exclude linked pending rows. Do NOT use balances.available: some banks
+     include the overdraft line in it, which reads HIGH. Gates: safe-to-spend.test.ts (assert a number, red under a
+     mutant), check:safe-to-spend (/demo), test:tz. Tell Ruby when shipped (she was told "pending: partial").
+  3. Waiting: f2bd47fd (Tre: native glass keep/park), 493aa023, ff52631d, a640c0d7 10-20 landing read.
 R-NOW22 (2026-10-06 ~23:00 ET, Ada getforgenta-45). R-NOW21 items 1-2 DONE, all pushed 0/0:
   - Session crons re-armed: b7ab5a72 (10-07 11:37 nudge read), dd3b1609 (cancel buckets), 6f44aa3d (free-link grant).
     Session-only: RE-ARM them if this tab is gone.
