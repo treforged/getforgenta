@@ -1,5 +1,5 @@
 {
-  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- ':(exclude)docs/**' ':(exclude)*.md' ':(exclude)claudecontext/**'",
+  "ignoreCommand": "[ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- ':(exclude)docs/**' ':(exclude)*.md' ':(exclude)claudecontext/**'",
   "rewrites": [
     {
       "source": "/((?!assets/).*)",
@@ -9,7 +9,12 @@
   "redirects": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "app.treforged.com" }],
+      "has": [
+        {
+          "type": "host",
+          "value": "app.treforged.com"
+        }
+      ],
       "destination": "https://getforgenta.com/$1",
       "permanent": true
     }
