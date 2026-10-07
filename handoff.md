@@ -11,7 +11,10 @@ R-NOW32 (2026-10-07 ~10:40 ET, Ada getforgenta-e8). R-NOW31 items 1-2 DONE:
   - e1b0fffc DONE acf40502: nav cells size to their words ("Transactions" was cut at 390 too); f0fb944a overlap arm
     (red on the two pre-fix overlaps); ab5e0071 SIGNED_IN=1 (walk account) found + fixed a Transactions total at 320.
   - 26a6dba8 filed --needs-tre: "submit 6.8.2" (build 1399).
-  NEXT: 11:37 / 11:41 / 13:06 cron reads, then e1b0fffc (idea: run check:narrow-overflow SIGNED_IN=1 at 320 in dark).
+  - db1d6813 DONE: all 3 jobs 200 (plaid via function log 13:00:38Z; pg_net timed out at 5 s). 6e1e6cc0 sets the
+    plaid-daily-sync pg_net timeout to 60 s (applied + read back). PROOF 10-08 13:00Z: cron bcd90dfa 09:07 ET - RE-ARM if gone.
+  - no-save-nudge 10-07: run 9452, 200, candidates 0 (recorded on 6d0e50b0).
+  NEXT: 13:06 push-send read (cron 0c41cf11), then e1b0fffc (idea: check:narrow-overflow SIGNED_IN=1 at 320 in dark).
 R-NOW31 (2026-10-07 ~09:45 ET, Ada -> successor; handoff gate at 189 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
@@ -13805,17 +13808,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 10:31 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 11:38 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13826,14 +13828,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+6a0679f1 [handoff]: R-NOW32 - nav, overlap arm, signed-in 320 probe
+ab5e0071 [ui]: check:narrow-overflow SIGNED_IN=1 on the walk account; Transactions totals fit at 320 (e1b0fffc)
 f0fb944a test: check:narrow-overflow also flags overlapping text within one layer (e1b0fffc)
 acf40502 [nav]: bottom-bar labels whole at every phone width - "Transactions" was cut at 390 too
 485510e1 [handoff]: R-NOW32 - 6.8.2 created + build 1399 uploaded; 320px sweep 17->0
 934bfed0 [ui]: nothing cut off at 320px; check:narrow-overflow gate (e1b0fffc)
 12472894 [aso]: CREATE_VERSION opens the iOS version when none is open, then applies (b0b54c92)
 ecd24b2d [handoff]: R-NOW31 - gate at 189 calls; crons, cancel read, ASO on Tre's yes
-ad239116 [aso]: a read with no open iOS version exits 0 with a notice, not red (b0b54c92)
-88975fb3 [handoff]: R-NOW30 - coupon cap done, ASO ready
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
