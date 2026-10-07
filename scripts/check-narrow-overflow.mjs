@@ -14,6 +14,7 @@
  * It also flags two text runs whose characters OVERLAP (fixed/sticky chrome left out; planted control).
  * It also requires every bottom-nav label to be WHOLE (no ellipsis), since the sweep skips ellipsis text.
  * TEXT_SCALE=150 sets the root font to 150% (the measurable half of Dynamic Type).
+ * VIEW_MODE=simple (needs SIGNED_IN=1) forces the Simple view by rewriting the profile read.
  * SIGNED_IN=1 reads the walk account instead of /demo; table writes are aborted, rpc passes.
  * Does NOT cover: vertical clipping, dialogs or menus, or whether a wrap looks right.
  */
@@ -64,6 +65,20 @@ if (TEXT_SCALE !== 100) await ctx.addInitScript((pct) => {
   const set = () => { document.documentElement.style.fontSize = `${pct}%`; };
   if (document.documentElement) set(); document.addEventListener('DOMContentLoaded', set);
 }, TEXT_SCALE);
+// VIEW_MODE=simple (with SIGNED_IN=1): rewrite the profile READ in the browser, as check:dark-contrast
+// does. Nothing is written; the walk account's view_mode is unchanged.
+if (process.env.VIEW_MODE) {
+  if (!SIGNED_IN) fail(2, 'VIEW_MODE needs SIGNED_IN=1: /demo does not read the view from a profile row.');
+  await ctx.route(/\/rest\/v1\/profiles/, async (r) => {
+    if (r.request().method() !== 'GET') return r.fallback();
+    try {
+      const resp = await r.fetch(); let body = await resp.text();
+      try { const j = JSON.parse(body); const set = (o) => ({ ...o, view_mode: process.env.VIEW_MODE }); body = JSON.stringify(Array.isArray(j) ? j.map(set) : set(j)); } catch { /* not JSON */ }
+      return await r.fulfill({ response: resp, body });
+    } catch { return r.abort().catch(() => {}); }
+  });
+  console.log(`view mode forced: ${process.env.VIEW_MODE}`);
+}
 const page = await ctx.newPage();
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
 await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({

@@ -64,13 +64,15 @@ export default function DebtHero({ interestThisMonth, interestAtPlan, unconditio
     ? (unconditionalShortfall ? DEBT_HERO_AT_PLAN_UNCONDITIONAL : DEBT_HERO_AT_PLAN_ABSENT)
     : rising ? DEBT_HERO_AT_PLAN_RISING : null;
   return (
-    <div className="card-forged p-4 sm:p-6">
-      {/* The plan figure shares the big number's row (aaafa7ee: the card was a full-width box
+    <div className="card-forged p-4 sm:p-6 @container">
+      {/* @max-[12.5rem]: with large text on a narrow phone the plan figure goes UNDER the big one
+          ("$66.46" ran into "$67.12" at 320 / 150%); normal text never reaches this width.
+          The plan figure shares the big number's row (aaafa7ee: the card was a full-width box
           holding one short figure, 158px of empty width at 390). The explanation sits under both
           on a phone, and from lg up it moves INTO the gap between them (Tre, 2026-10-03, ask
           1be673ad: a 1296px card held its figure at the left edge, the plan figure at the right
           and an empty middle - 14.6% filled). Same sentence, never trimmed; only its cell moves. */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-x-4 gap-y-2 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-x-10">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] @max-[12.5rem]:grid-cols-1 items-end gap-x-4 gap-y-2 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center lg:gap-x-10">
         <div className="min-w-0 lg:col-start-1 lg:row-start-1">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">Interest this month</p>
           <p className="text-4xl sm:text-5xl font-display font-bold tracking-tight text-foreground leading-none mt-1.5">
@@ -78,7 +80,7 @@ export default function DebtHero({ interestThisMonth, interestAtPlan, unconditio
           </p>
         </div>
         {interestAtPlan !== null && (
-          <p className="text-xs text-muted-foreground text-right whitespace-nowrap lg:col-start-3 lg:row-start-1">
+          <p className="text-xs text-muted-foreground text-right @max-[12.5rem]:text-left whitespace-nowrap lg:col-start-3 lg:row-start-1">
             at plan:{' '}
             <span className="block text-lg font-display font-semibold text-foreground leading-tight">
               {formatCurrency(interestAtPlan, true)}
@@ -87,7 +89,7 @@ export default function DebtHero({ interestThisMonth, interestAtPlan, unconditio
           </p>
         )}
         {note !== null && (
-          <p className="col-span-2 text-xs text-muted-foreground lg:col-span-1 lg:col-start-2 lg:row-start-1">
+          <p className="col-span-2 @max-[12.5rem]:col-span-1 text-xs text-muted-foreground lg:col-span-1 lg:col-start-2 lg:row-start-1">
             {note}
           </p>
         )}

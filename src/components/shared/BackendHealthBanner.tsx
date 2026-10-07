@@ -57,11 +57,13 @@ export default function BackendHealthBanner() {
       {diagnosis && (
         // p-3 + a 1px border is a 13px gap against the 12px --radius: the corners do not share
         // space, so the button's own radius is free (corner-concentricity.md, gap >= r_outer).
-        <div className="pointer-events-auto flex w-full max-w-xl items-start gap-3 border border-border bg-card p-3 text-foreground shadow-lg rounded-lg">
+        <div className="pointer-events-auto flex flex-wrap w-full max-w-xl items-start gap-3 border border-border bg-card p-3 text-foreground shadow-lg rounded-lg">
           {diagnosis.kind === 'offline'
             ? <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             : <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${diagnosis.kind === 'plaid' ? 'text-muted-foreground' : 'text-destructive-text'}`} aria-hidden="true" />}
-          <div className="min-w-0 flex-1">
+          {/* basis-[5.5rem] (rem, so it scales with text size): at normal size the text, Try again and
+              Dismiss share one row at 320; with large text Try again wraps instead of running into the text. */}
+          <div className="min-w-0 flex-1 basis-[5.5rem]">
             <p className="text-sm font-medium" data-testid="backend-health-headline">{diagnosis.headline}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{diagnosis.detail}</p>
           </div>
