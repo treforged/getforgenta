@@ -1,0 +1,32 @@
+name: App Store listing name + keywords
+
+# Ask b0b54c92 (Tre approved 10-07). Dispatch only - never on a push or a schedule.
+# apply=false READS the live and editable listing; apply=true writes the name and keywords to the
+# OPEN iOS version and reads them back. It never creates or submits a version.
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'Write the new name and keywords (false = read only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  aso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: App Store listing
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          APPLY: ${{ inputs.apply && '1' || '0' }}
+        run: node scripts/asc-aso-metadata.mjs
