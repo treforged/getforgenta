@@ -144,15 +144,25 @@ const THEME = (() => {
 const WIDTH = (() => {
   const i = process.argv.indexOf('--width');
   const v = i > -1 ? Number(process.argv[i + 1]) : 390;
-  if (v !== 390 && v !== 1440) {
-    console.error(`FAIL(2): --width must be 390 or 1440, got ${JSON.stringify(process.argv[i + 1])}.`);
+  if (v !== 320 && v !== 390 && v !== 1440) {
+    console.error(`FAIL(2): --width must be 320, 390 or 1440, got ${JSON.stringify(process.argv[i + 1])}.`);
     process.exit(2);
   }
   return v;
 })();
-console.log(`theme ${THEME}, viewport ${WIDTH}x${WIDTH === 390 ? 844 : 900}`);
+console.log(`theme ${THEME}, viewport ${WIDTH}x${WIDTH === 390 ? 844 : WIDTH === 320 ? 568 : 900}`);
 
-const ctx = await browser.newContext({ viewport: { width: WIDTH, height: WIDTH === 390 ? 844 : 900 }, deviceScaleFactor: 2 });
+const ctx = await browser.newContext({ viewport: { width: WIDTH, height: WIDTH === 390 ? 844 : WIDTH === 320 ? 568 : 900 }, deviceScaleFactor: 2 });
+// TEXT_SCALE=150: root text at 150% (as check:narrow-overflow), so text that re-flowed onto a new
+// background with large text is measured there (969da7ed, 10-07).
+const TEXT_SCALE = Number(process.env.TEXT_SCALE || 100);
+if (TEXT_SCALE !== 100) {
+  await ctx.addInitScript((pct) => {
+    const set = () => { document.documentElement.style.fontSize = `${pct}%`; };
+    if (document.documentElement) set(); document.addEventListener('DOMContentLoaded', set);
+  }, TEXT_SCALE);
+  console.log(`text scale ${TEXT_SCALE}%`);
+}
 const page = await ctx.newPage();
 // VIEW_MODE=simple measures the Simple view (ask 5ce71f3a) by rewriting the user's own profile READ in the
 // browser. Nothing is written; the walk account's view_mode is unchanged.
