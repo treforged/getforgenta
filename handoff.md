@@ -1,6 +1,16 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
+  - Session crons re-armed in THIS tab: a7d22393 (11:37 nudge read), 4bf61fd4 (11:41 db1d6813 200-vs-403 proof),
+    4561dcc4 (cancel buckets), 22fcf142 (free-link grant). RE-ARM if this tab is gone.
+  - e74da89c DONE: iOS bgtask rows 10-05..10-07 (5, 6-15h apart). Android unmeasured (no device).
+  - e1b0fffc: contrast --more at 1440 = 0 of 451 below AA, dark and light. walk:press PASS 401 enum / 164 pressed /
+    164 changed / 0 not-found; stub 13/13 + 13/13.
+  - e1b0fffc DONE 499107be: walk:empty at 1440 (first desktop run) found 2 LONE TILES (empty Forecast hero in half a row,
+    empty Garage tile 423/1296px); both fixed; walk:empty now fails on a lone tile (planted control, red on pre-fix).
+  - Blockers re-tested 08:00: 798c0ed9 (2 users/week), b573d720 (0 RC subs), 0006cc41 (0 paid subs), 5ee1669a (MacBook).
+  NEXT: 11:37 + 11:41 reads; then next e1b0fffc idea: walk:first-run or check:grid-orphans with an EMPTY account.
 R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
   1. RE-ARM the session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
@@ -13751,7 +13761,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 07:24 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 07:44 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13771,6 +13781,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+ced0cdb2 [handoff]: R-NOW29 - crons to re-arm (db1d6813 11:41 proof), e74da89c re-test next
 38923d9b [handoff]: R-NOW28 - Garage contrast
 fae22993 [a11y]: Garage gold buttons readable in light mode; contrast probe walks 8 more screens (e1b0fffc)
 810a71d5 [handoff]: R-NOW28 - helper-test series done
@@ -13778,7 +13789,6 @@ fae22993 [a11y]: Garage gold buttons readable in light mode; contrast probe walk
 1f45c6ce test: javascript: bypass forms refused; reviewer first-run shape pinned
 83230a05 [handoff]: R-NOW28 - content-filter tests
 18e5bc4c test: pin the profanity filter and link safety check (e1b0fffc)
-ed428dc2 [handoff]: R-NOW28 - net-worth-snapshot tests, teach lesson
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
