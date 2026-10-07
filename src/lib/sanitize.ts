@@ -37,16 +37,20 @@ export function sanitizeString(value: string): string {
 }
 
 /**
- * Sanitize every TOP-LEVEL string field in a plain object. It does NOT recurse: nested objects and
- * arrays pass through unchanged (sanitize.test.ts pins this). Other non-strings pass through too,
- * except non-finite numbers (Infinity, NaN) which are coerced to null.
+ * Sanitize every string in a payload, INCLUDING inside nested plain objects and arrays - jsonb
+ * columns such as `accounts.balance_tranches` carry user-typed labels (2026-10-07). Non-finite
+ * numbers (Infinity, NaN) become null; other non-strings pass through. Object keys are not touched.
  */
+function sanitizeValue(value: unknown): unknown {
+  if (typeof value === 'string') return sanitizeString(value);
+  if (typeof value === 'number' && !Number.isFinite(value)) return null;
+  if (Array.isArray(value)) return value.map(sanitizeValue);
+  if (value !== null && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, sanitizeValue(v)]));
+  }
+  return value;
+}
+
 export function sanitizePayload<T extends Record<string, unknown>>(obj: T): T {
-  return Object.fromEntries(
-    Object.entries(obj).map(([key, value]) => {
-      if (typeof value === 'string') return [key, sanitizeString(value)];
-      if (typeof value === 'number' && !Number.isFinite(value)) return [key, null];
-      return [key, value];
-    })
-  ) as T;
+  return sanitizeValue(obj) as T;
 }

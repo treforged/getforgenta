@@ -58,22 +58,27 @@ describe('sanitizePayload', () => {
       negInf: null,
       bool: false,
       nil: null,
-      arr: [1, '<i>i</i>', { nested: 'no' }],
+      arr: [1, 'i', { nested: 'no' }],
     };
     const output = sanitizePayload(input);
     expect(output).toEqual(expected);
   });
 
-  it('does not recurse into nested objects', () => {
+  it('cleans strings inside nested objects and arrays (jsonb columns such as balance_tranches)', () => {
     const input = {
       outer: ' <script>bad</script> ',
       inner: { html: '<b>x</b>', num: 5 },
     };
     const expected = {
       outer: 'bad',
-      inner: { html: '<b>x</b>', num: 5 },
+      inner: { html: 'x', num: 5 },
     };
     const output = sanitizePayload(input);
     expect(output).toEqual(expected);
+  });
+
+  it('cleans a balance tranche label and keeps dates and numbers', () => {
+    const out = sanitizePayload({ balance_tranches: [{ id: 't1', label: '<img src=x onerror=alert(1)>Promo  0%', apr: 0, promo_end_date: '2027-01-31' }] });
+    expect(out).toEqual({ balance_tranches: [{ id: 't1', label: 'Promo 0%', apr: 0, promo_end_date: '2027-01-31' }] });
   });
 });
