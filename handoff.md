@@ -1,6 +1,11 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW34 (2026-10-07 ~16:10 ET, Ada getforgenta-d1). R-NOW33 #1 DONE: crons re-armed HERE - 34776dcb (10-08 09:07 plaid
+  proof), ec1a70bd (10-08 13:47 Android), d7def790 (cancel buckets), bf36e8d3 (free-link). RE-ARM if this tab is gone.
+  e1b0fffc: 7ea393e9 - check:narrow-overflow WIDTH=1024 TEXT_SCALE=150 SIGNED_IN=1 found the Net Worth strip's CC Debt figure
+  5px past the card; tiles now 2-across under 30rem (@container/tiles). check:overview-strip has a 1024@150% pass, red on
+  the old strip. NEXT ideas: dialogs/menus still unmeasured by any overflow probe; check:narrow-overflow at 1440@150%.
 R-NOW33 (2026-10-07 ~15:00 ET, Ada getforgenta-e8 -> successor; context 53%). START HERE, IN ORDER:
   1. RE-ARM the 10-08 crons (they die with this tab):
      a. one-shot "7 9 8 10 *": plaid-daily-sync 13:00Z proof - net._http_response within 2 min must be status 200,
