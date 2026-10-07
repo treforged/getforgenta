@@ -18,7 +18,15 @@ R-NOW32 (2026-10-07 ~10:40 ET, Ada getforgenta-e8). R-NOW31 items 1-2 DONE:
   - ea72651b + fe700ab4: TEXT_SCALE=150 in check:narrow-overflow; 390@150% 16 -> 0; 320@150% 40 -> 6 (ask 969da7ed, taken).
   - ff52631d DROPPED (schedules fire; 3 ghost runs block nothing). da3f1bed: last-shipped-run also scans schedule +
     dispatch runs (10-07 scheduled Android run refused because 60 push builds hid the last ship). 10-08 10:00Z ships.
-  NEXT: 969da7ed remaining 6 (Transactions 3, Debt header, Goals 1, Vehicles 1), then e1b0fffc.
+  - 969da7ed DONE c709e29b (320@150% 40 -> 0). b1408ff9 contrast 320@150%: 515/theme, 0 below AA. walk:routes 27/27,
+    walk:press 401/164/164 (= R-NOW30). f0a43bff DONE (option B live 10-02 19:07Z; Ruby told). cdb205c6: sourced debt
+    figures for Ruby's reels ($122.40 flat 199 mo / $18,302.68; +$200 24 mo / $1,580.21), Ruby closed it.
+  - 88ecf3fb VIEW_MODE=simple in the probe + Debt hero; d80748f3 network notice: Try again under the message,
+    check:health-banner (raises it in-browser; red on the old banner); 18baaf08 nav labels capped like an iOS tab bar
+    (data-text-scale-exempt, counted by check:text-scale), gap check >= 4px (red 0px on the old nav).
+  CRONS IN THIS TAB (re-arm if gone): bcd90dfa 10-08 09:07 ET plaid 200 proof; 01554827 10-08 13:47 ET Android scheduled
+    run (send Sam the run id). Sam has backstops. Current Sam row: tre-forged-60.
+  NEXT: e1b0fffc. Ideas: tablet widths (768) through check:narrow-overflow; check:health-banner in dark mode.
 R-NOW31 (2026-10-07 ~09:45 ET, Ada -> successor; handoff gate at 189 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
@@ -13812,16 +13820,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 11:38 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 15:27 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13832,14 +13841,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-6a0679f1 [handoff]: R-NOW32 - nav, overlap arm, signed-in 320 probe
-ab5e0071 [ui]: check:narrow-overflow SIGNED_IN=1 on the walk account; Transactions totals fit at 320 (e1b0fffc)
-f0fb944a test: check:narrow-overflow also flags overlapping text within one layer (e1b0fffc)
-acf40502 [nav]: bottom-bar labels whole at every phone width - "Transactions" was cut at 390 too
-485510e1 [handoff]: R-NOW32 - 6.8.2 created + build 1399 uploaded; 320px sweep 17->0
-934bfed0 [ui]: nothing cut off at 320px; check:narrow-overflow gate (e1b0fffc)
-12472894 [aso]: CREATE_VERSION opens the iOS version when none is open, then applies (b0b54c92)
-ecd24b2d [handoff]: R-NOW31 - gate at 189 calls; crons, cancel read, ASO on Tre's yes
+88ecf3fb [ui]: Simple view + large text at 320 - Debt hero and the network notice re-flow (e1b0fffc)
+b1408ff9 test: contrast probe takes --width 320 and TEXT_SCALE=150 (969da7ed follow-up)
+c709e29b [ui]: 320px + 150% text reads 0 cut on every route (969da7ed, 6 -> 0)
+127cc0b1 [handoff]: R-NOW32 - timeouts, 150% text, release range fix
+da3f1bed fix(ci): last shipped run also scans scheduled + dispatched runs, so a busy push day cannot hide it
+fe700ab4 [ui]: 320px + 150% text - Home and Plan re-flow instead of cutting (969da7ed, 40 -> 6)
+ea72651b [ui]: large text (150%) at 390 no longer cuts or overlaps text; TEXT_SCALE in the probe (e1b0fffc)
+5f246b76 [cron]: every pg_net cron job now waits >= 60 s (Sam 10-07 sweep)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
