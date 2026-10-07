@@ -198,3 +198,6 @@ verify_jwt = true
 
 [functions.plaid-liabilities-probe]
 verify_jwt = false
+
+[functions.stripe-coupon-cap]
+verify_jwt = false
