@@ -28,6 +28,16 @@ export interface DashboardSnapshot {
   ccDebt: number;
 }
 
+/** Escape text for HTML. Every user-entered or user-named string goes through this before document.write (db1d6813). */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 async function deliverHtml(html: string, filename: string, title: string): Promise<void> {
   if (Capacitor.isNativePlatform()) {
     const base64 = btoa(unescape(encodeURIComponent(html)));
@@ -62,11 +72,11 @@ export async function exportTransactionsPdf(rows: ExportRow[], period = 'All Tim
     const amt = `${sign}$${Number(r.amount ?? 0).toFixed(2)}`;
     const cls = r.type === 'income' ? 'income' : 'expense';
     return `<tr>
-      <td>${r.date ?? ''}</td>
-      <td>${(r.note ?? '—').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
-      <td>${r.category ?? ''}</td>
-      <td class="${cls}">${r.type ?? ''}</td>
-      <td>${(r.payment_source ?? '—').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+      <td>${escapeHtml(r.date)}</td>
+      <td>${escapeHtml(r.note ?? '—')}</td>
+      <td>${escapeHtml(r.category)}</td>
+      <td class="${cls}">${escapeHtml(r.type)}</td>
+      <td>${escapeHtml(r.payment_source ?? '—')}</td>
       <td class="amount ${cls}">${amt}</td>
     </tr>`;
   }).join('');
@@ -99,7 +109,7 @@ export async function exportTransactionsPdf(rows: ExportRow[], period = 'All Tim
   <header>
     <div>
       <h1>FORGENTA</h1>
-      <p class="meta">Transactions &middot; ${period}</p>
+      <p class="meta">Transactions &middot; ${escapeHtml(period)}</p>
     </div>
     <div class="right meta">
       <p>Exported ${exportDate}</p>
@@ -170,13 +180,13 @@ function fmt(n: number): string {
 
 function flowRowsHtml(items: { label: string; amount: number }[], sign: '+' | '−'): string {
   if (items.length === 0) return `<tr><td class="empty-line" colspan="2">None</td></tr>`;
-  return items.map(it => `<tr><td>${it.label}</td><td>${sign}${fmt(it.amount)}</td></tr>`).join('');
+  return items.map(it => `<tr><td>${escapeHtml(it.label)}</td><td>${sign}${fmt(it.amount)}</td></tr>`).join('');
 }
 
 function balanceRowsHtml(groups: { label: string; rows: { label: string; amount: number }[] }[]): string {
   const body = groups
     .filter(g => g.rows.length > 0)
-    .map(g => `<tr><td class="group-label" colspan="2">${g.label}</td></tr>` + g.rows.map(r => `<tr><td>${r.label}</td><td>${fmt(r.amount)}</td></tr>`).join(''))
+    .map(g => `<tr><td class="group-label" colspan="2">${escapeHtml(g.label)}</td></tr>` + g.rows.map(r => `<tr><td>${escapeHtml(r.label)}</td><td>${fmt(r.amount)}</td></tr>`).join(''))
     .join('');
   return body || `<tr><td class="empty-line" colspan="2">None</td></tr>`;
 }
@@ -187,7 +197,7 @@ function monthDetailHtml(d: ForecastMonthDetail): string {
     : '';
   return `<div class="month-block">
     <div class="month-head">
-      <h2>${d.month}</h2>
+      <h2>${escapeHtml(d.month)}</h2>
       <div class="month-head-figs">
         <span>Start: <b>${fmt(d.startingCash)}</b></span>
         <span>End: <b>${fmt(d.endingCash)}</b></span>
@@ -229,7 +239,7 @@ export async function exportForecastPdf(rows: ForecastRow[], period = 'All Time'
     const cashCls = r.endingCash < 0 ? 'neg' : '';
     const nwCls = r.netWorth < 0 ? 'neg' : 'pos';
     return `<tr>
-      <td>${r.month}</td>
+      <td>${escapeHtml(r.month)}</td>
       <td class="num pos">${fmt(r.takeHome)}</td>
       <td class="num neg">−${fmt(r.totalExpenses)}</td>
       <td class="num neg">−${fmt(r.debtPayment)}</td>
@@ -247,7 +257,7 @@ export async function exportForecastPdf(rows: ForecastRow[], period = 'All Time'
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Forgenta — Forecast</title><style>${PDF_STYLES}</style></head>
 <body>
   <header>
-    <div><h1>FORGENTA</h1><p class="meta">60-Month Forecast &middot; ${period}</p></div>
+    <div><h1>FORGENTA</h1><p class="meta">60-Month Forecast &middot; ${escapeHtml(period)}</p></div>
     <div class="right meta"><p>Exported ${exportDate}</p><p>${rows.length} month${rows.length !== 1 ? 's' : ''}</p></div>
   </header>
   <table>
@@ -283,7 +293,7 @@ export async function exportDashboardPdf(snap: DashboardSnapshot): Promise<void>
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Forgenta — Dashboard Snapshot</title><style>${PDF_STYLES}</style></head>
 <body>
   <header>
-    <div><h1>FORGENTA</h1><p class="meta">Command Center Snapshot &middot; ${snap.month}</p></div>
+    <div><h1>FORGENTA</h1><p class="meta">Command Center Snapshot &middot; ${escapeHtml(snap.month)}</p></div>
     <div class="right meta"><p>Exported ${exportDate}</p></div>
   </header>
   <div class="kpi-grid">${kpiHtml}</div>
