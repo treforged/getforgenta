@@ -136,3 +136,17 @@ describe('LIMITS', () => {
     expect(LIMITS.transactionNote).toEqual(200);
   });
 });
+
+// Sam 2026-10-07: the usual javascript: bypasses. URL lowercases the scheme and strips tabs and
+// surrounding whitespace, so each is refused; the entity-encoded form does not parse at all.
+describe('isSafeUrl refuses javascript: bypass forms', () => {
+  it.each([
+    ['mixed case', 'JavaScript:alert(1)'],
+    ['leading space', ' javascript:alert(1)'],
+    ['leading tab', '\tjavascript:alert(1)'],
+    ['tab inside the scheme', 'jav\tascript:alert(1)'],
+    ['HTML-entity encoded', 'java&#x73;cript:alert(1)'],
+  ])('%s', (_name, url) => {
+    expect(isSafeUrl(url).safe).toBe(false);
+  });
+});
