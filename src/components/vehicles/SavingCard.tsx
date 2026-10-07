@@ -140,7 +140,7 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
       {cf.planned_purchase_date && (
         <div className="flex items-center gap-1.5 px-2 py-1.5 bg-primary/5 border border-primary/15 text-xs" style={{ borderRadius: 'var(--radius)' }}>
           <CalendarClock size={12} className="text-primary shrink-0" />
-          <span className="text-primary/90 font-medium">Planned purchase: {fmtDate(cf.planned_purchase_date)}</span>
+          <span className="text-primary font-medium">Planned purchase: {fmtDate(cf.planned_purchase_date)}</span>
         </div>
       )}
 
@@ -203,7 +203,7 @@ export default function SavingCard({ cf, onEdit, onDelete, onBuyIt, deleteConfir
       )}
 
       {displayMonthly > 0 && (
-        <p className="text-[10px] text-primary/70 text-center">
+        <p className="text-[10px] text-primary text-center">
           {formatCurrency(displayMonthly)}/mo
           {monthly > 0
             ? (linkedAccountName ? ' · via transfer rule' : ' · contribution')

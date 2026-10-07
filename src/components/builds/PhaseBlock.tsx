@@ -466,7 +466,7 @@ export default function PhaseBlock({
                     {(linkedPlan || linkedTx) && (
                       <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         {linkedPlan && (
-                          <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-primary/40 text-primary/80">
+                          <span className="text-xs font-mono px-1.5 py-0.5 rounded border border-primary/40 text-primary">
                             {linkedPlan.name}
                           </span>
                         )}

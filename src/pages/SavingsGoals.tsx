@@ -1081,7 +1081,7 @@ export default function SavingsGoals({ embedded = false, simple = false }: { emb
                     {g.is_complete
                       ? <span className="text-success-text">Target reached · contributions no longer counted{g.linked_rules && g.linked_rules.length > 0 ? ` (${g.linked_rules.map(r => r.name).join(', ')} still active)` : ''}</span>
                       : g.linked_rules && g.linked_rules.length > 0
-                      ? <span className="text-primary/80">{formatCurrency(Number(g.monthly_contribution))}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
+                      ? <span className="text-primary">{formatCurrency(Number(g.monthly_contribution))}/mo · via {g.linked_rules.map(r => r.name).join(', ')}</span>
                       : pacedNote
                       ? 'Paced contribution · changes each month'
                       : `${formatCurrency(Number(g.monthly_contribution))}/mo contribution`
@@ -1093,7 +1093,7 @@ export default function SavingsGoals({ embedded = false, simple = false }: { emb
                   </p>}
                   {/* Never let the end_date this feature wrote onto a rule be invisible here. */}
                   {!simple && g.auto_end_contributions && autoEndLabel(g.auto_end_stamped_rules) && (
-                    <p className="text-[10px] text-primary/80 mt-0.5">
+                    <p className="text-[10px] text-primary mt-0.5">
                       Auto-ends contributions {autoEndLabel(g.auto_end_stamped_rules)}
                     </p>
                   )}

@@ -397,6 +397,11 @@ section states reasoning, not measurement, and says so.
   `transactions` (it holds future one-offs). Rules + 18 unit tests: src/lib/budget-spent.ts (red under 4 mutants).
   CONTRAST ARM (10-07): Dining pushed over plan, the red "over" line measured against its composited background in dark and
   light at 390 (AA 4.5): 5.85:1 / 6.32:1. Red on the fill red (`text-destructive`): 3.02:1 dark, exit 1.
+- `npm run check:build-badges` - Garage > Builds link badges in DARK and LIGHT at 390, signed in, every build read answered
+  in-browser (car_builds/phases/items, payment_plans, transactions; writes aborted). Presses the phase header open, then measures
+  the charge badge and the plan badge against their composited background (AA 4.5): 7.19 / 5.09 and 8.27 / 6.15. Red on the pre-fix
+  PhaseBlock: 3.88 / 3.51 and 5.57 / 3.97, exit 1. ⚠️ Chrome reports Tailwind opacity colours as oklab(); its first run read those
+  numbers as RGB and called gold 1.04:1 on dark. It converts oklab/oklch and throws on any colour it cannot parse.
 - `npm run check:avg-spend` - Account > Analytics "Avg Monthly Spend" reads the BANK where it has rows (ask 0ac9c4b3), 1440,
   signed in, full synced_transactions read answered in-browser: must read $400.00 (two months of $1,000, $5,000 transfers
   excluded); NO_BANK=1 must read the old ledger figure. Red on the pre-fix card (exit 1). The ledger-only figure read

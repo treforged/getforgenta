@@ -34,6 +34,7 @@
     "measure:detail-load": "node scripts/measure-detail-load.mjs",
     "check:goal-grid": "node scripts/check-goal-grid.mjs",
     "check:loan-chart": "node scripts/check-loan-chart.mjs",
+    "check:build-badges": "node scripts/check-build-badges.mjs",
     "check:spent-of-planned": "node scripts/check-spent-of-planned.mjs",
     "check:avg-spend": "node scripts/check-avg-spend.mjs",
     "check:cash-flow-bars": "node scripts/check-cash-flow-bars.mjs",
