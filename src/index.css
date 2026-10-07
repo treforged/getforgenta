@@ -808,9 +808,9 @@ so size and variant are separated here and the 44px floor is stated once.
        applies before the theme script runs — leaving it off there gives a flash of light-chrome
        controls on first paint. */
     color-scheme: dark;
-    --background: 0 0% 2%;
+    --background: 222 24% 4%;
     --foreground: 214 32% 91%;
-    --card: 0 0% 7%;
+    --card: 222 18% 8%;
     /* THE TRANSLUCENT PANEL FILL, AND IT IS LIGHTER THAN `--card` ON PURPOSE.
        A panel is LIGHTER than the page here (7% on 2%), so making it translucent
        composites it DOWNWARD: `--card` at 0.72 over the page MEASURES 5.49% in a rendered frame, and every
@@ -824,15 +824,15 @@ so size and variant are separated here and the 44px floor is stated once.
        The sampler carried a positive control (it had to be able to report a difference, and
        it did, 4/255). In LIGHT mode the two are identical by construction, so that same
        control correctly refuses there - it is not a dark-mode-only sampler bug. */
-    --panel-glass: 0 0% 9%;
+    --panel-glass: 222 18% 10%;
     --card-foreground: 214 32% 91%;
-    --popover: 0 0% 7%;
+    --popover: 222 18% 8%;
     --popover-foreground: 214 32% 91%;
     --primary: 43 56% 52%;
     --primary-foreground: 0 0% 2%;
-    --secondary: 0 0% 15%;
+    --secondary: 222 14% 16%;
     --secondary-foreground: 214 32% 91%;
-    --muted: 0 0% 15%;
+    --muted: 222 14% 16%;
     /* 64%, NOT 46%, AND IT IS A MEASURED ACCESSIBILITY FAILURE RATHER THAN A PREFERENCE.
        Tre, 2026-09-18: "some of the text is very dull compared to the background ... it should be
        white instead because it's kind of hard to read", and separately that dark mode "looks a
@@ -855,9 +855,9 @@ so size and variant are separated here and the 44px floor is stated once.
        a different token with different callers; my first pass changed it by a careless whole-file
        replace, which is exactly how an unrelated colour moves without anyone deciding to. */
     --muted-foreground: 240 4% 64%;
-    --accent: 0 0% 15%;
+    --accent: 222 14% 16%;
     --accent-foreground: 214 32% 91%;
-    --destructive: 0 73% 35%;
+    --destructive: 0 55% 45%;
     --destructive-foreground: 214 32% 91%;
     /* ⚠️ A SECOND RED, BECAUSE NO SINGLE LIGHTNESS CAN DO BOTH JOBS IN DARK MODE. `--destructive`
        is a FILL, read against `--destructive-foreground`; this one is TEXT, read against the page
@@ -874,17 +874,17 @@ so size and variant are separated here and the 44px floor is stated once.
        The fill keeps 35% and keeps its 6.68:1, so nothing about a destructive BUTTON changes. */
     --destructive-text: 0 73% 66%;
     --success-text: 142 50% 46%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
+    --border: 222 14% 16%;
+    --input: 222 14% 16%;
     --ring: 43 56% 52%;
     --radius: 12px;
-    --sidebar-background: 0 0% 5%;
+    --sidebar-background: 222 22% 6%;
     --sidebar-foreground: 214 32% 91%;
     --sidebar-primary: 43 56% 52%;
     --sidebar-primary-foreground: 0 0% 2%;
-    --sidebar-accent: 0 0% 10%;
+    --sidebar-accent: 222 16% 11%;
     --sidebar-accent-foreground: 214 32% 91%;
-    --sidebar-border: 0 0% 15%;
+    --sidebar-border: 222 14% 16%;
     --sidebar-ring: 43 56% 52%;
 
     --gold: 43 56% 52%;
@@ -1080,7 +1080,7 @@ so size and variant are separated here and the 44px floor is stated once.
     --muted-foreground: 240 4% 64%;
     --accent: 222 14% 16%;
     --accent-foreground: 214 32% 91%;
-    --destructive: 0 73% 35%;
+    --destructive: 0 55% 45%;
     --destructive-foreground: 214 32% 91%;
     /* ⚠️ A SECOND RED, BECAUSE NO SINGLE LIGHTNESS CAN DO BOTH JOBS IN DARK MODE. `--destructive`
        is a FILL, read against `--destructive-foreground`; this one is TEXT, read against the page
@@ -1272,3 +1272,9 @@ so size and variant are separated here and the 44px floor is stated once.
 .native-glass-strip #content-column { position: relative; }
 .native-glass-strip #top-chrome { position: absolute; top: 0; left: 0; right: 0; background: transparent; }
 .native-glass-strip #scroll-main { padding-top: calc(var(--top-chrome-h, 0px) + 0.75rem); }
+
+/* DARK-MODE RULE 5 (~/.claude/rules/common/dark-mode.md, ask de23e8d4): light text on dark reads heavier,
+   because anti-aliasing spreads it. Tre asked for BOLDER small text on 2026-09-18, so the weight stays and
+   the rule's other lever is used instead: a little more letter spacing, dark theme only.
+   Undo: delete this rule. */
+.dark body { letter-spacing: 0.01em; }
