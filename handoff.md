@@ -12,7 +12,8 @@ R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
   - d6d54c90 (og-anniversary / push-send prod deploys): Sam says HOLD - Tre gives the yes in THIS tab (on Sam's list).
   - e1b0fffc DONE ea15c0fe: check:*-contrast now composites translucent/oklab/oklch text (was skipped). 5 real strings fixed,
     0 below AA x4 modes. 24 `text-muted-foreground/NN` sites remain in src; only those on the 6 walked routes were measured.
-  NEXT: e1b0fffc - sweep the remaining muted/NN text sites (grep, judge each: text vs decorative) on routes the probe does not walk.
+  - e1b0fffc DONE ba00f5a9: 15 muted/NN text sites repointed; gate refuses muted/NN text (icons/aria-hidden exempt). b0f6b587 dropped (intel -> Sam).
+  NEXT: db1d6813 close after 72f96fc2 (11:41 ET); then next e1b0fffc improvement.
 R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
      "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant (prompts in R-NOW21 #1).
@@ -13730,7 +13731,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 03:17 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 03:59 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13750,14 +13751,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+fadb4780 [handoff]: R-NOW28 - translucent-text contrast gate shipped (ea15c0fe)
+ea15c0fe [a11y]: contrast probe measures translucent text; five low-contrast strings fixed (e1b0fffc)
+362ca389 [handoff]: R-NOW28 - exportPdf escaped, nav highlight fixed, cron-secret proof armed for 11:41
+92d2578a [ui]: highlighted nav item keeps a gold icon and dot, label is full contrast (be864a14)
+0c8a1277 [security]: escape every user string in the PDF exports (db1d6813, part 2)
 4389b56b [handoff]: R-NOW27 - cron-secret verify, drift to Sam, exportPdf next
 9582465b [functions]: cron secrets compared in constant time in 8 functions (db1d6813, part 1)
 6e160de2 [db]: drop the never-applied promo giveaway objects (f5b0efcb)
-0ec7f147 [ci]: pin third-party actions to commit SHAs (8b75ecb8)
-9020480c [ui]: faded gold text is legible in light mode; check:build-badges renders and measures it
-3c089abd [ui]: green text uses the legible green token too (e1b0fffc)
-06e521b1 [budget]: check:spent-of-planned measures the rendered red "over" line in both themes
-26bc6a94 [handoff]: R-NOW26 - over-plan contrast fix, two rows blocked
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
