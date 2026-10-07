@@ -14,7 +14,11 @@ R-NOW32 (2026-10-07 ~10:40 ET, Ada getforgenta-e8). R-NOW31 items 1-2 DONE:
   - db1d6813 DONE: all 3 jobs 200 (plaid via function log 13:00:38Z; pg_net timed out at 5 s). 6e1e6cc0 sets the
     plaid-daily-sync pg_net timeout to 60 s (applied + read back). PROOF 10-08 13:00Z: cron bcd90dfa 09:07 ET - RE-ARM if gone.
   - no-save-nudge 10-07: run 9452, 200, candidates 0 (recorded on 6d0e50b0).
-  NEXT: 13:06 push-send read (cron 0c41cf11), then e1b0fffc (idea: check:narrow-overflow SIGNED_IN=1 at 320 in dark).
+  - d6d54c90: push-send 200 at 17:00:19Z. pg_net timeouts: all 6 Forgenta cron jobs now 60 s (20261007b/c/d).
+  - ea72651b + fe700ab4: TEXT_SCALE=150 in check:narrow-overflow; 390@150% 16 -> 0; 320@150% 40 -> 6 (ask 969da7ed, taken).
+  - ff52631d DROPPED (schedules fire; 3 ghost runs block nothing). da3f1bed: last-shipped-run also scans schedule +
+    dispatch runs (10-07 scheduled Android run refused because 60 push builds hid the last ship). 10-08 10:00Z ships.
+  NEXT: 969da7ed remaining 6 (Transactions 3, Debt header, Goals 1, Vehicles 1), then e1b0fffc.
 R-NOW31 (2026-10-07 ~09:45 ET, Ada -> successor; handoff gate at 189 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
