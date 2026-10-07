@@ -39,8 +39,17 @@ export function lastShippedRun({ workflow, step, branch = 'main', gh = ghJson })
   // NO server-side --branch filter: on 2026-10-05 GitHub's branch-filtered list for this repo was
   // frozen at 2026-09-11 while the unfiltered list was current, so this named a 09-11 deploy as the
   // last ship and the promoter moved a 2-hour-old release to 100%. Filter on headBranch here.
-  const runs = gh(['run', 'list', '--workflow', workflow, '--limit', String(WINDOW),
-    '--json', 'databaseId,headSha,status,headBranch']);
+  // ALSO the runs that CAN ship: a push run never deploys to Play, so a busy day of pushes pushed the
+  // last real ship out of a 40-run window - run 37658072299 (10-07 schedule) refused its release note
+  // with 60 push builds since the 10-06 ship. Scheduled and dispatched runs are listed on their own
+  // and merged, newest first (run ids only grow). The unfiltered list stays, so a tag-push ship counts.
+  const fields = ['--json', 'databaseId,headSha,status,headBranch'];
+  const base = ['run', 'list', '--workflow', workflow, '--limit', String(WINDOW)];
+  const seen = new Map();
+  for (const extra of [[], ['--event', 'schedule'], ['--event', 'workflow_dispatch']]) {
+    for (const run of gh([...base, ...extra, ...fields]) ?? []) seen.set(run.databaseId, run);
+  }
+  const runs = [...seen.values()].sort((a, b) => b.databaseId - a.databaseId);
   for (const run of runs) {
     if (run.status !== 'completed') continue;
     if (run.headBranch !== branch) continue;

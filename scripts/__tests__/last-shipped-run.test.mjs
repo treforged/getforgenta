@@ -72,4 +72,16 @@ describe('lastShippedRun - the last run whose store step succeeded, not the last
     expect(lastShippedRun({ workflow: 'android-build.yml', step: STEP, gh })?.sha).toBe('main-ship');
     expect(calls.find(a => a[1] === 'list')).not.toContain('--branch');
   });
+
+  it('finds a scheduled ship that 40+ push runs pushed out of the unfiltered window (run 37658072299, 10-07)', () => {
+    const pushes = Array.from({ length: 40 }, (_, i) => ({ databaseId: 100 + i, headSha: `push-${i}`, status: 'completed', headBranch: 'main' })).reverse();
+    const shipped = { databaseId: 50, headSha: 'sched-ship', status: 'completed', headBranch: 'main' };
+    const gh = (args) => {
+      if (args[1] === 'list') return args.includes('schedule') ? [shipped] : args.includes('workflow_dispatch') ? [] : pushes;
+      if (args[1] === 'view') return { jobs: args[2] === '50' ? job('success', '2026-10-06T16:40:00Z') : job('skipped') };
+      throw new Error('unexpected');
+    };
+    expect(lastShippedRun({ workflow: 'android-build.yml', step: STEP, gh }))
+      .toEqual({ sha: 'sched-ship', completedAt: '2026-10-06T16:40:00Z', runId: 50 });
+  });
 });
