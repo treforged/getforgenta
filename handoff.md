@@ -18,7 +18,11 @@ R-NOW20 (2026-10-06 ~17:30 ET, Ada). R-NOW19 items 1-2 DONE:
   - Landing speed (10-06 night): 09ededa1 + 58d25db9 logo 1.4 MB -> 149 KB under a NEW name
     /logo-transparent-384.png (Cloudflare kept the old bytes under the old name - verify with a PLAIN curl,
     never ?v=). 95272cc1 monitoring starts load+4s. Prod median of 3: LCP 14.7 -> 7.0 s, TBT ~400 -> 265 ms.
-    Next speed lever: prod FCP ~4.2 s (server response + critical JS).
+    d77f6d97 splash = 11.6 KB WebP, preloaded: local FCP 3.2 -> 2.7 s, but PROD FCP median stays ~4.1 s
+    (passes 4.14/1.11/4.13 - Sam: cache hit vs cold edge). STOPPED there by agreement; do not chase it.
+    Monitoring trade (95272cc1): errors in the first ~7 s are not sent to LaunchDarkly; ErrorBoundary still catches.
+  - 88110a2f share card: og:image /og-card.png (1200x630), twitter summary_large_image, SoftwareApplication
+    JSON-LD (no rating, no canonical - both deliberate, see commit). Title/description copy is Ruby's to change.
   NEXT: the next e1b0fffc improvement; items in R-NOW19 #3 are still waiting on others.
 R-NOW19 (2026-10-06 ~18:45 ET, Ada -> successor; handoff gate at 179 calls). START HERE, IN ORDER:
   1. RE-ARM the 10-07 11:37 no-save-nudge read FIRST (CronCreate one-shot "37 11 7 10 *"): read cron.job_run_details
