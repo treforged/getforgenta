@@ -16,6 +16,7 @@ R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
   - e1b0fffc DONE 391949fb (landing /60 labels -> muted) + 19f5d00e check:landing-contrast (red 4.21:1).
   - e1b0fffc DONE f312cd52: tile hint icons muted/60 (2.69:1 light) -> full; faded-muted gate exempts aria-hidden only.
   NEXT: db1d6813 close after 72f96fc2 (11:41 ET); then next e1b0fffc improvement.
+  - HTML-sink sweep (05:40, NEGATIVE on record): src has ONE sink (exportPdf document.write, fixed 0c8a1277; no dangerouslySetInnerHTML/innerHTML/insertAdjacentHTML). Edge HTML: newsletter-digest, friend-link, partner-link, unverified-nudge, og-consent-* all wrap every interpolation in esc(). Nothing to fix.
   Sam 05:30: cap 78% - route the next e1b0fffc slices to the free tier (llm.py) while waiting.
 R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
