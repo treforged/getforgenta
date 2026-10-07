@@ -24,7 +24,7 @@ export default function DashboardLayout() {
     <div className="app-shell flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
 
-      <div className="flex-1 flex min-h-0 flex-col min-w-0">
+      <div id="content-column" className="flex-1 flex min-h-0 flex-col min-w-0">
         {/* Sticky, so the hamburger is on screen at every scroll position on every route — the
             "at all times" half of Tre's instruction. `MobileTopBar` renders nothing at lg+, where
             the rail already carries the brand and a permanent Settings row. */}
@@ -37,7 +37,7 @@ export default function DashboardLayout() {
             (its hamburger untappable, and with it the only route to Settings) while the content
             below carried a status-bar-sized gap. Two complaints, one misplaced line.
             ⚠️ Do not re-add `env(safe-area-inset-top)` to a child of this div. It will double. */}
-        <div className="sticky top-0 z-40 bg-background" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div id="top-chrome" className="sticky top-0 z-40 bg-background" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <MobileTopBar />
           <DemoBanner />
           {/* The partner-view lens announces itself exactly the way demo does: a

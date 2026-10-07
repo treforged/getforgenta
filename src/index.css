@@ -1264,3 +1264,11 @@ so size and variant are separated here and the 44px floor is stated once.
 .dark .on-solid:hover {
   background-image: linear-gradient(hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.2));
 }
+
+/* CI-only native glass experiment (f2bd47fd / 8a202850). `useSimGlassExperiment` sets the class only
+   under the Debug simulator flag, so no user device ever matches these rules. The top chrome overlays
+   the scroller and its safe-area band is transparent, so the native strip blurs real scrolling
+   content instead of the chrome's own flat fill. The bar below the band keeps its own `.glass`. */
+.native-glass-strip #content-column { position: relative; }
+.native-glass-strip #top-chrome { position: absolute; top: 0; left: 0; right: 0; background: transparent; }
+.native-glass-strip #scroll-main { padding-top: calc(var(--top-chrome-h, 0px) + 0.75rem); }

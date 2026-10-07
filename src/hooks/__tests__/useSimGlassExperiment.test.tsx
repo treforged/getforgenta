@@ -87,4 +87,26 @@ describe('useSimGlassExperiment', () => {
     unmount();
     expect(glass.remove).toHaveBeenCalledWith({ id: 'sim-top-strip' });
   });
+
+  it('puts the chrome over the scroller only while the strip is on (f2bd47fd)', async () => {
+    const chrome = document.createElement('div');
+    chrome.id = 'top-chrome';
+    chrome.getBoundingClientRect = () => ({ height: 107 }) as DOMRect;
+    document.body.appendChild(chrome);
+    const root = document.documentElement;
+    const { unmount } = renderHook(() => useSimGlassExperiment());
+    await waitFor(() => expect(glass.apply).toHaveBeenCalled());
+    expect(root.classList.contains('native-glass-strip')).toBe(true);
+    expect(root.style.getPropertyValue('--top-chrome-h')).toBe('107px');
+    unmount();
+    expect(root.classList.contains('native-glass-strip')).toBe(false);
+    chrome.remove();
+  });
+
+  it('never sets the layout class without the flag', async () => {
+    localStorage.removeItem(FLAG);
+    renderHook(() => useSimGlassExperiment());
+    await settle();
+    expect(document.documentElement.classList.contains('native-glass-strip')).toBe(false);
+  });
 });
