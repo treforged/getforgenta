@@ -99,7 +99,11 @@ export default function MobileNav() {
     >
       {/* Tighter than the pinned bar was: the pill's own 0.75rem gap now does the work the bar's
           outer padding used to, and 64px still clears the 44px touch floor with room over. */}
-      <div className="grid grid-cols-5 items-stretch px-1.5 py-1.5 min-h-[64px]">
+      {/* CELLS SIZE TO THEIR WORDS, not five equal columns. Equal fifths cut "Transactions" to
+          "Transacti…" at 390 (74px of text in 61px) and at 320 (70 in 57), and Tre keeps ONE name
+          at every width (2026-08-27). Each cell is at least its word; the rest is shared.
+          check:narrow-overflow asserts every label is whole (WIDTH=320 and 390). */}
+      <div className="flex items-stretch px-0.5 min-[360px]:px-1.5 py-1.5 min-h-[64px]">
         {PRIMARY.map(item => {
           const active = pathname === item.to;
           return (
@@ -109,7 +113,7 @@ export default function MobileNav() {
               aria-current={active ? 'page' : undefined}
               onClick={active ? scrollMainToTop : undefined}
               className={cn(
-                'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 text-xs font-medium transition-colors btn-press text-center',
+                'flex flex-1 min-w-fit flex-col items-center justify-center gap-1 px-0 min-[360px]:px-1 py-1.5 text-xs font-medium transition-colors btn-press text-center',
                 // A highlighted (not current) item: gold ICON + dot, full-contrast LABEL (be864a14). A faded-gold label
                 // read 3.97:1 in light mode, and a full-gold one would look like the current page.
                 active ? 'text-primary' : item.highlight ? 'text-foreground' : 'text-muted-foreground',
@@ -134,7 +138,7 @@ export default function MobileNav() {
                   </span>
                 )}
               </div>
-              <span className="truncate max-w-full text-[11px] min-[360px]:text-xs">{item.label}</span>
+              <span className="truncate max-w-full text-[10px] tracking-tight min-[360px]:text-xs min-[360px]:tracking-normal">{item.label}</span>
             </Link>
           );
         })}

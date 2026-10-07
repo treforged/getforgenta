@@ -11,6 +11,7 @@
  * A planted control runs first: a clipped nowrap string must be flagged, a wrapping one must not.
  * Each route is read until two reads agree; one that never settles exits 2.
  * EXITS: 0 pass . 1 a finding . 2 could not test.
+ * It also requires every bottom-nav label to be WHOLE (no ellipsis), since the sweep skips ellipsis text.
  * Does NOT cover: vertical clipping, dialogs or menus, signed-in-only data, or whether a wrap looks right.
  */
 import { mkdirSync } from 'node:fs';
@@ -118,4 +119,14 @@ for (const route of ROUTES) {
   await page.screenshot({ path: `test-results/narrow-overflow/${route.slice(1)}-${WIDTH}.png`, fullPage: true });
 }
 if (unstable) await done(2, `${unstable} route(s) never settled.`);
+// Bottom-nav labels: the sweep above skips ellipsis text, so a truncated "Tran…" passes it. A nav
+// label must be whole (Tre 2026-08-27: one name, "Transactions", at every width).
+const navCut = await page.evaluate(() => [...document.querySelectorAll('nav a')]
+  .filter((a) => a.getBoundingClientRect().width > 0)
+  .flatMap((a) => [...a.querySelectorAll('span')].filter((s) => s.getBoundingClientRect().width > 0 && !s.children.length && s.textContent.trim().length > 1)
+    .map((s) => ({ t: s.textContent.trim(), cut: s.scrollWidth > s.clientWidth + 1, need: s.scrollWidth, have: s.clientWidth }))));
+if (!navCut.length) await done(2, 'CONTROL FAILED: found no bottom-nav labels to measure.');
+const navBad = navCut.filter((n) => n.cut);
+console.log(`nav labels: ${navCut.map((n) => n.t + (n.cut ? ` (CUT ${n.need}>${n.have}px)` : '')).join(', ')}`);
+findings += navBad.length;
 await done(findings ? 1 : 0, findings ? `FAIL: ${findings} cut text run(s) at ${WIDTH}px.` : `PASS: 0 cut text runs on ${ROUTES.length} routes at ${WIDTH}px.`);
