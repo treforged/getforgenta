@@ -84,7 +84,7 @@ function BudgetTile({ label, value, sub, accent, icon: Icon, onOpen, figureClass
         <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wide leading-snug whitespace-nowrap min-w-0">
           {label}
         </span>
-        <BarChart2 size={12} className="ml-auto shrink-0 text-muted-foreground/60" aria-hidden="true" data-testid="budget-tile-glyph" />
+        <BarChart2 size={12} className="ml-auto shrink-0 text-muted-foreground" aria-hidden="true" data-testid="budget-tile-glyph" />
       </span>
       <p className={cn('font-display font-bold tracking-tight whitespace-nowrap tabular-nums', figureClass, ACCENT_TEXT[accent], wide && 'max-md:col-start-2 max-md:row-start-1 max-md:row-span-2 max-md:text-right')}>
         {value}

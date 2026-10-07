@@ -56,14 +56,14 @@ describe('red and green text use the text tokens, never the fill colours', () =>
   });
 
   // FADED MUTED TEXT (2026-10-07, ea15c0fe): muted-foreground is tuned to just clear AA, so any `/NN` on it
-  // drops text below 4.5:1 (measured 2.17-3.87:1 in light mode). Allowed only on an icon (`size=`) or on
-  // something hidden from assistive tech (`aria-hidden`), where the text floor does not apply.
+  // drops text below 4.5:1 (measured 2.17-3.87:1 in light mode), and an ICON at /60 is 2.69:1 in light, below
+  // the 3:1 non-text floor. Allowed only on something hidden from assistive tech (`aria-hidden`).
   const FADED_MUTED = /(?<![:\w-])text-muted-foreground\/\d+/;
   it('no resting text is painted in faded muted grey', () => {
     expect(FADED_MUTED.test('<p className="text-[10px] text-muted-foreground/70">')).toBe(true);
     expect(FADED_MUTED.test('hover:text-muted-foreground/70')).toBe(false);
     const hits = files.flatMap((f) => readFileSync(f, 'utf-8').split(/\r?\n/).flatMap((line, i) =>
-      FADED_MUTED.test(line) && !/\bsize=\{|aria-hidden/.test(line) ? [`${path.relative(SRC, f)}:${i + 1}`] : []));
+      FADED_MUTED.test(line) && !/aria-hidden/.test(line) ? [`${path.relative(SRC, f)}:${i + 1}`] : []));
     expect(hits).toEqual([]);
   });
 

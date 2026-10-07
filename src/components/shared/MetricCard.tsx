@@ -143,7 +143,7 @@ export default function MetricCard({
       )}
 
       {clickHint && (
-        <BarChart2 size={11} className="absolute bottom-2 right-2 text-muted-foreground/60" />
+        <BarChart2 size={11} className="absolute bottom-2 right-2 text-muted-foreground" />
       )}
     </div>
   );

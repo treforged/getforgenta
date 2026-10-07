@@ -1897,7 +1897,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setLiquidCashOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground uppercase">Est. Liquid Cash</p>
                   <p className="text-xs sm:text-sm font-display font-bold text-foreground">{formatCurrency(estLiquidCash)}</p>
-                  <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
+                  <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground" />
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[360px] text-xs">
@@ -1986,7 +1986,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                 <div className="relative p-2 sm:p-3 bg-muted/30 border border-border text-center cursor-pointer active:bg-muted/50 transition-colors" style={{ borderRadius: 'var(--radius)' }} onClick={() => setSafeToPayOpen(v => !v)}>
                   <p className="text-[9px] sm:text-[10px] text-muted-foreground">Safe to Pay</p>
                   <p className="text-xs sm:text-sm font-display font-bold text-primary">{formatCurrency(month0Recs.totalAvailableCash)}</p>
-                  <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground/60" />
+                  <Info size={9} className="absolute bottom-1.5 right-1.5 text-muted-foreground" />
                 </div>
               </TooltipTrigger>
               {/* Deliberately WHOLE DOLLARS, unlike the Est. Liquid Cash walk above. Every line here
