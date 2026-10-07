@@ -11,6 +11,7 @@
  * A planted control runs first: a clipped nowrap string must be flagged, a wrapping one must not.
  * Each route is read until two reads agree; one that never settles exits 2.
  * EXITS: 0 pass . 1 a finding . 2 could not test.
+ * It also flags two text runs whose characters OVERLAP (fixed/sticky chrome left out; planted control).
  * It also requires every bottom-nav label to be WHOLE (no ellipsis), since the sweep skips ellipsis text.
  * Does NOT cover: vertical clipping, dialogs or menus, signed-in-only data, or whether a wrap looks right.
  */
@@ -70,6 +71,35 @@ function findCut() {
   return [...new Set(out)];
 }
 
+
+// Runs in the page. Two text runs whose CHARACTERS overlap (the demo banner caption sat under the
+// "Home" button at 320 and no box check saw it). A pair is compared only inside ONE layer: the same
+// nearest fixed/sticky ancestor, or both unpinned. Content under the floating bar, or a sheet over
+// the banner, is stacking by design, not two strings colliding.
+function findOverlap() {
+  const runs = [];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const pinned = (el) => { for (let a = el; a; a = a.parentElement) { const p = getComputedStyle(a).position; if (p === 'fixed' || p === 'sticky') return a; } return null; };
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (!n.textContent.trim()) continue;
+    const el = n.parentElement;
+    if (!el || el.closest('[aria-hidden="true"], script, style, noscript, svg, .sr-only, #seo-landing, #boot-splash')) continue;
+    const st = getComputedStyle(el);
+    if (st.visibility === 'hidden' || Number(st.opacity) === 0) continue;
+    const r = document.createRange(); r.selectNodeContents(n);
+    const rects = [...r.getClientRects()].filter((q) => q.width > 1 && q.height > 1 && q.bottom > 0 && q.top < innerHeight);
+    if (rects.length) runs.push({ el, pin: pinned(el), t: n.textContent.trim().slice(0, 30), rects });
+  }
+  const out = [];
+  for (let i = 0; i < runs.length; i += 1) for (let j = i + 1; j < runs.length; j += 1) {
+    const A = runs[i]; const B = runs[j];
+    if (A.el === B.el || A.pin !== B.pin) continue; // different layers (content under the bar, a sheet over the banner) stack by design
+    const hit = A.rects.some((a) => B.rects.some((b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2));
+    if (hit) out.push(`"${A.t}" overlaps "${B.t}"`);
+  }
+  return [...new Set(out)];
+}
+
 async function settledRead() {
   let prev = null;
   for (let i = 0; i < 8; i += 1) {
@@ -78,7 +108,7 @@ async function settledRead() {
     }
     await page.waitForTimeout(1500);
     if (await page.locator('.skeleton-shimmer').count()) continue;
-    const cur = await page.evaluate(findCut);
+    const cur = [...await page.evaluate(findCut), ...await page.evaluate(findOverlap)];
     if (prev && JSON.stringify(prev) === JSON.stringify(cur)) return cur;
     prev = cur;
   }
@@ -91,6 +121,7 @@ await page.waitForTimeout(3000);
 await page.evaluate(() => {
   const mk = (txt, nowrap) => {
     const box = document.createElement('div');
+    box.setAttribute('data-plantedcut', '1');
     box.style.cssText = 'position:fixed;top:0;left:0;width:200px;overflow:hidden;z-index:99999;background:#000;color:#fff';
     const t = document.createElement('span'); t.textContent = txt;
     if (nowrap) t.style.whiteSpace = 'nowrap';
@@ -105,6 +136,20 @@ const cutSeen = ctl.some((l) => l.includes('PLANTEDCUT'));
 const wrapSeen = ctl.some((l) => l.includes('PLANTEDWRAP'));
 if (!cutSeen || wrapSeen) await done(2, `CONTROL FAILED: planted cut seen=${cutSeen}, planted wrap seen=${wrapSeen} (want true/false).`);
 console.log('control: planted cut flagged, planted wrap not flagged');
+await page.evaluate(() => {
+  document.querySelectorAll('[data-plantedcut]').forEach((b) => b.remove());
+  const box = document.createElement('div'); box.setAttribute('data-planted', '1');
+  box.style.cssText = 'position:fixed;top:300px;left:0;z-index:99999;background:#000;color:#fff';
+  const x = document.createElement('span'); x.textContent = 'PLANTEDLAPA';
+  const y = document.createElement('span'); y.textContent = 'PLANTEDLAPB'; y.style.cssText = 'position:absolute;left:10px;top:0';
+  box.append(x, y); document.body.appendChild(box);
+});
+const lap = await page.evaluate(findOverlap);
+if (!lap.some((l) => l.includes('PLANTEDLAPA') && l.includes('PLANTEDLAPB'))) await done(2, 'CONTROL FAILED: planted overlapping text was not flagged.');
+const lapPlanted = lap.filter((l) => l.includes('PLANTEDLAPA') && !l.includes('PLANTEDLAPB'));
+if (lapPlanted.length) await done(2, `CONTROL FAILED: PLANTEDLAPA overlaps app text: ${lapPlanted[0]}`);
+console.log('control: planted overlap flagged');
+await page.evaluate(() => document.querySelectorAll('[data-planted]').forEach((b) => b.remove()));
 
 mkdirSync('test-results/narrow-overflow', { recursive: true });
 let findings = 0; let unstable = 0;

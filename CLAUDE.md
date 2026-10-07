@@ -383,8 +383,8 @@ section states reasoning, not measurement, and says so.
   /demo, 9 main routes, no credentials. Measures each text run's CHARACTERS (a Range) against the viewport and every clipping
   ancestor; skips sideways scrollers, ellipsis, sr-only, svg. Planted control: clipped nowrap flagged, wrapping not. First run
   2026-10-07: 17 cut (transaction amounts past the card, header buttons cut both sides, "Matches your entry" button, a stat
-  figure, a tile label); 0 after. `WIDTH=390` also 0. Does NOT see overlap (the demo banner caption, nav labels - found by
-  LOOKING at the frame), truncation, dialogs, or signed-in data. Frames: test-results/narrow-overflow/.
+  figure, a tile label); 0 after. `WIDTH=390` also 0. Since 10-07 it also flags OVERLAPPING text within one layer (same fixed/sticky ancestor, or both unpinned): red on the pre-fix demo banner and nav, the two overlaps first found by
+  LOOKING at the frame. Does NOT see overlap across layers, truncation outside the nav, dialogs, or signed-in data. Frames: test-results/narrow-overflow/.
 - `npm run check:grid-orphans` - every CSS grid of card-sized tiles on the 7 main screens at 360, 390, 768, 1024,
   1280, 1440 and 1920, signed in: fails on an ORPHAN last row (fewer tiles than the first row and >25% of the width
   empty) and on an OVERSIZED tile (>1.4x its siblings' median width with its text spanning <60% of it).
