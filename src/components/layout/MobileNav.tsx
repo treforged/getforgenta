@@ -110,11 +110,13 @@ export default function MobileNav() {
               onClick={active ? scrollMainToTop : undefined}
               className={cn(
                 'flex min-w-0 flex-col items-center justify-center gap-1 px-1 py-1.5 text-xs font-medium transition-colors btn-press text-center',
-                active ? 'text-primary' : item.highlight ? 'text-primary/75' : 'text-muted-foreground',
+                // A highlighted (not current) item: gold ICON + dot, full-contrast LABEL (be864a14). A faded-gold label
+                // read 3.97:1 in light mode, and a full-gold one would look like the current page.
+                active ? 'text-primary' : item.highlight ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
               <div className="relative">
-                <item.icon size={20} strokeWidth={active ? 2.2 : 1.8} />
+                <item.icon size={20} strokeWidth={active ? 2.2 : 1.8} className={item.highlight && !active ? 'text-primary' : undefined} />
                 {item.highlight && !active && (
                   // Out on the corner with a ring in the bar's colour, the badge convention: at
                   // -top-0.5/-right-0.5 the dot sat ON the Landmark's roof and read as part of the glyph.

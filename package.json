@@ -100,6 +100,7 @@
     "measure:whitespace": "node scripts/measure-panel-whitespace.mjs",
     "check:placeholders": "node scripts/check-placeholders.mjs",
     "check:dark-contrast": "node scripts/check-dark-contrast.mjs",
+    "check:nav-highlight": "node scripts/check-nav-highlight.mjs",
     "check:light-contrast": "node scripts/check-dark-contrast.mjs --theme light",
     "check:dark-contrast:desktop": "node scripts/check-dark-contrast.mjs --width 1440",
     "check:light-contrast:desktop": "node scripts/check-dark-contrast.mjs --theme light --width 1440",

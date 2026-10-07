@@ -237,7 +237,8 @@ export default function Sidebar() {
                   // so every screen showed two "selected" rows. The emphasis is now the gold icon
                   // plus the corner dot below - the phone bar's marker - and a fill means "you are here".
                   : item.highlight
-                    ? "text-primary/80 hover:bg-sidebar-accent/50 hover:text-primary"
+                    // be864a14: full-contrast label; the gold stays on the icon below (non-text, 3:1 floor).
+                    ? "text-foreground hover:bg-sidebar-accent/50 hover:text-primary"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
               )}
               style={{ borderRadius: 'var(--radius)' }}
@@ -246,7 +247,7 @@ export default function Sidebar() {
                   badge degrades to a dot. Still says "there is something here", which is the whole
                   job of this affordance. */}
               <span className="relative shrink-0">
-                <item.icon size={16} />
+                <item.icon size={16} className={item.highlight && !active ? 'text-primary' : undefined} />
                 {/* ⚠️ THE DOT NOW FOLLOWS THE RAIL'S WIDTH, NOT THE `collapsed` FLAG (Tre,
                     2026-09-15, ask 98830520 item 3: "the notification number on Transactions must
                     stay visible when compressed"). It was gated on `collapsed` alone, which is

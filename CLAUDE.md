@@ -160,6 +160,13 @@ section states reasoning, not measurement, and says so.
   (walk-up passes it, pixels must flag it; discriminating in DARK only). TRANSITIONS ARE FROZEN during the
   read: without that, the arm's own hide/unhide caught colours mid-fade and reported gold-on-dark at 1.38:1.
   `CONTRAST_DEBUG_DIR=<dir>` saves each measured frame. Reads the first viewport only.
+- `npm run check:nav-highlight` - the HIGHLIGHTED (not current) nav item, Debt, in dark and light at 390 (bar) and 1440
+  (rail, hovered open): its label must read >= 4.5:1 against the pixels under it, and must NOT be painted like the current
+  page's label. ⚠️ `check:dark-contrast` SKIPS every text colour with alpha < 0.95, so it passed the old `text-primary/75`
+  and `/80` labels in both themes; this one composites the colour (resolved through a canvas, Chrome reports oklab) over
+  the median pixel with the text hidden. Red on the old nav: light 3.73:1 (390) and 3.99:1 (1440), exit 1; red with the
+  label in full gold (same as current page), exit 1. Fix (be864a14): gold icon + dot, full-contrast label, 14.8-15.9:1.
+  Frames: test-results/nav-highlight-<theme>-<width>.png. Does NOT cover the icon's 3:1, other routes or hover.
 - `npm run check:dark-contrast:desktop` / `check:light-contrast:desktop` - the same probe at 1440x900. Desktop is a
   different DOM (rail, header buttons, multi-column cards), and no contrast probe had read it before 2026-09-22.
   First run: 452 elements per theme, 0 below AA. Proven red by lightening the light muted-foreground (81 findings).

@@ -39,11 +39,9 @@ describe('red and green text use the text tokens, never the fill colours', () =>
 
   // FADED GOLD (2026-10-07, check:build-badges): `text-primary/80` reads 3.97:1 on the light page (full gold
   // 6.16:1). A resting `text-primary/NN` is refused; `hover:text-primary/NN` is a hover state and is allowed.
-  // Exceptions, each named: spinner icons (`animate-spin`, decorative), and the two nav files, where the faded
-  // gold marks a highlighted-but-not-current item - full gold would read as the current page, so that one needs
-  // its own measured fix rather than a blanket repoint.
+  // One exception: spinner icons (`animate-spin`, decorative). The nav files were exempt until be864a14 moved
+  // their highlight cue to a gold icon + dot with a full-contrast label (check:nav-highlight measures it).
   const FADED_GOLD = /(?<![:\w-])text-primary\/\d+/;
-  const NAV_EXCEPTIONS = [path.join('layout', 'MobileNav.tsx'), path.join('layout', 'Sidebar.tsx')];
 
   it('the faded-gold pattern spares hover states', () => {
     expect(FADED_GOLD.test('text-xs text-primary/80')).toBe(true);
@@ -52,7 +50,6 @@ describe('red and green text use the text tokens, never the fill colours', () =>
 
   it('no resting text is painted in faded gold', () => {
     const hits = files
-      .filter((f) => !NAV_EXCEPTIONS.some((n) => f.endsWith(n)))
       .flatMap((f) => readFileSync(f, 'utf-8').split(/\r?\n/).flatMap((line, i) =>
         FADED_GOLD.test(line) && !/animate-spin/.test(line) ? [`${path.relative(SRC, f)}:${i + 1}`] : []));
     expect(hits).toEqual([]);
