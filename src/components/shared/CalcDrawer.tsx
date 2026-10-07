@@ -29,6 +29,7 @@ export default function CalcDrawer({
   onClose,
   title,
   lines,
+  summary,
   footnote,
   zIndex = 60,
 }: {
@@ -36,6 +37,9 @@ export default function CalcDrawer({
   onClose: () => void;
   title: string;
   lines: CalcDrawerLine[];
+  /** What the figure covers, printed ABOVE the rows so a short screen sees it without scrolling
+   *  (Sam, 2026-10-07: the Safe-to-Spend window note sat below 18 rows). Absent unless needed. */
+  summary?: string;
   /** Caveat printed under the rows. Absent unless the caller has one — no filler. */
   footnote?: string;
   zIndex?: number;
@@ -86,6 +90,9 @@ export default function CalcDrawer({
         {/* Scrollable body */}
         <div className="overflow-y-auto px-4 sm:px-6 py-4 space-y-2">
           {/* Kept from Dashboard's copy so its drawer reads exactly as it did before the merge. */}
+          {summary && (
+            <p className="text-xs text-foreground pb-2 mb-1 border-b border-border/30">{summary}</p>
+          )}
           <p className="text-xs text-muted-foreground uppercase tracking-wider pb-1">Calculation Breakdown</p>
           {lines.map((l, i) => (
             <div

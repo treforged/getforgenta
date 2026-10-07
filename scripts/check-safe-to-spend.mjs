@@ -68,6 +68,13 @@ const title = page.getByText('Safe to Spend until Payday', { exact: true });
 try { await title.waitFor({ timeout: 5000 }); } catch { await done(1, 'FINDING: pressing the figure opened no drawer.'); }
 await page.waitForTimeout(600);
 await page.screenshot({ path: 'test-results/safe-to-spend/drawer.png' });
+// WINDOW NOTE ON OPEN (Sam, 2026-10-07): the figure is checked past payday, and the note saying so
+// sat under 18+ rows - off a 844px screen until the user scrolled. It must be visible on open.
+const noteEl = page.locator('[role="dialog"]').last().getByText(/^(Checked through|Lower than the balance before payday)/);
+if (!(await noteEl.count())) await done(1, 'FINDING: the drawer has no window note (Checked through ...).');
+const nb = await noteEl.first().boundingBox();
+console.log(`window note: top ${nb && Math.round(nb.y)}, bottom ${nb && Math.round(nb.y + nb.height)} of 844`);
+if (!nb || nb.y + nb.height > 844) await done(1, `FINDING: the window note is below the fold on open (bottom ${nb && Math.round(nb.y + nb.height)} > 844).`);
 const drawerText = await page.locator('[role="dialog"]').last().innerText();
 const num = (s) => Number(String(s).replace(/[^0-9.-]/g, ''));
 const lineValue = (re) => { const m = drawerText.match(re); return m ? num(m[1]) : null; };

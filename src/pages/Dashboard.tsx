@@ -230,7 +230,7 @@ export default function Dashboard() {
   // No projection yet (or a context without one) shows no line, never a crash of the whole page.
   const shortMonths = useMemo(() => (forecastProjections?.data ? shortfallByMonth(forecastProjections, 12) : []), [forecastProjections]);
   const [shortMonthsDismissed, setShortMonthsDismissed] = usePersistedState('tre:dashboard:shortMonthsDismissed', '');
-  const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: CalcDrawerLine[]; footnote?: string } | null>(null);
+  const [calcDrawer, setCalcDrawer] = useState<{ title: string; lines: CalcDrawerLine[]; summary?: string; footnote?: string } | null>(null);
   const [showSecurityBanner, setShowSecurityBanner] = useState(false);
   // One banner at a time: the 2FA nudge waits until the free-bank notice is settled AND gone.
   const [bankNoticeVisible, setBankNoticeVisible] = useState<boolean | null>(null);
@@ -864,8 +864,8 @@ export default function Dashboard() {
         ? `Lower than the balance before payday: the bills on ${short(safeToSpend.lowDate)} need this money even after your paycheck lands.`
         : `Checked through ${short(safeToSpend.horizon)}, paychecks included: every later bill stays covered if you spend this today.`)
       : undefined;
-    const footnote = [horizonNote, undatedNote].filter(Boolean).join(' ') || undefined;
-    setCalcDrawer({ title: 'Safe to Spend until Payday', lines, footnote });
+    // The window note leads the drawer: under 18+ rows a phone user never scrolled to it (2026-10-07).
+    setCalcDrawer({ title: 'Safe to Spend until Payday', lines, summary: horizonNote, footnote: undatedNote });
   };
 
   const openMonthEndCalc = () => {
@@ -1687,6 +1687,7 @@ export default function Dashboard() {
           onClose={() => setCalcDrawer(null)}
           title={calcDrawer.title}
           lines={calcDrawer.lines}
+          summary={calcDrawer.summary}
           footnote={calcDrawer.footnote}
         />
       )}

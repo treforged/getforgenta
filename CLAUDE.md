@@ -318,6 +318,8 @@ section states reasoning, not measurement, and says so.
   -3/+10 days REPLACES that bill (no double count). Since 10-07 /demo carries one $41.27 pending swipe (demoPendingDebits)
   and this check requires the drawer row at that amount (red with the demo row removed); the maths stays with the unit
   tests (red under 3 mutants).
+  The drawer's window note ("Checked through <date>, paychecks included") must be ON SCREEN when it opens (Sam, 10-07):
+  it sat at 1056-1120px under 18 rows on an 844px phone; now 118-182px via CalcDrawer `summary`. Red on the old drawer.
 - `npm run check:money-glance` - calls the DEPLOYED `money-glance` function (Leo's read of Safe to Spend, ask 1dc2c388)
   as the walk account: 401 without a token, 404 `no-snapshot` with no row, then a row planted through RLS with the
   account's own JWT must come back as EXACTLY 7 keys (amount_cents, payday, horizon, low_point_cents, low_date,
