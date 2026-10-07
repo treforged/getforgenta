@@ -1303,14 +1303,14 @@ export default function Transactions() {
       {ledgerDetail && <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <div className="card-forged px-2 py-3 sm:p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Income</p>
-          <p className="text-sm font-display font-bold text-success-text">{formatCurrency(totals.income)}</p>
+          <p className="text-xs min-[360px]:text-sm font-display font-bold text-success-text">{formatCurrency(totals.income)}</p>
           {totals.projectedIncome > 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedIncome)} projected</p>
           )}
         </div>
         <div className="card-forged px-2 py-3 sm:p-3 text-center">
           <p className="text-xs text-muted-foreground uppercase">Total Cash Out</p>
-          <p className="text-sm font-display font-bold text-destructive-text">{formatCurrency(totals.expense)}</p>
+          <p className="text-xs min-[360px]:text-sm font-display font-bold text-destructive-text">{formatCurrency(totals.expense)}</p>
           {totals.debtService > 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.debtService)} debt service</p>
           )}
@@ -1318,7 +1318,7 @@ export default function Transactions() {
             <p className="text-[10px] text-muted-foreground mt-0.5">of which {formatCurrency(totals.projectedExpense)} projected</p>
           )}
         </div>
-        <div className="card-forged px-2 py-3 sm:p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net)}</p></div>
+        <div className="card-forged px-2 py-3 sm:p-3 text-center"><p className="text-xs text-muted-foreground uppercase">Net</p><p className={`text-xs min-[360px]:text-sm font-display font-bold ${totals.net >= 0 ? 'text-primary' : 'text-destructive-text'}`}>{formatCurrency(totals.net)}</p></div>
       </div>}
 
       {ledgerDetail && Object.keys(spendBySource).length > 0 && (

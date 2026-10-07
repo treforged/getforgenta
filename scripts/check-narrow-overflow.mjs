@@ -13,7 +13,8 @@
  * EXITS: 0 pass . 1 a finding . 2 could not test.
  * It also flags two text runs whose characters OVERLAP (fixed/sticky chrome left out; planted control).
  * It also requires every bottom-nav label to be WHOLE (no ellipsis), since the sweep skips ellipsis text.
- * Does NOT cover: vertical clipping, dialogs or menus, signed-in-only data, or whether a wrap looks right.
+ * SIGNED_IN=1 reads the walk account instead of /demo; table writes are aborted, rpc passes.
+ * Does NOT cover: vertical clipping, dialogs or menus, or whether a wrap looks right.
  */
 import { mkdirSync } from 'node:fs';
 
@@ -25,13 +26,43 @@ let chromium;
 try { ({ chromium } = await import('@playwright/test')); } catch { fail(2, 'Could not load @playwright/test.'); }
 try { await fetch(BASE, { redirect: 'manual' }); } catch (err) { fail(2, `${BASE} is not serving (${err.message}).`); }
 
+// SIGNED_IN=1: the walk account (an @forgenta.test address, never a real user). Every table write,
+// function and storage call is aborted in the browser; rpc calls pass (aborting them raises the
+// offline banner, which would change the layout being measured).
+const SIGNED_IN = process.env.SIGNED_IN === '1';
+let session = null; let ref = null;
+if (SIGNED_IN) {
+  const { readFileSync } = await import('node:fs');
+  const pick = (t, k) => (t.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.trim();
+  let env; let creds;
+  try { env = readFileSync('.env.local', 'utf8'); creds = readFileSync('.env.deck-walk.local', 'utf8'); }
+  catch { fail(2, '.env.local or .env.deck-walk.local is missing.'); }
+  const url = pick(env, 'VITE_SUPABASE_URL'); const anon = pick(env, 'VITE_SUPABASE_PUBLISHABLE_KEY');
+  const email = pick(creds, 'REACH_TEST_EMAIL'); const password = pick(creds, 'REACH_TEST_PASSWORD');
+  if (!url || !anon || !email || !password) fail(2, 'missing supabase url/key or walk credentials.');
+  if (!/@forgenta\.test$/.test(email)) fail(2, `refusing to script a sign-in for "${email}".`);
+  ref = new URL(url).hostname.split('.')[0];
+  const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: 'POST', headers: { apikey: anon, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
+  session = await res.json().catch(() => ({}));
+  if (!session.access_token) fail(2, `sign-in returned ${res.status}.`);
+}
 const browser = await chromium.launch();
 const done = async (code, msg) => { await browser.close(); (code ? console.error : console.log)(msg); process.exit(code); };
-const page = await (await browser.newContext({ viewport: { width: WIDTH, height: 568 }, deviceScaleFactor: 2 })).newPage();
+const ctx = await browser.newContext({ viewport: { width: WIDTH, height: 568 }, deviceScaleFactor: 2 });
+let blocked = 0;
+if (SIGNED_IN) await ctx.route(/supabase\.co\/(rest|functions|storage)\//, (route) => {
+  const m = route.request().method();
+  const rpc = /\/rest\/v1\/rpc\//.test(route.request().url());
+  if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS' || rpc) return route.continue();
+  blocked += 1; return route.abort();
+});
+const page = await ctx.newPage();
 await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
 await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
   version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false })));
-await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
+if (SIGNED_IN) await page.evaluate(([k, v]) => localStorage.setItem(k, JSON.stringify(v)), [`sb-${ref}-auth-token`, session]);
+else await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(4000);
 
 // Runs in the page. Returns one line per text run that is cut off.
@@ -155,13 +186,13 @@ mkdirSync('test-results/narrow-overflow', { recursive: true });
 let findings = 0; let unstable = 0;
 for (const route of ROUTES) {
   await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
-  if (new URL(page.url()).pathname.startsWith('/auth')) await done(2, `${route} bounced to /auth: demo mode did not hold.`);
+  if (new URL(page.url()).pathname.startsWith('/auth')) await done(2, `${route} bounced to /auth: ${SIGNED_IN ? 'the walk session' : 'demo mode'} did not hold.`);
   const cut = await settledRead();
   if (cut === null) { unstable += 1; console.log(`${route}: UNSTABLE`); continue; }
   console.log(`${route}: ${cut.length} cut`);
   for (const l of cut) console.log(`   ${l}`);
   findings += cut.length;
-  await page.screenshot({ path: `test-results/narrow-overflow/${route.slice(1)}-${WIDTH}.png`, fullPage: true });
+  await page.screenshot({ path: `test-results/narrow-overflow/${route.slice(1)}-${WIDTH}${SIGNED_IN ? '-signed-in' : ''}.png`, fullPage: true });
 }
 if (unstable) await done(2, `${unstable} route(s) never settled.`);
 // Bottom-nav labels: the sweep above skips ellipsis text, so a truncated "Tran…" passes it. A nav
@@ -174,4 +205,5 @@ if (!navCut.length) await done(2, 'CONTROL FAILED: found no bottom-nav labels to
 const navBad = navCut.filter((n) => n.cut);
 console.log(`nav labels: ${navCut.map((n) => n.t + (n.cut ? ` (CUT ${n.need}>${n.have}px)` : '')).join(', ')}`);
 findings += navBad.length;
+if (SIGNED_IN) console.log(`signed in (walk account); ${blocked} write(s) aborted in-browser`);
 await done(findings ? 1 : 0, findings ? `FAIL: ${findings} cut text run(s) at ${WIDTH}px.` : `PASS: 0 cut text runs on ${ROUTES.length} routes at ${WIDTH}px.`);
