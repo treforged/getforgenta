@@ -1,7 +1,7 @@
 /**
  * Input sanitization utilities.
  *
- * React already escapes all JSX output (no dangerouslySetInnerHTML in this app),
+ * React already escapes all JSX output (no dangerouslySetInnerHTML in this app; the PDF export escapes its own),
  * and Supabase-js uses parameterized queries, so the primary goal here is
  * clean data storage — stripping injected HTML/script tags and control
  * characters before anything touches the database.
@@ -24,9 +24,9 @@ function stripHtmlTags(value: string): string {
 /**
  * Sanitize a single string value:
  * - Strip all HTML tags
- * - Remove ASCII control characters (except tab/newline)
+ * - Remove ASCII control characters (tab and newline survive this step)
  * - Trim leading/trailing whitespace
- * - Collapse internal runs of whitespace to a single space
+ * - Collapse internal runs of whitespace, INCLUDING newlines, to a single space
  */
 export function sanitizeString(value: string): string {
   return stripHtmlTags(value)
@@ -37,8 +37,8 @@ export function sanitizeString(value: string): string {
 }
 
 /**
- * Recursively sanitize every string field in a plain object.
- * Non-string values (numbers, booleans, null, arrays) pass through unchanged,
+ * Sanitize every TOP-LEVEL string field in a plain object. It does NOT recurse: nested objects and
+ * arrays pass through unchanged (sanitize.test.ts pins this). Other non-strings pass through too,
  * except non-finite numbers (Infinity, NaN) which are coerced to null.
  */
 export function sanitizePayload<T extends Record<string, unknown>>(obj: T): T {
