@@ -109,7 +109,7 @@ jobs:
 
       - name: Authenticate to Google Cloud (Workload Identity Federation)
         id: auth
-        uses: google-github-actions/auth@v3
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3 (pinned 2026-10-07, 8b75ecb8)
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
@@ -335,7 +335,7 @@ jobs:
       # step name stays in the lookups above so runs that shipped under it are still found.
       - name: Deploy to Google Play (Production)
         if: steps.ship.outputs.ship == 'true'
-        uses: r0adkll/upload-google-play@v1
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5 (pinned 2026-10-07, 8b75ecb8)
         with:
           packageName: com.treforged.forged
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
