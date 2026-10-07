@@ -1,0 +1,21 @@
+# Forgenta
+
+> Forgenta is a budget app for iOS, Android and the web by TRE Forged LLC. It shows what is safe to spend until payday: the lowest your checking balance will reach before payday after every bill, minus a cash floor, with pending card swipes counted. It also forecasts cash month by month and plans debt payoff (avalanche or snowball, with a debt-free date). There is a free plan; Premium is $9.99 a month or $89.99 a year.
+
+## Product pages
+- [Best budget app](https://getforgenta.com/best-budget-app/): how budget apps differ, with prices
+- [Simple budget app](https://getforgenta.com/simple-budget-app/): one number before payday, three-step setup
+- [Free budget app](https://getforgenta.com/free-budget-app/): what the free plan includes
+- [Safe to spend](https://getforgenta.com/safe-to-spend/): how much you can spend before payday, worked example
+
+## Comparisons
+- [Forgenta vs YNAB](https://getforgenta.com/vs/ynab/)
+- [Forgenta vs Monarch Money](https://getforgenta.com/vs/monarch/)
+- [Forgenta vs Rocket Money](https://getforgenta.com/vs/rocket-money/)
+
+## Answers
+- [All money answers](https://getforgenta.com/answers/): car costs, debt payoff order, credit card interest, emergency funds
+
+## Optional
+- [Try the demo, no sign-up](https://getforgenta.com/demo)
+- [Bill calendar printable](https://getforgenta.com/calendar/)
