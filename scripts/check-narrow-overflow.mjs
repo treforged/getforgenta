@@ -16,7 +16,13 @@
  * TEXT_SCALE=150 sets the root font to 150% (the measurable half of Dynamic Type).
  * VIEW_MODE=simple (needs SIGNED_IN=1) forces the Simple view by rewriting the profile read.
  * SIGNED_IN=1 reads the walk account instead of /demo; table writes are aborted, rpc passes.
- * Does NOT cover: vertical clipping, dialogs or menus, or whether a wrap looks right.
+ * DIALOGS=1 (on /demo only; refused with SIGNED_IN) also PRESSES every visible button on each route and,
+ *   when a role=dialog/alertdialog/menu/listbox appears, runs the same cut check inside it. The app opens its
+ *   modals from plain buttons (no aria-haspopup anywhere), so discovery is by pressing, not by attribute.
+ *   Buttons named like delete/remove/sign out/reset are skipped. Control: a planted clipped string inside a
+ *   planted role=dialog must be flagged, and at least one press must open a dialog.
+ *   It never presses anything INSIDE a dialog, so nested dialogs and form steps are not read.
+ * Does NOT cover: vertical clipping, nested dialogs, or whether a wrap looks right.
  */
 import { mkdirSync } from 'node:fs';
 
@@ -88,7 +94,7 @@ else await page.goto(`${BASE}/demo`, { waitUntil: 'domcontentloaded' });
 await page.waitForTimeout(4000);
 
 // Runs in the page. Returns one line per text run that is cut off.
-function findCut() {
+function findCut(scope) {
   const vw = document.documentElement.clientWidth;
   const out = [];
   const scrollsX = (el) => {
@@ -101,6 +107,7 @@ function findCut() {
     if (!n.textContent.trim()) continue;
     const el = n.parentElement;
     if (!el || el.closest('[aria-hidden="true"], script, style, noscript, svg, .sr-only, #seo-landing, #boot-splash')) continue;
+    if (scope && !el.closest(scope)) continue;
     const st = getComputedStyle(el);
     if (st.visibility === 'hidden' || Number(st.opacity) === 0 || st.textOverflow === 'ellipsis') continue;
     const r = document.createRange(); r.selectNodeContents(n);
@@ -224,6 +231,56 @@ for (const route of ROUTES) {
   await page.screenshot({ path: `test-results/narrow-overflow/${route.slice(1)}-${WIDTH}${SIGNED_IN ? '-signed-in' : ''}.png`, fullPage: true });
 }
 if (unstable) await done(2, `${unstable} route(s) never settled.`);
+if (process.env.DIALOGS === '1') {
+  if (SIGNED_IN) await done(2, 'DIALOGS=1 presses every button, so it runs on /demo only; drop SIGNED_IN.');
+  const OVERLAY = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
+  const TRIGGER = 'button:visible';
+  const SKIP = /delete|remove|sign out|log ?out|reset|disconnect|cancel subscription/i;
+  const closeAll = async () => { for (let j = 0; j < 4 && (await page.locator(OVERLAY).count()); j += 1) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); } };
+  // Control: a clipped string inside a planted dialog must be flagged by the SCOPED read.
+  await page.evaluate(() => {
+    const d = document.createElement('div'); d.setAttribute('role', 'dialog'); d.setAttribute('data-planted', '1');
+    d.style.cssText = 'position:fixed;top:0;left:0;width:150px;overflow:hidden;z-index:99999;background:#000;color:#fff;white-space:nowrap';
+    d.textContent = 'PLANTEDDIALOG this string is far too long for one hundred and fifty pixels'; document.body.appendChild(d);
+  });
+  const dctl = await page.evaluate(findCut, OVERLAY);
+  await page.evaluate(() => document.querySelectorAll('[data-planted]').forEach((b) => b.remove()));
+  if (!dctl.some((l) => l.includes('PLANTEDDIALOG'))) await done(2, 'CONTROL FAILED: planted cut inside a role=dialog was not flagged.');
+  console.log('control: planted cut inside a dialog flagged');
+  let opened = 0; let pressed = 0;
+  for (const route of ROUTES) {
+    await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
+    if ((await settledRead()) === null) { console.log(`${route} dialogs: UNSTABLE`); unstable += 1; continue; }
+    const n = await page.locator(TRIGGER).count();
+    const names = [];
+    for (let i = 0; i < n; i += 1) {
+      await closeAll();
+      const t = page.locator(TRIGGER).nth(i);
+      const name = ((await t.getAttribute('aria-label').catch(() => null)) || (await t.innerText().catch(() => '')) || '?').trim().replace(/\s+/g, ' ').slice(0, 30);
+      if (SKIP.test(name)) continue;
+      try { await t.click({ timeout: 3000 }); } catch { continue; }
+      pressed += 1;
+      await page.waitForTimeout(900);
+      if (!(await page.locator(OVERLAY).count())) {
+        if (!new URL(page.url()).pathname.startsWith(route)) { await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2500); }
+        continue;
+      }
+      opened += 1; names.push(name);
+      const cut = [...new Set([...await page.evaluate(findCut, OVERLAY), ...await page.evaluate(findCut, OVERLAY)])];
+      if (cut.length) {
+        findings += cut.length; console.log(`${route} [${name}]: ${cut.length} cut`); for (const l of cut) console.log(`   ${l}`);
+        await page.screenshot({ path: `test-results/narrow-overflow/dialog-${route.slice(1)}-${i}-${WIDTH}.png` });
+      }
+      await closeAll();
+      if (!new URL(page.url()).pathname.startsWith(route)) { await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2500); }
+    }
+    await closeAll();
+    console.log(`${route}: ${n} button(s), opened: ${names.length ? names.join('; ') : 'none'}`);
+  }
+  console.log(`dialogs: ${pressed} pressed, ${opened} opened and measured`);
+  if (!opened) await done(2, 'CONTROL FAILED: no aria-haspopup control opened anything, so no dialog was measured.');
+  if (unstable) await done(2, `${unstable} route(s) never settled before their dialogs.`);
+}
 // Bottom-nav labels: the sweep above skips ellipsis text, so a truncated "Tran…" passes it. A nav
 // label must be whole (Tre 2026-08-27: one name, "Transactions", at every width).
 // The bottom bar is `lg:hidden` (MobileNav.tsx), so at 1024+ there is no bar to measure: say so, never a
