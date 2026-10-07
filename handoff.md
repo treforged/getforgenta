@@ -25,7 +25,8 @@ R-NOW24 (2026-10-06 late, Ada getforgenta-8d). R-NOW23 items 1-2 DONE:
     lives there; free-tier drafts rejected), llms.txt, sitemap 27 (CF edge cached 20 until ~4h max-age; origin 27),
     /answers/ links, gate seo-pages.gate.test.ts. Home title now "Forgenta: Budget App That Shows What Is Safe to Spend"
     (Sam decided; tell Ruby as INFO). Ellis linked his calculators/posts (79ec19b).
-    UNCOMMITTED IN TREE (gate test:tz running when written): useSimGlassExperiment one-shot flag (REAL cause of sim
+    COMMITTED LOCALLY, NOT PUSHED (Tre told Sam 'no push until GitHub resets' - confirm with Sam, then push and
+    dispatch the sim run). Was: UNCOMMITTED IN TREE (gate test:tz running when written): useSimGlassExperiment one-shot flag (REAL cause of sim
     37568011814's red Lock step - the persisted glass flag made the Lock launch scroll, control 0/32) + its test (red
     proven) + NotFound noindex/title (cbf3535a). If test:tz is green: commit both, push, dispatch "iOS Simulator
     Screenshots" and confirm Lock goes green; close cbf3535a after a JS-rendering read of /no-such-page/ shows noindex.
