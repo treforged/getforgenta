@@ -389,7 +389,7 @@ section states reasoning, not measurement, and says so.
   ancestor; skips sideways scrollers, ellipsis, sr-only, svg. Planted control: clipped nowrap flagged, wrapping not. First run
   2026-10-07: 17 cut (transaction amounts past the card, header buttons cut both sides, "Matches your entry" button, a stat
   figure, a tile label); 0 after. `WIDTH=390` also 0. Since 10-07 it also flags OVERLAPPING text within one layer (same fixed/sticky ancestor, or both unpinned): red on the pre-fix demo banner and nav, the two overlaps first found by
-  LOOKING at the frame. Does NOT see overlap across layers, truncation outside the nav, dialogs, or signed-in data. Frames: test-results/narrow-overflow/.
+  LOOKING at the frame. Does NOT see overlap across layers, truncation outside the nav, dialogs, or signed-in data. Frames: test-results/narrow-overflow/. `WIDTH=1024` (10-07): the nav arm is SKIPPED and says so (the bar is lg:hidden; the rail is check:rail's); 1024 + 150% + SIGNED_IN found the strip cut above. Findings now name the text's own element chain.
 - `npm run check:grid-orphans` - every CSS grid of card-sized tiles on the 7 main screens at 360, 390, 768, 1024,
   1280, 1440 and 1920, signed in: fails on an ORPHAN last row (fewer tiles than the first row and >25% of the width
   empty) and on an OVERSIZED tile (>1.4x its siblings' median width with its text spanning <60% of it).
@@ -471,6 +471,9 @@ section states reasoning, not measurement, and says so.
 - `npm run check:overview-strip` - the Command Center's Net Worth strip at 1440 and 1024, signed in: the four stat
   labels share one top (spread <= 1px) and the Net Worth TEXT ends within 40px of the divider (a Range over its
   characters; its box fills the column). Proven red on the pre-fix strip (Liquid Cash 10px low; 234px dead band).
+  Since 2026-10-07 a third pass at 1024 with 150% text requires every figure to END INSIDE the card: four across cut
+  CC Debt's "$4,200.00" 5px past it; the tiles now go two across under a 30rem column (@container/tiles). Red on
+  the old strip (exit 1).
 - `npm run check:topright` — an INVENTORY, not a pass/fail gate, of how much of each tab's top-right
   is empty, at 390x844 and 1440x900, signed in. Answers the "big blank spaces" class of complaint by
   measurement instead of by opening whichever screen was reported.

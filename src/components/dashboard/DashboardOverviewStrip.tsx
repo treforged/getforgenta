@@ -163,17 +163,17 @@ export default function DashboardOverviewStrip({
   );
 
   return (
-    // @container + @max-[12.5rem]: the box is measured in rem, so only LARGE TEXT on a narrow phone
+    // @container + @max-[12.5rem]/strip: the box is measured in rem, so only LARGE TEXT on a narrow phone
     // (320 at 150%: ~10.8rem) re-flows to Net Worth full width and the four tiles two across. At
     // normal text even a 320 phone is ~16rem, so the layout Tre approved does not move.
-    <div className="card-forged p-4 sm:p-5 @container">
+    <div className="card-forged p-4 sm:p-5 @container/strip">
       {/* Below `sm` the strip is ONE six-column grid: Net Worth and Liquid Cash (both buttons) side by
           side in the first row, then Investments / Retirement / CC Debt three across. The two wrappers
           after the headline are `display: contents` there so their tiles join that grid; from `sm` up
           they are the same block and grid as before, so the stacked and two-column layouts do not move.
           Stacked, the two buttons sat 38px apart with the divider between them (Tre, 2026-10-02). */}
       <div className="grid grid-cols-6 sm:grid-cols-1 lg:grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-4 sm:gap-5">
-        <div className="col-span-4 @max-[12.5rem]:col-span-6 sm:col-span-1 text-center lg:text-left">
+        <div className="col-span-4 @max-[12.5rem]/strip:col-span-6 sm:col-span-1 text-center lg:text-left">
           {onNetWorthClick ? (
             <button
               type="button"
@@ -187,12 +187,15 @@ export default function DashboardOverviewStrip({
           )}
         </div>
 
-        <div className="contents sm:block sm:border-t lg:border-t-0 lg:border-l border-border/40 sm:pt-4 lg:pt-0 lg:pl-5 xl:pl-6">
-          <div className="contents text-center sm:grid sm:grid-cols-4 sm:items-start sm:gap-5">
-            <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success-text" onClick={onLiquidCashClick} className="col-span-2 @max-[12.5rem]:col-span-3 sm:col-span-1" />
-            <SplitTile label="Investments" value={money(investments)} tone="text-primary" className="col-span-2 @max-[12.5rem]:col-span-3 sm:col-span-1" />
-            <SplitTile label="Retirement" value={money(retirement)} tone="text-primary" className="col-span-2 @max-[12.5rem]:col-span-3 sm:col-span-1" />
-            <SplitTile label="CC Debt" value={money(ccDebt)} tone="text-destructive-text" sub={utilizationSub} className="col-span-2 @max-[12.5rem]:col-span-3 sm:col-span-1" />
+        <div className="contents sm:block @container/tiles sm:border-t lg:border-t-0 lg:border-l border-border/40 sm:pt-4 lg:pt-0 lg:pl-5 xl:pl-6">
+          {/* Four across only when four figures fit: sized in rem, so LARGE TEXT at 1024 (~27rem wide)
+              drops to two across instead of cutting CC Debt's figure off at the card edge. At normal
+              text every width from 640 up is ~35rem or more, so the four-across row does not move. */}
+          <div className="contents text-center sm:grid sm:grid-cols-2 @min-[30rem]/tiles:sm:grid-cols-4 sm:items-start sm:gap-5">
+            <SplitTile label="Liquid Cash" value={money(liquidCash)} tone="text-success-text" onClick={onLiquidCashClick} className="col-span-2 @max-[12.5rem]/strip:col-span-3 sm:col-span-1" />
+            <SplitTile label="Investments" value={money(investments)} tone="text-primary" className="col-span-2 @max-[12.5rem]/strip:col-span-3 sm:col-span-1" />
+            <SplitTile label="Retirement" value={money(retirement)} tone="text-primary" className="col-span-2 @max-[12.5rem]/strip:col-span-3 sm:col-span-1" />
+            <SplitTile label="CC Debt" value={money(ccDebt)} tone="text-destructive-text" sub={utilizationSub} className="col-span-2 @max-[12.5rem]/strip:col-span-3 sm:col-span-1" />
           </div>
         </div>
       </div>

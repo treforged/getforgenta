@@ -119,7 +119,7 @@ function findCut() {
       }
     }
     if (skip || left >= vw) continue;
-    if (right > limit + 1) out.push(`"${n.textContent.trim().slice(0, 50)}" ends at ${right.toFixed(0)}px, cut at ${limit.toFixed(0)} by ${by}`);
+    if (right > limit + 1) out.push(`"${n.textContent.trim().slice(0, 50)}" ends at ${right.toFixed(0)}px, cut at ${limit.toFixed(0)} by ${by}; text in ${[el, el.parentElement, el.parentElement?.parentElement].filter(Boolean).map((x) => `${x.tagName.toLowerCase()}.${String(x.className).split(' ').slice(0, 3).join('.')}`).join(' < ')}`);
   }
   return [...new Set(out)];
 }
@@ -226,6 +226,10 @@ for (const route of ROUTES) {
 if (unstable) await done(2, `${unstable} route(s) never settled.`);
 // Bottom-nav labels: the sweep above skips ellipsis text, so a truncated "Tran…" passes it. A nav
 // label must be whole (Tre 2026-08-27: one name, "Transactions", at every width).
+// The bottom bar is `lg:hidden` (MobileNav.tsx), so at 1024+ there is no bar to measure: say so, never a
+// silent pass. The desktop rail's labels belong to check:rail.
+if (WIDTH >= 1024) console.log(`nav arm skipped: no bottom bar at ${WIDTH}px (lg:hidden); the rail is check:rail's`);
+else {
 const navCut = await page.evaluate(() => [...document.querySelectorAll('nav a')]
   .filter((a) => a.getBoundingClientRect().width > 0)
   .flatMap((a) => [...a.querySelectorAll('span')].filter((s) => s.getBoundingClientRect().width > 0 && !s.children.length && s.textContent.trim().length > 1)
@@ -245,5 +249,6 @@ const navGap = await page.evaluate(() => {
 console.log(`nav label gaps: ${navGap.n} labels, smallest gap ${navGap.min}px`);
 if (navGap.n < 2) await done(2, 'CONTROL FAILED: fewer than 2 nav labels to measure gaps between.');
 if (navGap.min < 4) { findings += 1; console.log(`   FINDING: two nav labels sit ${navGap.min}px apart (need >= 4)`); }
+}
 if (SIGNED_IN) console.log(`signed in (walk account); ${blocked} write(s) aborted in-browser`);
 await done(findings ? 1 : 0, findings ? `FAIL: ${findings} cut text run(s) at ${WIDTH}px.` : `PASS: 0 cut text runs on ${ROUTES.length} routes at ${WIDTH}px${TEXT_SCALE !== 100 ? `, text ${TEXT_SCALE}%` : ''}.`);

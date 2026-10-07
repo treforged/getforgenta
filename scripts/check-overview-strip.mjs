@@ -8,6 +8,9 @@
  *     Liquid Cash is a button; stretched, it centred its content in a row CC Debt's extra line made taller (10px low).
  *   NO DEAD BAND - from the right edge of the Net Worth TEXT (a Range over its characters, not its box, which
  *     fills its column) to the divider is <= 40px. It was ~230px at 1440 while the column took a third of the card.
+ * LARGE TEXT (1024, root 150%): every figure in the strip ENDS INSIDE the card (a Range over its characters).
+ *   Four across cut CC Debt's "$4,200.00" 5px past the card edge (check:narrow-overflow, 2026-10-07); the tiles now
+ *   go two across when their column is under 30rem. The ONE LINE and DEAD BAND asserts do not apply there.
  * CONTROL: all four labels and the Net Worth figure must be found at each width, or exit 2.
  * DOES NOT COVER: phone widths (the strip stacks there), colour, or whether the figures are right.
  * USAGE: node scripts/check-overview-strip.mjs   EXITS: 0 pass . 1 finding . 2 could not measure
@@ -42,8 +45,13 @@ catch (err) { fail(2, `${BASE} is not serving (${err.message}). Run: node script
 
 const browser = await chromium.launch();
 const problems = [];
-for (const width of [1440, 1024]) {
+for (const [width, scale] of [[1440, 100], [1024, 100], [1024, 150]]) {
+  const tag = scale === 100 ? `${width}` : `${width}@${scale}%`;
   const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+  if (scale !== 100) await ctx.addInitScript((pct) => {
+    const set = () => { document.documentElement.style.fontSize = `${pct}%`; };
+    if (document.documentElement) set(); document.addEventListener('DOMContentLoaded', set);
+  }, scale);
   const page = await ctx.newPage();
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(([k, s]) => {
@@ -55,7 +63,7 @@ for (const width of [1440, 1024]) {
   await page.goto(`${BASE}/dashboard`, { waitUntil: 'domcontentloaded' });
   const strip = page.locator('.card-forged', { hasText: 'liabilities' }).first();
   try { await strip.waitFor({ state: 'visible', timeout: 40000 }); }
-  catch { await browser.close(); fail(2, `[${width}] CONTROL FAILED: the Net Worth strip never rendered.`); }
+  catch { await browser.close(); fail(2, `[${tag}] CONTROL FAILED: the Net Worth strip never rendered.`); }
   await page.waitForTimeout(1500);
   const r = await strip.evaluate(card => {
     const labels = ['Liquid Cash', 'Investments', 'Retirement', 'CC Debt'].map(t => {
@@ -75,20 +83,32 @@ for (const width of [1440, 1024]) {
         for (const b of range.getClientRects()) if (b.width > 0) textRight = Math.max(textRight, b.right);
       }
     }
+    const edge = card.getBoundingClientRect().right;
+    const cut = [];
+    const tw = document.createTreeWalker(card, NodeFilter.SHOW_TEXT);
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      if (!n.textContent.trim()) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const b of range.getClientRects()) if (b.width > 0 && b.right > edge + 1) cut.push(`"${n.textContent.trim()}" ends ${Math.round(b.right - edge)}px past the card`);
+    }
     return {
+      cut,
       labels,
       deadBand: divider && Number.isFinite(textRight) ? Math.round(divider.getBoundingClientRect().left - textRight) : null,
     };
   });
-  await strip.screenshot({ path: `test-results/overview-strip-${width}.png` });
-  console.log(`[${width}] ${JSON.stringify(r)}`);
-  if (r.labels.some(l => !l) || r.deadBand === null) { await browser.close(); fail(2, `[${width}] CONTROL FAILED: labels or the Net Worth column not found.`); }
+  await strip.screenshot({ path: `test-results/overview-strip-${tag.replace('@', '-').replace('%', '')}.png` });
+  console.log(`[${tag}] ${JSON.stringify(r)}`);
+  if (r.labels.some(l => !l) || r.deadBand === null) { await browser.close(); fail(2, `[${tag}] CONTROL FAILED: labels or the Net Worth column not found.`); }
+  for (const c of r.cut) problems.push(`[${tag}] ${c}`);
+  if (scale !== 100) { await ctx.close(); continue; }
   const tops = r.labels.map(l => l.top);
   const spread = Math.max(...tops) - Math.min(...tops);
-  if (spread > 1) problems.push(`[${width}] the four labels are not on one line (tops ${tops.join(', ')}; spread ${spread}px)`);
-  if (r.deadBand > 40) problems.push(`[${width}] ${r.deadBand}px of empty space between Net Worth and the divider (want <= 40)`);
+  if (spread > 1) problems.push(`[${tag}] the four labels are not on one line (tops ${tops.join(', ')}; spread ${spread}px)`);
+  if (r.deadBand > 40) problems.push(`[${tag}] ${r.deadBand}px of empty space between Net Worth and the divider (want <= 40)`);
   await ctx.close();
 }
 await browser.close();
 if (problems.length) { for (const p of problems) console.error(`FAIL: ${p}`); process.exit(1); }
-console.log('PASS: the four labels share one line and Net Worth sits beside the figures at 1440 and 1024. Frames test-results/overview-strip-{1440,1024}.png');
+console.log('PASS: the four labels share one line and Net Worth sits beside the figures at 1440 and 1024, and no figure runs past the card at 1024 with 150% text. Frames test-results/overview-strip-*.png');
