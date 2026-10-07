@@ -96,10 +96,22 @@ const startMonitoring = () => {
   // Ask 98cbf494: unlock timings an earlier run logged but could not send.
   void import('./lib/send-unlock-timings').then(m => m.sendUnlockTimings()).catch(() => { /* never block the app */ });
 };
-if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-  window.requestIdleCallback(startMonitoring, { timeout: 3000 });
-} else {
-  setTimeout(startMonitoring, 1500);
+// `load`, THEN 4 s, THEN idle (2026-10-06, e1b0fffc). Idle-with-a-3s-timeout was not late enough: on
+// a throttled phone it fired while the landing page was still drawing, so ~770 kB of vendor code
+// competed with the first screen. `load` alone was not late enough either - it fires before the
+// lazy landing chunk paints (LCP unchanged, 7.5 s). Same local build, 3 mobile Lighthouse passes,
+// median: monitoring as before 7.4 s LCP / 445 ms TBT, monitoring off 5.9 s / 170 ms, this 5.8 s /
+// 188 ms. Measured in Chromium: the vendor chunks now load ~7 s in and still report. The cost is
+// that an error in the first ~7 s is not sent to the vendor; the ErrorBoundary still renders.
+const scheduleMonitoring = () => {
+  setTimeout(() => {
+    if ('requestIdleCallback' in window) window.requestIdleCallback(startMonitoring, { timeout: 5000 });
+    else startMonitoring();
+  }, 4000);
+};
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'complete') scheduleMonitoring();
+  else window.addEventListener('load', scheduleMonitoring, { once: true });
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
