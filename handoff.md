@@ -21,6 +21,15 @@ R-NOW24 (2026-10-06 late, Ada getforgenta-8d). R-NOW23 items 1-2 DONE:
     Home <title> lacks "budget app" - it is Ruby's approved string (6bc8a99a): PROPOSE to Ruby, do not override.
     Competitor prices on vs pages MUST be verified live (WebSearch/their pricing pages) with the date on the page.
     ASO subtitle/keyword proposal goes to Tre via Sam. Reel Dd8jsuhtBmp caption: optimize for AI search engines.
+  - f07700ff part 1 SHIPPED + LIVE (raw titles curl-checked on prod): 7 pages via scripts/seo/build-pages.py (copy
+    lives there; free-tier drafts rejected), llms.txt, sitemap 27 (CF edge cached 20 until ~4h max-age; origin 27),
+    /answers/ links, gate seo-pages.gate.test.ts. Home title now "Forgenta: Budget App That Shows What Is Safe to Spend"
+    (Sam decided; tell Ruby as INFO). Ellis linked his calculators/posts (79ec19b).
+    NEXT: (1) cbf3535a soft-404 (Sam: do next). (2) ASO proposal for Tre via Sam: store name is "Forgenta: Track & Build
+    Wealth" (no "budget"); candidate "Forgenta: Budget App" (20) or "Forgenta: Budget & Payday Plan" (30); subtitle keep
+    "Safe to Spend & Payoff Date" (27); keyword field <=100 chars, no competitor trademarks, no words already in
+    name/subtitle. (3) aggregateRating: live App Store is 5.0 from 5 ratings - a STATIC value goes stale, so only add it
+    from a build-time lookup, or not at all.
   - de23e8d4 DONE (pushed): tinted :root, destructive 0 55% 45%, dark letter-spacing. 66f3467e = pre-existing
     check:text-scale "$0" pinned span.
 R-NOW23 (2026-10-06 ~23:20 ET, Ada -> successor; handoff gate). START HERE, IN ORDER:
