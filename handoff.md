@@ -1,6 +1,24 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
+  1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
+     "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant (prompts in R-NOW21 #1).
+  2. db1d6813 PART 1 VERIFY (9582465b): 6 cron functions DEPLOYED with cronSecretMatches (newsletter-digest, no-save-nudge,
+     og-consent-ask, plaid-sync-all, revenue-push, unverified-nudge; --no-verify-jwt, all were false). Negative proven: no
+     secret and a wrong secret -> 403 on all 6. POSITIVE NOT YET PROVEN: read cron.job joined to net._http_response for their
+     next scheduled run and require 200 (not 403). The 11:37 no-save-nudge read covers that one. Also confirm verify_jwt
+     still false in list_edge_functions.
+  3. TELL SAM (tre-forged-40) THE DRIFT, then wait for his call: prod og-anniversary predates 2f3a5c88 (consent-row guard,
+     155 lines; og_billing_consent_current EXISTS in prod) and prod push-send predates 48b49963 + 3ce4d20a. Both got the
+     cronSecretMatches edit in the repo but were NOT deployed, because a deploy ships the old undeployed changes too.
+  4. db1d6813 PART 2: src/lib/exportPdf.ts:67 and :179 - escape r.category, g.label, r.label (and every field) before
+     win.document.write. Unit test that a "<img onerror>" label renders as text. Then close db1d6813 with both parts.
+  5. be864a14 (filed): MobileNav/Sidebar faded-gold nav highlight - needs a different cue + rendered measure in both themes.
+  6. Then e1b0fffc standing.
+  DONE this session (all pushed 0/0): 12515d9c rating JSON-LD; 333f12d7 + 06e521b1 over-plan red; 3c089abd green;
+  9020480c faded gold + check:build-badges (oklab instrument fix); 0ec7f147 action pins (8b75ecb8 closed; Play upload pin
+  proves at the next 10:00 UTC ship); 6e160de2 promo drop migration (f5b0efcb closed); 9582465b cron secrets.
 R-NOW26 (2026-10-07 ~02:20 ET, Ada getforgenta-fe). R-NOW25 items 1-4 DONE:
   - Session crons re-armed: 67f25f04 (10-07 11:37 nudge read), 9148b26b (cancel buckets), 8a22fdde (free-link grant).
     Session-only: RE-ARM them if this tab is gone (prompts in R-NOW21 #1).
@@ -13700,7 +13718,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 02:06 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 02:23 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13720,14 +13738,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+06e521b1 [budget]: check:spent-of-planned measures the rendered red "over" line in both themes
+26bc6a94 [handoff]: R-NOW26 - over-plan contrast fix, two rows blocked
+333f12d7 [budget]: "over plan" text uses the legible red in dark mode (e1b0fffc)
 cdb6659f [handoff]: R-NOW26 - Lock green, build-time App Store rating live
 12515d9c [seo]: add the LIVE App Store rating to the JSON-LD at build time
 8c7603cf [handoff]: R-NOW25 item 2 verified live
 6c83032b [handoff]: R-NOW25 - deploy-skip fix to verify, sim Lock to confirm, SEO remainder
 8ebba36e [deploy]: ignoreCommand diffs against the last DEPLOYED sha, not HEAD^ - pushes ending in a docs commit skipped every code change in them
-a733f6c7 [aso]: name/subtitle/keyword proposal for Tre (f07700ff)
-afcb2821 [handoff]: Sam confirmed the push hold; he releases it after the GitHub reset
-ad27ea26 [handoff]: R-NOW24 - local commit awaiting push permission
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
