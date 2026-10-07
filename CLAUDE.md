@@ -591,6 +591,9 @@ section states reasoning, not measurement, and says so.
   ⚠️ **ALL THREE HOOKS ARE NOW TRACKED IN `.githooks/`** (2026-09-24), and `npm run install:hooks`
   points `core.hooksPath` at them. A FRESH CLONE HAS NO PROTECTION until that runs, and
   `--no-verify` skips every hook. Undo: `git config --unset core.hooksPath`.
+- **Pre-push TYPECHECK** (`.githooks/pre-push`, 2026-10-07): `tsc --noEmit` must be green or the push is refused. Vercel's
+  `vite build` never typechecks, so ea11292d reached main red and DEPLOYED green. Checks the working tree. Proven red with a
+  planted type error (exit 1), green after. `--no-verify` skips it.
 - **Pre-commit SECRET SCAN** (`scripts/secret-scan.mjs`, ported from tre-forged-conductor@6097b08) -
   refuses staged credential shapes (OpenRouter, Cerebras, Resend, Anthropic, Stripe live, Supabase
   secret, JWTs, PEM and more) and credential FILENAMES, whatever `.gitignore` says. Before it, a

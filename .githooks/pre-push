@@ -10,4 +10,17 @@ if [ -n "${CONDUCTOR_JOB}" ]; then
   echo "" >&2
   exit 1
 fi
+
+# TYPECHECK GATE (2026-10-07). ea11292d reached main with tsc red because the
+# check ran in the same command chain as the commit and nobody read its exit
+# code. Vercel's `vite build` does not typecheck, so nothing downstream caught it.
+# This checks the WORKING TREE, so an uncommitted type error also blocks; that
+# errs safe. `git push --no-verify` skips it, as it skips every hook.
+if ! npx --no-install tsc --noEmit -p . >/tmp/pre-push-tsc.log 2>&1; then
+  echo "" >&2
+  echo "REFUSED: tsc --noEmit is red. First errors:" >&2
+  head -5 /tmp/pre-push-tsc.log >&2
+  echo "" >&2
+  exit 1
+fi
 exit 0
