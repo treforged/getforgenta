@@ -1,6 +1,21 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW21 (2026-10-06 ~21:45 ET, Ada -> successor; handoff gate at 196 calls). START HERE, IN ORDER:
+  1. RE-ARM THREE SESSION CRONS (they died with the old tab):
+     a. one-shot "37 11 7 10 *": the no-save-nudge read (R-NOW19 #1 text below), tell Sam, update a2c2d32f.
+     b. "13 9,21 * * *": select created_at, platform, method, detail from signup_funnel_events where env='prod'
+        and detail like 'user_cancelled\_%'. New row -> Sam gets bucket+platform; _lt1s = instant sheet failure, root-cause it.
+     c. "17 9,21 * * *": free_bank_link_grants row -> verify (one per user, item id matches financial_connections,
+        plan free), tell Sam AND Ruby, close 493aa023 + e21772b8 with that evidence.
+  2. e1b0fffc NEXT ACQUISITION ITEM (Sam approved taking it): a crawler that runs NO JS sees ZERO landing text -
+     `curl -s https://getforgenta.com/` body is only HTML comments + the splash. Google renders JS; Bing, link
+     unfurlers and AI crawlers mostly do not. The /answers/*.html pages ARE static and in sitemap.xml. Candidate fix:
+     put the landing hero + feature text into index.html as real HTML for "/" (e.g. inside #root so React replaces
+     it - CHECK the boot guard counts #root's children to decide "mounted", index.html ~line 90, so that would blind
+     it; a sibling hidden on mount, like #boot-splash, is the safe shape). Prove with a plain curl + check:boot-failure.
+     Before building: grep handoff/BUILD-LOG for "prerender"/"SSR" in case it was tried.
+  3. Then R-NOW19 #3 waits (a6375f1c, 0c15746d, a640c0d7 on 10-20, ff52631d).
 R-NOW20 (2026-10-06 ~17:30 ET, Ada). R-NOW19 items 1-2 DONE:
   - 10-07 11:37 nudge read re-armed as session cron 2cb23065 (dies with this tab; re-arm if the tab is gone).
   - Funnel: NO measurable drop. Only 2 of 28 real users carry furthest_step (26 joined 03-22..08-07, before
@@ -13595,7 +13610,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-06 21:05 by handoff_hook. Everything below this heading is
+_Written 2026-10-06 21:36 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13615,14 +13630,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+32cbe72a [handoff]: FCP stop, monitoring trade, share card
+88110a2f [landing]: a share card and structured data, so a posted link shows a picture
+d77f6d97 [perf]: the boot-splash logo is the first paint, so fetch a 12 KB WebP first
+fa7b5783 [handoff]: landing speed slices and the plain-curl lesson
+95272cc1 [perf]: start monitoring after the page has painted - landing LCP 7.4 s -> 5.8 s, TBT 445 -> 188 ms
+58d25db9 [perf]: serve the small logo under a NEW name - Cloudflare kept the old 1.4 MB file
 09ededa1 [perf]: shrink the logo from 1,430 KB to 149 KB - landing LCP median 13.6 s -> 7.1 s (mobile)
 37e75ce7 [handoff]: R-NOW20 evening - cancel buckets, grant-write fix, demo step, landing read
-36c86846 [funnel]: count presses on the demo's Sign Up Free, so demo conversion is measurable
-fc402db4 [bank-link]: the free-link grant write reports its own failure instead of swallowing it
-ea984968 [auth]: time sign-in cancels on the phone, so an instant failure stops reading as a cancel
-ac37a012 [handoff]: R-NOW20 - funnel unmeasurable (2 of 28 tracked), competitor-edge done, renewal reminder parked
-5264a147 docs: competitor-edge read of 5 budgeting apps - surprise charges lead (174 of 1,079 complaints)
-edf55348 [handoff]: R-NOW19 - successor resume queue: re-arm nudge read, Sam's onboarding-funnel slice
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
