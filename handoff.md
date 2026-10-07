@@ -8,7 +8,10 @@ R-NOW32 (2026-10-07 ~10:40 ET, Ada getforgenta-e8). R-NOW31 items 1-2 DONE:
     (5ea06946, Prepare for Submission), name + keywords read back. Build 6.8.2 (1399) uploaded, run 37632259369, altool
     "UPLOAD SUCCEEDED". SUBMITTING 6.8.2 for review = Tre's yes (attach build 1399).
   - e1b0fffc DONE 934bfed0: check:narrow-overflow (320px, /demo) 17 -> 0 cut; residue: nav labels truncate at 320.
-  NEXT: e1b0fffc. Ideas: an OVERLAP probe (the 320 gate cannot see overlap; two defects were found only by eye).
+  - e1b0fffc DONE acf40502: nav cells size to their words ("Transactions" was cut at 390 too); f0fb944a overlap arm
+    (red on the two pre-fix overlaps); ab5e0071 SIGNED_IN=1 (walk account) found + fixed a Transactions total at 320.
+  - 26a6dba8 filed --needs-tre: "submit 6.8.2" (build 1399).
+  NEXT: 11:37 / 11:41 / 13:06 cron reads, then e1b0fffc (idea: run check:narrow-overflow SIGNED_IN=1 at 320 in dark).
 R-NOW31 (2026-10-07 ~09:45 ET, Ada -> successor; handoff gate at 189 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
@@ -13802,16 +13805,17 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 09:44 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 10:31 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (6 file(s)):**
+- **Uncommitted (7 file(s)):**
 
 ```
 M deno.lock
+ M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13822,14 +13826,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+f0fb944a test: check:narrow-overflow also flags overlapping text within one layer (e1b0fffc)
+acf40502 [nav]: bottom-bar labels whole at every phone width - "Transactions" was cut at 390 too
+485510e1 [handoff]: R-NOW32 - 6.8.2 created + build 1399 uploaded; 320px sweep 17->0
+934bfed0 [ui]: nothing cut off at 320px; check:narrow-overflow gate (e1b0fffc)
+12472894 [aso]: CREATE_VERSION opens the iOS version when none is open, then applies (b0b54c92)
 ecd24b2d [handoff]: R-NOW31 - gate at 189 calls; crons, cancel read, ASO on Tre's yes
 ad239116 [aso]: a read with no open iOS version exits 0 with a notice, not red (b0b54c92)
 88975fb3 [handoff]: R-NOW30 - coupon cap done, ASO ready
-5cf745b7 [aso]: dispatch-only workflow to set the App Store name + keywords on the open iOS version (b0b54c92)
-bc8724fd [stripe]: FRIENDSFOREVER26 capped at 20 total uses (14 left) via stripe-coupon-cap (49d21f71)
-18741aea [handoff]: R-NOW30 - d6d54c90 deployed on Tre's yes
-e545818d [handoff]: R-NOW30 - c6028af7 STS window note
-c6028af7 [ux]: Safe to Spend drawer leads with its window note; check asserts it is on screen on open (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
