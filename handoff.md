@@ -1,6 +1,21 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW31 (2026-10-07 ~09:45 ET, Ada -> successor; handoff gate at 189 calls). START HERE, IN ORDER:
+  1. RE-ARM session crons (they die with this tab):
+     a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
+     b. one-shot "41 11 7 10 *": db1d6813 PART 1 proof (R-NOW29 #1b text): plaid-daily-sync 13:00Z, unverified-nudge-daily
+        15:00Z, no-save-nudge-daily 15:30Z must log net._http_response 200 (not 403); all 200 -> ask done db1d6813.
+     c. one-shot "6 13 7 10 *": push-send post-deploy proof (d6d54c90, v16): push-send-daily 17:00Z must log 200.
+     d. "13 9,21 * * *" cancel buckets (R-NOW21 #1b) - ITS 09:13 READ WAS NOT RUN (gate fired); run it once now.
+     e. "17 9,21 * * *" free-link grant (R-NOW21 #1c).
+  2. b0b54c92 + 9ecc8edf (ASO rename, Tre approved): BLOCKED on an open iOS version. Tre was asked in the Ada tab: "create
+     6.8.2?". On yes: POST /v1/appStoreVersions (platform IOS, versionString 6.8.2, relationships.app 6762540239) via a
+     small addition to scripts/asc-aso-metadata.mjs (CREATE=1), then `gh workflow run aso-metadata.yml --ref main -f apply=true`,
+     require READ BACK match, close both.
+  3. e1b0fffc standing. Done today: lone-tile gate, empty-account grid sweep, first-run 16/16, demo pending row, STS window note.
+     Ideas: run check:*-contrast --more after any UI change; check:grid-orphans with GRID_EMAIL on an empty account.
+  Today's state is in R-NOW30 below. Admin fn stripe-coupon-cap exists (read default; confirm:true writes; 8G9evoSQ only).
 R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
   - Session crons re-armed in THIS tab: a7d22393 (11:37 nudge read), 4bf61fd4 (11:41 db1d6813 200-vs-403 proof),
     4561dcc4 (cancel buckets), 22fcf142 (free-link grant). RE-ARM if this tab is gone.
