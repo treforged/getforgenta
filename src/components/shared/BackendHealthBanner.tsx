@@ -57,33 +57,33 @@ export default function BackendHealthBanner() {
       {diagnosis && (
         // p-3 + a 1px border is a 13px gap against the 12px --radius: the corners do not share
         // space, so the button's own radius is free (corner-concentricity.md, gap >= r_outer).
-        <div className="pointer-events-auto flex flex-wrap w-full max-w-xl items-start gap-3 border border-border bg-card p-3 text-foreground shadow-lg rounded-lg">
+        <div className="pointer-events-auto flex w-full max-w-xl items-start gap-3 border border-border bg-card p-3 text-foreground shadow-lg rounded-lg">
           {diagnosis.kind === 'offline'
             ? <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             : <AlertTriangle className={`mt-0.5 h-4 w-4 shrink-0 ${diagnosis.kind === 'plaid' ? 'text-muted-foreground' : 'text-destructive-text'}`} aria-hidden="true" />}
-          {/* basis-[5.5rem] (rem, so it scales with text size): at normal size the text, Try again and
-              Dismiss share one row at 320; with large text Try again wraps instead of running into the text. */}
-          <div className="min-w-0 flex-1 basis-[5.5rem]">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium" data-testid="backend-health-headline">{diagnosis.headline}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">{diagnosis.detail}</p>
+            {/* UNDER the message, not beside it: beside it, at 320 with large text the message ran under
+                the button (check:health-banner). The Dismiss X keeps the top-right corner at every size. */}
+            {/* No retry while the DEVICE says it is offline: there is nothing to retry until it is
+                back, and the 'online' event re-checks by itself. Offline inferred from every status
+                host failing still gets one, because that inference can be wrong. */}
+            {snap?.online && (
+              <button
+                type="button"
+                disabled={snap?.checking}
+                onClick={() => {
+                  void store?.recheck();
+                  void queryClient.refetchQueries({ type: 'active' });
+                }}
+                className="mt-2 inline-flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors rounded-md disabled:opacity-60"
+              >
+                {snap?.checking && <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />}
+                Try again
+              </button>
+            )}
           </div>
-          {/* No retry while the DEVICE says it is offline: there is nothing to retry until it is
-              back, and the 'online' event re-checks by itself. Offline inferred from every status
-              host failing still gets one, because that inference can be wrong. */}
-          {snap?.online && (
-            <button
-              type="button"
-              disabled={snap?.checking}
-              onClick={() => {
-                void store?.recheck();
-                void queryClient.refetchQueries({ type: 'active' });
-              }}
-              className="shrink-0 inline-flex items-center gap-1.5 bg-secondary border border-border px-3 py-1.5 text-xs font-medium btn-press hover:border-primary/40 hover:text-primary transition-colors rounded-md disabled:opacity-60"
-            >
-              {snap?.checking && <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />}
-              Try again
-            </button>
-          )}
           <button
             type="button"
             aria-label="Dismiss"

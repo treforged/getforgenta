@@ -29,6 +29,7 @@
     "check:update-reminder": "node scripts/check-update-reminder.mjs",
     "check:card-advisor": "node scripts/check-card-advisor.mjs",
     "check:boot-failure": "node scripts/check-boot-failure.mjs",
+    "check:health-banner": "node scripts/check-health-banner.mjs",
     "check:narrow-overflow": "node scripts/check-narrow-overflow.mjs",
     "check:budget-tiles": "node scripts/check-budget-tiles.mjs",
     "check:grid-orphans": "node scripts/check-grid-orphans.mjs",
