@@ -10,7 +10,9 @@ R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
   - db1d6813 part 2 DONE 0c8a1277: escapeHtml on every PDF field, test red 3/5.
   - be864a14 DONE 92d2578a: nav highlight = gold icon + dot, full-contrast label; check:nav-highlight (new, red x2).
   - d6d54c90 (og-anniversary / push-send prod deploys): Sam says HOLD - Tre gives the yes in THIS tab (on Sam's list).
-  NEXT: e1b0fffc standing.
+  - e1b0fffc DONE ea15c0fe: check:*-contrast now composites translucent/oklab/oklch text (was skipped). 5 real strings fixed,
+    0 below AA x4 modes. 24 `text-muted-foreground/NN` sites remain in src; only those on the 6 walked routes were measured.
+  NEXT: e1b0fffc - sweep the remaining muted/NN text sites (grep, judge each: text vs decorative) on routes the probe does not walk.
 R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
      "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant (prompts in R-NOW21 #1).
