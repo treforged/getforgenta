@@ -20,6 +20,8 @@ R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
   - Safe-to-Spend "until Oct 9" with drawer rows past payday: NOT a mismatch (NEGATIVE on record). The horizon is
     intended (Sam 10-01 cond. 1). The drawer footnote reads "Checked through Oct 31, paychecks included...". Low point
     is before payday and equals the card. No change.
+  - e1b0fffc DONE c6028af7 (Sam's follow-up): that window note now LEADS the drawer (CalcDrawer `summary`), 1056px -> 118px
+    on 844; check:safe-to-spend asserts it is on screen on open (red on old drawer).
   NEXT: 11:37 + 11:41 reads (crons a7d22393, 4bf61fd4).
 R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
   1. RE-ARM the session crons (they die with this tab):
@@ -13771,7 +13773,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 08:00 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 08:32 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13791,14 +13793,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+c6028af7 [ux]: Safe to Spend drawer leads with its window note; check asserts it is on screen on open (e1b0fffc)
+8b7c0827 [handoff]: R-NOW30 - routes/nav green, STS horizon label negative
+a1d59120 [handoff]: R-NOW30 - first-save/one-banner green, demo pending row
+69e4bc88 [demo]: /demo shows Safe to Spend's "Pending charges" row; check:safe-to-spend asserts it (e1b0fffc)
+ab0b9c38 [handoff]: R-NOW30 - empty-account grid sweep and first-run walk green
+863254ad [test]: check:grid-orphans can walk an empty account (GRID_EMAIL); empty run clean 49/49 (e1b0fffc)
 8a14933f [handoff]: R-NOW30 - widgets closed, walk:empty 1440 lone tiles fixed
 499107be [ux]: empty Forecast hero and Garage tile span their row at desktop; walk:empty flags lone tiles (e1b0fffc)
-ced0cdb2 [handoff]: R-NOW29 - crons to re-arm (db1d6813 11:41 proof), e74da89c re-test next
-38923d9b [handoff]: R-NOW28 - Garage contrast
-fae22993 [a11y]: Garage gold buttons readable in light mode; contrast probe walks 8 more screens (e1b0fffc)
-810a71d5 [handoff]: R-NOW28 - helper-test series done
-9cb6c209 test: pin hasPinnedStatement (interest-saving statement eligibility) (e1b0fffc)
-1f45c6ce test: javascript: bypass forms refused; reviewer first-run shape pinned
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
