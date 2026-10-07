@@ -14,6 +14,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { unlinkAllConnections } from "../_shared/revoke-connections.ts";
+import { cronSecretMatches } from "../_shared/plaid-webhook-register.ts";
 
 const RC_EVENT = {
   INITIAL_PURCHASE:  "INITIAL_PURCHASE",
@@ -83,7 +84,7 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization") ?? "";
   const providedSecret = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (providedSecret !== secret) {
+  if (!cronSecretMatches(providedSecret, secret)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

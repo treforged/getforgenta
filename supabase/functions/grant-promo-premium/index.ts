@@ -15,6 +15,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Stripe from "https://esm.sh/stripe@22.1.1";
+import { cronSecretMatches } from "../_shared/plaid-webhook-register.ts";
 
 const PRICE_ID_YEARLY = Deno.env.get("STRIPE_PRICE_YEARLY") ?? "price_1TDyCe2cDVgFonAb5P637p2r";
 const PROMO_COUPON_ID = "forgenta-promo-1yr";
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization") ?? "";
   const providedKey = authHeader.replace(/^Bearer\s+/i, "").trim();
-  if (providedKey !== SUPABASE_SERVICE_ROLE_KEY) {
+  if (!cronSecretMatches(providedKey, SUPABASE_SERVICE_ROLE_KEY)) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },

@@ -26,3 +26,24 @@ describe('cron functions compare the secret in constant time', () => {
     expect(readers.filter((r) => /secret\s*[!=]==?\s*expected|expected\s*[!=]==?\s*secret/.test(r.src)).map((r) => r.name)).toEqual([]);
   });
 });
+
+// The same rule for the three non-cron secrets (security reel DcGb7DjPH_m #1, ask 3e970880, 2026-10-07):
+// grant-promo-premium compared the SERVICE-ROLE key with `!==`, reddit-scout and revenuecat-webhook their
+// webhook secrets. A plain `!==` exits at the first differing character, so response time leaks the prefix.
+const NAMED: Array<{ name: string; plain: RegExp }> = [
+  { name: 'grant-promo-premium', plain: /providedKey\s*[!=]==?\s*SUPABASE_SERVICE_ROLE_KEY|SUPABASE_SERVICE_ROLE_KEY\s*[!=]==?\s*providedKey/ },
+  { name: 'reddit-scout', plain: /secret\s*[!=]==?\s*REDDIT_SCOUT_SECRET|REDDIT_SCOUT_SECRET\s*[!=]==?\s*secret/ },
+  { name: 'revenuecat-webhook', plain: /providedSecret\s*[!=]==?\s*secret\b|\bsecret\s*[!=]==?\s*providedSecret/ },
+];
+
+describe('webhook and service-role secrets are compared in constant time', () => {
+  for (const { name, plain } of NAMED) {
+    const src = readFileSync(path.join(FN, name, 'index.ts'), 'utf-8');
+    it(`${name} calls cronSecretMatches`, () => {
+      expect(src).toMatch(/cronSecretMatches\(/);
+    });
+    it(`${name} has no plain equality on its secret`, () => {
+      expect(plain.test(src)).toBe(false);
+    });
+  }
+});

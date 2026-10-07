@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import Anthropic from "npm:@anthropic-ai/sdk";
+import { cronSecretMatches } from "../_shared/plaid-webhook-register.ts";
 
 const ANTHROPIC_API_KEY = Deno.env.get("ANTHROPIC_API_KEY")!;
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
@@ -752,7 +753,7 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok");
 
   const secret = req.headers.get("x-webhook-secret");
-  if (!secret || secret !== REDDIT_SCOUT_SECRET) {
+  if (!cronSecretMatches(secret, REDDIT_SCOUT_SECRET)) {
     return new Response("Unauthorized", { status: 401 });
   }
 
