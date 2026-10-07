@@ -234,5 +234,16 @@ if (!navCut.length) await done(2, 'CONTROL FAILED: found no bottom-nav labels to
 const navBad = navCut.filter((n) => n.cut);
 console.log(`nav labels: ${navCut.map((n) => n.t + (n.cut ? ` (CUT ${n.need}>${n.have}px)` : '')).join(', ')}`);
 findings += navBad.length;
+// Adjacent labels need daylight between them: at 320 with 150% text they touched ("HomeTransactions").
+const navGap = await page.evaluate(() => {
+  const r = [...document.querySelectorAll('nav a span[data-text-scale-exempt], nav a span.truncate')]
+    .map((s) => { const g = document.createRange(); g.selectNodeContents(s); const q = [...g.getClientRects()][0]; return q && q.width > 0 ? q : null; })
+    .filter(Boolean).sort((a, b) => a.left - b.left);
+  let min = Infinity; for (let i = 1; i < r.length; i += 1) min = Math.min(min, r[i].left - r[i - 1].right);
+  return { n: r.length, min: Math.round(min * 10) / 10 };
+});
+console.log(`nav label gaps: ${navGap.n} labels, smallest gap ${navGap.min}px`);
+if (navGap.n < 2) await done(2, 'CONTROL FAILED: fewer than 2 nav labels to measure gaps between.');
+if (navGap.min < 4) { findings += 1; console.log(`   FINDING: two nav labels sit ${navGap.min}px apart (need >= 4)`); }
 if (SIGNED_IN) console.log(`signed in (walk account); ${blocked} write(s) aborted in-browser`);
 await done(findings ? 1 : 0, findings ? `FAIL: ${findings} cut text run(s) at ${WIDTH}px.` : `PASS: 0 cut text runs on ${ROUTES.length} routes at ${WIDTH}px${TEXT_SCALE !== 100 ? `, text ${TEXT_SCALE}%` : ''}.`);

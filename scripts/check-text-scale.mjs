@@ -123,7 +123,7 @@ const before = await page.evaluate((sel) => {
     // Recharts' offscreen text-measuring node (top: -20000px), never on screen. Named by its own id (66f3467e).
     if (el.closest('#recharts_measurement_span')) continue;
     out.push({ size: parseFloat(getComputedStyle(el).fontSize), text: t.slice(0, 34),
-                where: `${el.tagName}.${String(el.className).slice(0, 40)}`,
+                where: `${el.tagName}.${String(el.className).slice(0, 40)}`, exempt: !!el.closest('[data-text-scale-exempt]'),
                 ctx: (el.parentElement ? el.parentElement.outerHTML : '').slice(0, 260) });
   }
   return out;
@@ -145,7 +145,7 @@ const readAfter = () => page.evaluate((sel) => {
     // Recharts' offscreen text-measuring node (top: -20000px), never on screen. Named by its own id (66f3467e).
     if (el.closest('#recharts_measurement_span')) continue;
     out.push({ size: parseFloat(getComputedStyle(el).fontSize), text: t.slice(0, 34),
-                where: `${el.tagName}.${String(el.className).slice(0, 40)}`,
+                where: `${el.tagName}.${String(el.className).slice(0, 40)}`, exempt: !!el.closest('[data-text-scale-exempt]'),
                 ctx: (el.parentElement ? el.parentElement.outerHTML : '').slice(0, 220) });
     // Horizontal overflow of its OWN box: the classic Dynamic Type failure.
     //
@@ -226,11 +226,15 @@ if (n < 20) fail(2, `sampled only ${n} text element(s) on /dashboard - too few t
 
 let scaled = 0;
 let compared = 0;
+let exempt = 0;
 const pinned = [];
 const wasByText = new Map(uniqueBefore.map((b) => [b.text, b]));
 for (const r of onlyUnique(rows)) {
   const was = wasByText.get(r.text);
   if (was === undefined) continue;                    // not present before; nothing to compare
+  // A DECLARED exemption (data-text-scale-exempt, with its reason at the call site), counted and
+  // printed so it can never hide: the bottom-bar labels follow iOS, whose tab bar does not scale.
+  if (r.exempt) { exempt += 1; continue; }
   compared += 1;
   const ratio = r.size / was.size;
   if (ratio > 1.4) scaled += 1;
@@ -241,7 +245,7 @@ for (const r of onlyUnique(rows)) {
 }
 
 console.log(`root ${ROOT_BEFORE}px -> ${(ROOT_BEFORE * 1.5).toFixed(1)}px`);
-console.log(`sampled ${n}, compared ${compared}, scaled ${scaled}, pinned ${pinned.length}  (${dropped} dropped as non-unique text)`);
+console.log(`sampled ${n}, compared ${compared}, scaled ${scaled}, pinned ${pinned.length}, exempt ${exempt} (declared)  (${dropped} dropped as non-unique text)`);
 
 // ⚠️ "scaled > 0" WAS NOT A CONTROL, AND IT PASSED WHILE THE GATE MEASURED ALMOST NOTHING.
 // Pairs are matched by their TEXT, and a pair whose text moved between the two reads is skipped -

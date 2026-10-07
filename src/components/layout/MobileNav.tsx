@@ -138,7 +138,11 @@ export default function MobileNav() {
                   </span>
                 )}
               </div>
-              <span className="truncate max-w-full text-[10px] tracking-tight min-[360px]:text-xs min-[360px]:tracking-normal">{item.label}</span>
+              {/* CAPPED, NOT SCALED, on purpose: iOS tab bars do not grow their labels with Dynamic Type
+                  (they use the Large Content Viewer). Grown, five labels at 150% touched with no gap
+                  at 320. min(rem, px) still shrinks with smaller text; check:text-scale counts this
+                  as a DECLARED exemption. */}
+              <span data-text-scale-exempt="ios-tab-bar" className="truncate max-w-full text-[min(0.625rem,10px)] tracking-tight min-[360px]:text-[min(0.75rem,12px)] min-[360px]:tracking-normal">{item.label}</span>
             </Link>
           );
         })}
