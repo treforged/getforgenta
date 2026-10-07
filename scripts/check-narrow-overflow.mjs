@@ -16,15 +16,18 @@
  * TEXT_SCALE=150 sets the root font to 150% (the measurable half of Dynamic Type).
  * VIEW_MODE=simple (needs SIGNED_IN=1) forces the Simple view by rewriting the profile read.
  * SIGNED_IN=1 reads the walk account instead of /demo; table writes are aborted, rpc passes.
- * DIALOGS=1 (on /demo only; refused with SIGNED_IN) also PRESSES every visible button on each route and,
+ * DIALOGS=1 also PRESSES every visible button on each route and,
  *   when a role=dialog/alertdialog/menu/listbox appears, runs the same cut check inside it. The app opens its
  *   modals from plain buttons (no aria-haspopup anywhere), so discovery is by pressing, not by attribute.
+ *   With SIGNED_IN=1 every table/functions/storage write is aborted and an rpc passes only when STABLE or
+ *   IMMUTABLE (scripts/lib/read-only-rpcs.mjs, walk:press's guard), so a press cannot write to the walk account.
  *   Buttons named like delete/remove/sign out/reset are skipped. Control: a planted clipped string inside a
  *   planted role=dialog must be flagged, and at least one press must open a dialog.
  *   It never presses anything INSIDE a dialog, so nested dialogs and form steps are not read.
  * Does NOT cover: vertical clipping, nested dialogs, or whether a wrap looks right.
  */
 import { mkdirSync } from 'node:fs';
+import { readOnlyRpcs } from './lib/read-only-rpcs.mjs';
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
 const WIDTH = Number(process.env.WIDTH || 320);
@@ -59,10 +62,14 @@ const browser = await chromium.launch();
 const done = async (code, msg) => { await browser.close(); (code ? console.error : console.log)(msg); process.exit(code); };
 const ctx = await browser.newContext({ viewport: { width: WIDTH, height: 568 }, deviceScaleFactor: 2 });
 let blocked = 0;
+const DIALOG_RPC_GUARD = process.env.DIALOGS === '1' && SIGNED_IN ? readOnlyRpcs() : null;
+if (DIALOG_RPC_GUARD && (!DIALOG_RPC_GUARD.has('leaderboard_global_stats') || DIALOG_RPC_GUARD.has('claim_milestone_achievements'))) fail(2, 'CONTROL FAILED - the read-only rpc parse disagrees with pg_proc.');
 if (SIGNED_IN) await ctx.route(/supabase\.co\/(rest|functions|storage)\//, (route) => {
   const m = route.request().method();
   const rpc = /\/rest\/v1\/rpc\//.test(route.request().url());
-  if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS' || rpc) return route.continue();
+  if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return route.continue();
+  // DIALOGS presses every button, so an rpc passes only when it CANNOT write (STABLE/IMMUTABLE, walk:press's guard).
+  if (rpc && (!DIALOG_RPC_GUARD || DIALOG_RPC_GUARD.has((/\/rpc\/(\w+)/.exec(route.request().url()) || [])[1]?.toLowerCase()))) return route.continue();
   blocked += 1; return route.abort();
 });
 // TEXT_SCALE=150: the root font at 150%, the half of Dynamic Type a browser can measure (as check:text-scale).
@@ -232,7 +239,6 @@ for (const route of ROUTES) {
 }
 if (unstable) await done(2, `${unstable} route(s) never settled.`);
 if (process.env.DIALOGS === '1') {
-  if (SIGNED_IN) await done(2, 'DIALOGS=1 presses every button, so it runs on /demo only; drop SIGNED_IN.');
   const OVERLAY = '[role="dialog"], [role="alertdialog"], [role="menu"], [role="listbox"]';
   const TRIGGER = 'button:visible';
   const SKIP = /delete|remove|sign out|log ?out|reset|disconnect|cancel subscription/i;
@@ -247,38 +253,50 @@ if (process.env.DIALOGS === '1') {
   await page.evaluate(() => document.querySelectorAll('[data-planted]').forEach((b) => b.remove()));
   if (!dctl.some((l) => l.includes('PLANTEDDIALOG'))) await done(2, 'CONTROL FAILED: planted cut inside a role=dialog was not flagged.');
   console.log('control: planted cut inside a dialog flagged');
-  let opened = 0; let pressed = 0;
+  let opened = 0; let pressed = 0; const missed = []; const heads = new Set();
   for (const route of ROUTES) {
     await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
     if ((await settledRead()) === null) { console.log(`${route} dialogs: UNSTABLE`); unstable += 1; continue; }
-    const n = await page.locator(TRIGGER).count();
+    // Names first, then press BY NAME: pressing by index drifted after every reload (120 of ~255 pressed).
+    const all = await page.locator(TRIGGER).evaluateAll((els) => els.map((el) => (el.getAttribute('aria-label') || el.innerText || '').trim().replace(/\s+/g, ' ')));
+    const todo = [...new Set(all.filter((x) => x && !SKIP.test(x)))];
+    const n = all.length;
     const names = [];
-    for (let i = 0; i < n; i += 1) {
-      await closeAll();
-      const t = page.locator(TRIGGER).nth(i);
-      const name = ((await t.getAttribute('aria-label').catch(() => null)) || (await t.innerText().catch(() => '')) || '?').trim().replace(/\s+/g, ' ').slice(0, 30);
-      if (SKIP.test(name)) continue;
-      try { await t.click({ timeout: 3000 }); } catch { continue; }
+    for (const want of todo) {
+      // A FRESH page before every press: carrying state between presses (a switched tab, a leftover
+      // overlay) left 68-82 of ~185 buttons unpressable on the first by-name runs.
+      await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(2500); await closeAll();
+      // Tag the first visible button whose label (read the SAME way as above) is `want`, then press the tag.
+      // Matching on the accessible name instead missed 107 of 185: it differs from aria-label/innerText.
+      const tagged = await page.locator(TRIGGER).evaluateAll((els, w) => {
+        document.querySelectorAll('[data-ovp]').forEach((e) => e.removeAttribute('data-ovp'));
+        const hit = els.find((el) => (el.getAttribute('aria-label') || el.innerText || '').trim().replace(/\s+/g, ' ') === w);
+        if (hit) hit.setAttribute('data-ovp', '1'); return Boolean(hit);
+      }, want);
+      if (!tagged) { missed.push(`${route} "${want.slice(0, 30)}"`); continue; }
+      try { await page.locator('[data-ovp="1"]').click({ timeout: 3000 }); } catch { missed.push(`${route} "${want.slice(0, 30)}"`); continue; }
       pressed += 1;
       await page.waitForTimeout(900);
-      if (!(await page.locator(OVERLAY).count())) {
-        if (!new URL(page.url()).pathname.startsWith(route)) { await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2500); }
-        continue;
-      }
-      opened += 1; names.push(name);
+      if (!(await page.locator(OVERLAY).count())) continue;
+      // Name the dialog by ITS OWN heading, so the count of distinct dialogs is measured, not inferred.
+      const head = await page.locator(OVERLAY).last().evaluate((d) => {
+        const by = d.getAttribute('aria-labelledby'); const lab = by && document.getElementById(by);
+        return ((lab && lab.textContent) || d.getAttribute('aria-label') || d.querySelector('h1,h2,h3')?.textContent || '(no heading)').trim().replace(/\s+/g, ' ').slice(0, 40);
+      }).catch(() => '(gone)');
+      opened += 1; names.push(`${want.slice(0, 24)} -> ${head}`); heads.add(head);
       const cut = [...new Set([...await page.evaluate(findCut, OVERLAY), ...await page.evaluate(findCut, OVERLAY)])];
       if (cut.length) {
-        findings += cut.length; console.log(`${route} [${name}]: ${cut.length} cut`); for (const l of cut) console.log(`   ${l}`);
-        await page.screenshot({ path: `test-results/narrow-overflow/dialog-${route.slice(1)}-${i}-${WIDTH}.png` });
+        findings += cut.length; console.log(`${route} [${want.slice(0, 30)} -> ${head}]: ${cut.length} cut`); for (const l of cut) console.log(`   ${l}`);
+        await page.screenshot({ path: `test-results/narrow-overflow/dialog-${route.slice(1)}-${opened}-${WIDTH}.png` });
       }
-      await closeAll();
-      if (!new URL(page.url()).pathname.startsWith(route)) { await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded' }); await page.waitForTimeout(2500); }
     }
     await closeAll();
     console.log(`${route}: ${n} button(s), opened: ${names.length ? names.join('; ') : 'none'}`);
   }
-  console.log(`dialogs: ${pressed} pressed, ${opened} opened and measured`);
-  if (!opened) await done(2, 'CONTROL FAILED: no aria-haspopup control opened anything, so no dialog was measured.');
+  console.log(`dialogs: ${pressed} pressed, ${missed.length} not pressable, ${opened} opened and measured, ${heads.size} distinct: ${[...heads].join(' | ')}`);
+  if (missed.length) console.log(`not pressable: ${missed.slice(0, 15).join(', ')}${missed.length > 15 ? ', ...' : ''}`);
+  if (!opened) await done(2, 'CONTROL FAILED: no pressed button opened anything, so no dialog was measured.');
   if (unstable) await done(2, `${unstable} route(s) never settled before their dialogs.`);
 }
 // Bottom-nav labels: the sweep above skips ellipsis text, so a truncated "Tran…" passes it. A nav
