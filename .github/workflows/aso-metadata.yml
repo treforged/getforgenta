@@ -2,7 +2,8 @@ name: App Store listing name + keywords
 
 # Ask b0b54c92 (Tre approved 10-07). Dispatch only - never on a push or a schedule.
 # apply=false READS the live and editable listing; apply=true writes the name and keywords to the
-# OPEN iOS version and reads them back. It never creates or submits a version.
+# OPEN iOS version and reads them back. create_version (with apply) first opens that iOS version
+# when none is open (Sam 10-07; reversible before submission). It never submits a version.
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +11,10 @@ on:
         description: 'Write the new name and keywords (false = read only)'
         type: boolean
         default: false
+      create_version:
+        description: 'With apply: create this iOS version first if none is open (e.g. 6.8.2). Empty = never create.'
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -29,4 +34,5 @@ jobs:
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
           APPLY: ${{ inputs.apply && '1' || '0' }}
+          CREATE_VERSION: ${{ inputs.create_version }}
         run: node scripts/asc-aso-metadata.mjs

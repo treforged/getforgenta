@@ -9,8 +9,13 @@
  *   APPLY=1 node scripts/asc-aso-metadata.mjs    sets the name on the EDITABLE app info and the
  *                                                keywords on the EDITABLE iOS version, then reads both back.
  *
- * It never creates a version and never submits anything: the change ships with the next iOS
- * version Tre submits. If no editable version exists it says so and exits 3.
+ *   CREATE_VERSION=6.8.2 APPLY=1 ...             when NO iOS version is open, first creates that version
+ *                                                (Prepare for Submission; Sam 10-07, reversible: an
+ *                                                unsubmitted version can be deleted), then applies.
+ *
+ * It never submits anything: the change ships with the next iOS version Tre submits. If no
+ * editable version exists (and CREATE_VERSION is unset) it says so and exits 3.
+ * Undo a created version: App Store Connect > the version > Delete Version (only before submission).
  * Exits: 0 ok (a READ with nothing open is 0 + a notice) . 1 a write or read-back failed . 2 could not read . 3 APPLY with nothing open.
  * Undo: rerun with NAME/KEYWORDS set to the old values printed by the READ.
  */
@@ -23,10 +28,13 @@ const NAME = process.env.NAME || 'Forgenta: Budget Planner';
 const KEYWORDS = process.env.KEYWORDS
   || 'budgeting,paycheck,payday,bills,tracker,debt,forecast,expense,money,cash,calendar,savings,simple';
 const APPLY = process.env.APPLY === '1';
+const CREATE_VERSION = (process.env.CREATE_VERSION || '').trim();
 
 const die = (code, msg) => { console.error(`FAILED: ${msg}`); process.exit(code); };
 if (NAME.length > 30) die(2, `name is ${NAME.length} chars; Apple allows 30.`);
 if (KEYWORDS.length > 100) die(2, `keywords are ${KEYWORDS.length} chars; Apple allows 100.`);
+if (CREATE_VERSION && !/^\d+\.\d+(\.\d+)?$/.test(CREATE_VERSION)) die(2, `CREATE_VERSION "${CREATE_VERSION}" is not like 6.8.2.`);
+if (CREATE_VERSION && !APPLY) die(2, 'CREATE_VERSION needs APPLY=1: a READ never writes.');
 
 const keyId = process.env.APP_STORE_CONNECT_API_KEY_ID;
 const issuerId = process.env.APP_STORE_CONNECT_API_ISSUER_ID;
@@ -66,17 +74,17 @@ if (!app) die(2, `no app with bundle ${BUNDLE}.`);
 console.log(`app ${app.id} ${app.attributes.name}`);
 
 // App info: the one NOT live is editable (Apple keeps a live and, while a version is open, an editable one).
-const infos = await asc('GET', `/v1/apps/${app.id}/appInfos`);
+let infos = await asc('GET', `/v1/apps/${app.id}/appInfos`);
 if (!infos.ok) die(2, `appInfos read ${infos.status}: ${infos.error}`);
 const LIVE = new Set(['READY_FOR_DISTRIBUTION', 'READY_FOR_SALE', 'REPLACED_WITH_NEW_INFO']);
 for (const i of infos.json.data) console.log(`appInfo ${i.id} state=${i.attributes.state ?? i.attributes.appStoreState}`);
-const editInfo = infos.json.data.find((i) => !LIVE.has(i.attributes.state ?? i.attributes.appStoreState));
+let editInfo = infos.json.data.find((i) => !LIVE.has(i.attributes.state ?? i.attributes.appStoreState));
 
-const vers = await asc('GET', `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=10`);
+let vers = await asc('GET', `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=10`);
 if (!vers.ok) die(2, `versions read ${vers.status}: ${vers.error}`);
 const EDITABLE = new Set(['PREPARE_FOR_SUBMISSION', 'DEVELOPER_REJECTED', 'REJECTED', 'METADATA_REJECTED', 'INVALID_BINARY']);
 for (const v of vers.json.data.slice(0, 4)) console.log(`version ${v.attributes.versionString} state=${v.attributes.appVersionState ?? v.attributes.appStoreState}`);
-const editVer = vers.json.data.find((v) => EDITABLE.has(v.attributes.appVersionState ?? v.attributes.appStoreState));
+let editVer = vers.json.data.find((v) => EDITABLE.has(v.attributes.appVersionState ?? v.attributes.appStoreState));
 
 async function infoLoc(infoId) {
   const r = await asc('GET', `/v1/appInfos/${infoId}/appInfoLocalizations`);
@@ -93,6 +101,21 @@ const liveVer = vers.json.data.find((v) => (v.attributes.appVersionState ?? v.at
 const liveVLoc = liveVer ? await verLoc(liveVer.id) : null;
 console.log(`LIVE keywords="${liveVLoc?.attributes.keywords}"`);
 
+if (!editVer && CREATE_VERSION) {
+  if (vers.json.data.some((v) => v.attributes.versionString === CREATE_VERSION)) die(1, `version ${CREATE_VERSION} already exists and is not editable.`);
+  const c = await asc('POST', '/v1/appStoreVersions', { data: { type: 'appStoreVersions',
+    attributes: { platform: 'IOS', versionString: CREATE_VERSION },
+    relationships: { app: { data: { type: 'apps', id: app.id } } } } });
+  if (!c.ok) die(1, `version create ${c.status}: ${c.error}`);
+  console.log(`CREATED iOS version ${CREATE_VERSION} id=${c.json.data.id} state=${c.json.data.attributes.appVersionState ?? c.json.data.attributes.appStoreState}`);
+  // Re-read: Apple opens an editable app info alongside the new version.
+  infos = await asc('GET', `/v1/apps/${app.id}/appInfos`);
+  vers = await asc('GET', `/v1/apps/${app.id}/appStoreVersions?filter[platform]=IOS&limit=10`);
+  if (!infos.ok || !vers.ok) die(1, 'could not re-read after creating the version.');
+  editInfo = infos.json.data.find((i) => !LIVE.has(i.attributes.state ?? i.attributes.appStoreState));
+  editVer = vers.json.data.find((v) => EDITABLE.has(v.attributes.appVersionState ?? v.attributes.appStoreState));
+  if (editVer?.attributes.versionString !== CREATE_VERSION) die(1, `after create, the editable version is ${editVer?.attributes.versionString ?? 'none'}, not ${CREATE_VERSION}.`);
+}
 if (!editInfo || !editVer) {
   console.log(`editable app info: ${editInfo?.id ?? 'none'} . editable iOS version: ${editVer?.attributes.versionString ?? 'none'}`);
   const msg = 'no iOS version in Prepare for Submission - nothing to apply. The name and keywords change only on an open version.';
