@@ -13,6 +13,7 @@ R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
   - e1b0fffc DONE ea15c0fe: check:*-contrast now composites translucent/oklab/oklch text (was skipped). 5 real strings fixed,
     0 below AA x4 modes. 24 `text-muted-foreground/NN` sites remain in src; only those on the 6 walked routes were measured.
   - e1b0fffc DONE ba00f5a9: 15 muted/NN text sites repointed; gate refuses muted/NN text (icons/aria-hidden exempt). b0f6b587 dropped (intel -> Sam).
+  - e1b0fffc DONE 391949fb (landing /60 labels -> muted) + 19f5d00e check:landing-contrast (red 4.21:1).
   NEXT: db1d6813 close after 72f96fc2 (11:41 ET); then next e1b0fffc improvement.
 R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
