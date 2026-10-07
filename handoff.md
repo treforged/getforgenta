@@ -1,6 +1,16 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
+  - Session crons re-armed: 5e9fe77d (11:37 nudge read), 9bbde3b9 (cancel buckets), d24c21b9 (free-link grant),
+    72f96fc2 (11:41 ET: db1d6813 part 1 POSITIVE proof - plaid 13:00Z, unverified 15:00Z, no-save 15:30Z must log 200).
+    Session-only: RE-ARM all four if this tab is gone.
+  - db1d6813 part 1: verify_jwt still false on all 6 (list_edge_functions 04:00). No run since the deploy yet (revenue-push
+    ran 05:30Z, BEFORE the ~07:15Z deploy). Close db1d6813 when 72f96fc2 reads 200s.
+  - db1d6813 part 2 DONE 0c8a1277: escapeHtml on every PDF field, test red 3/5.
+  - be864a14 DONE 92d2578a: nav highlight = gold icon + dot, full-contrast label; check:nav-highlight (new, red x2).
+  - d6d54c90 (og-anniversary / push-send prod deploys): Sam says HOLD - Tre gives the yes in THIS tab (on Sam's list).
+  NEXT: e1b0fffc standing.
 R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
      "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant (prompts in R-NOW21 #1).
@@ -13718,7 +13728,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 02:23 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 03:17 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13738,14 +13748,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+4389b56b [handoff]: R-NOW27 - cron-secret verify, drift to Sam, exportPdf next
+9582465b [functions]: cron secrets compared in constant time in 8 functions (db1d6813, part 1)
+6e160de2 [db]: drop the never-applied promo giveaway objects (f5b0efcb)
+0ec7f147 [ci]: pin third-party actions to commit SHAs (8b75ecb8)
+9020480c [ui]: faded gold text is legible in light mode; check:build-badges renders and measures it
+3c089abd [ui]: green text uses the legible green token too (e1b0fffc)
 06e521b1 [budget]: check:spent-of-planned measures the rendered red "over" line in both themes
 26bc6a94 [handoff]: R-NOW26 - over-plan contrast fix, two rows blocked
-333f12d7 [budget]: "over plan" text uses the legible red in dark mode (e1b0fffc)
-cdb6659f [handoff]: R-NOW26 - Lock green, build-time App Store rating live
-12515d9c [seo]: add the LIVE App Store rating to the JSON-LD at build time
-8c7603cf [handoff]: R-NOW25 item 2 verified live
-6c83032b [handoff]: R-NOW25 - deploy-skip fix to verify, sim Lock to confirm, SEO remainder
-8ebba36e [deploy]: ignoreCommand diffs against the last DEPLOYED sha, not HEAD^ - pushes ending in a docs commit skipped every code change in them
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
