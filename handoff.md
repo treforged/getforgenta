@@ -10,7 +10,11 @@ R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
   - e1b0fffc DONE 499107be: walk:empty at 1440 (first desktop run) found 2 LONE TILES (empty Forecast hero in half a row,
     empty Garage tile 423/1296px); both fixed; walk:empty now fails on a lone tile (planted control, red on pre-fix).
   - Blockers re-tested 08:00: 798c0ed9 (2 users/week), b573d720 (0 RC subs), 0006cc41 (0 paid subs), 5ee1669a (MacBook).
-  NEXT: 11:37 + 11:41 reads; then next e1b0fffc idea: walk:first-run or check:grid-orphans with an EMPTY account.
+  - check:grid-orphans on an EMPTY account (new GRID_EMAIL override): 49 reads, 0 findings, controls 3/3.
+  - walk:first-run REOPEN=1 on a fresh throwaway: 16/16, 19 writes 0 refused. Its "visible dialogs=2" was a probe
+    artefact: a reload probe shows ONE dialog (App tour) and the frame shows one. Throwaways deleted (0 rows each).
+  NEXT: 11:37 + 11:41 reads; then e1b0fffc: check:first-save / check:one-banner re-run, or Safe-to-Spend on an
+  account with a pending bill (unit-owned only today).
 R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
   1. RE-ARM the session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
@@ -13761,7 +13765,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 07:44 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 08:00 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13781,14 +13785,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8a14933f [handoff]: R-NOW30 - widgets closed, walk:empty 1440 lone tiles fixed
+499107be [ux]: empty Forecast hero and Garage tile span their row at desktop; walk:empty flags lone tiles (e1b0fffc)
 ced0cdb2 [handoff]: R-NOW29 - crons to re-arm (db1d6813 11:41 proof), e74da89c re-test next
 38923d9b [handoff]: R-NOW28 - Garage contrast
 fae22993 [a11y]: Garage gold buttons readable in light mode; contrast probe walks 8 more screens (e1b0fffc)
 810a71d5 [handoff]: R-NOW28 - helper-test series done
 9cb6c209 test: pin hasPinnedStatement (interest-saving statement eligibility) (e1b0fffc)
 1f45c6ce test: javascript: bypass forms refused; reviewer first-run shape pinned
-83230a05 [handoff]: R-NOW28 - content-filter tests
-18e5bc4c test: pin the profanity filter and link safety check (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
