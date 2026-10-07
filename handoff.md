@@ -8,8 +8,10 @@ R-NOW24 (2026-10-06 late, Ada getforgenta-8d). R-NOW23 items 1-2 DONE:
     Ruby + Sam told.
   - eac44776 dark-mode.md source audit: 3 violations -> de23e8d4 (untinted :root bg, destructive fill darker in dark,
     no lighter dark body weight). Sent to Sam.
-  - NEXT, in order: (1) native glass OVER the WKWebView (new ask, Tre: "can we not fix it?") - CI sim frame proof;
-    (2) de23e8d4 dark-mode fixes with rendered frames both themes + contrast gates.
+  - f5608641 glass: cd1fc1bf pushed (chrome overlays scroller under the sim flag only). Sim run 37568011814 dispatched;
+    compare its 04-glass-strip.png with run 36804677471's grey frame, send both to Sam, close f5608641.
+  - de23e8d4 DONE (pushed): tinted :root, destructive 0 55% 45%, dark letter-spacing. 66f3467e = pre-existing
+    check:text-scale "$0" pinned span.
 R-NOW23 (2026-10-06 ~23:20 ET, Ada -> successor; handoff gate). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons from R-NOW22 if this is a new tab (b7ab5a72 one-shot "37 11 7 10 *" nudge read;
      "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant). Their prompts are in R-NOW21 #1.
