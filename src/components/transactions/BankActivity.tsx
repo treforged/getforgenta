@@ -1163,7 +1163,7 @@ export default function BankActivity() {
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-2 pl-8">
+              <div className="flex flex-wrap items-center gap-2 pl-8 [&_.btn]:whitespace-normal [&_.btn]:h-auto [&_.btn]:text-left">
                 {/* ⚠️ NO CATEGORY PICKER ON A TRANSFER, and that is the attribution half of this
                     slice rather than tidiness. Every option in that list is a kind of spending or
                     earning, so any answer it could give about a movement between your own accounts

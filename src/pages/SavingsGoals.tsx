@@ -995,10 +995,11 @@ export default function SavingsGoals({ embedded = false, simple = false }: { emb
 
       {/* Label and figure share one line from `sm` (ask 1be673ad): stacked and centred, each tile
           was 641x87 at 1440 holding a 100px label and figure in its middle. On a phone they stay
-          stacked, because a 175px tile cannot fit both on one line. */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success-text">{formatCurrency(totalSaved)}</p></div>
-        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3"><p className="text-xs text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget)}</p></div>
+          stacked, because a 175px tile cannot fit both on one line.
+          @container: large text on a narrow phone (~11.8rem) puts each total on its own row. */}
+      <div className="grid grid-cols-2 gap-3 @container">
+        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3 @max-[12.5rem]:col-span-2"><p className="text-xs text-muted-foreground uppercase">Total Saved</p><p className="text-lg font-display font-bold text-success-text">{formatCurrency(totalSaved)}</p></div>
+        <div className="card-forged p-3 sm:px-4 text-center sm:text-left sm:flex sm:items-baseline sm:justify-between sm:gap-3 @max-[12.5rem]:col-span-2"><p className="text-xs text-muted-foreground uppercase">Total Target</p><p className="text-lg font-display font-bold text-foreground">{formatCurrency(totalTarget)}</p></div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

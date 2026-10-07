@@ -165,7 +165,7 @@ export default function Vehicles() {
             const linkedAccount = cf.linked_account ? accountMap[cf.linked_account] : null;
             const saved = isLoan ? 0 : getCarFundSaved(cf, fundingAccountId, linkedAccount ? linkedAccount.balance : null);
             return (
-              <div key={cf.id} className="card-forged p-4 flex items-center justify-between gap-3">
+              <div key={cf.id} className="card-forged p-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
                   <Car size={16} className={`shrink-0 ${isLoan ? 'text-success-text' : 'text-primary'}`} />
                   <div className="min-w-0">

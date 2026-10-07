@@ -391,7 +391,7 @@ export default function DebtPayoff() {
           The title takes the slack (`flex-1`) and its subtitle already truncates, so the actions
           keep their intrinsic width and stay pinned right at every width. */}
       <div>
-      <div className="flex items-start sm:items-center justify-between gap-2">
+      <div className="flex flex-wrap items-start sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <div className="min-w-0">
             {/* Section label, not a hero: the hero number on the cards tab outranks the page
