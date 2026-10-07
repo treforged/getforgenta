@@ -1,6 +1,14 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW36 (2026-10-07 ~18:00 ET, Ada getforgenta-d1). R-NOW35 DONE: f1fed993 dialog arm v2 green (demo 16 distinct dialogs,
+  signed in 12, 0 cut). Also: e1ab02c5 + 3e970880 CLOSED (constant-time secrets; grant-promo-premium v24, revenuecat v45).
+  INCIDENT: the CLI deploy re-created DELETED reddit-scout (88 s, real body) -> now a 410 tombstone v2 (Sam: keep it).
+  f6639c60: `npm run deploy:fn` refuses DEPLOY-DENY.json / tombstoned folders - USE IT for every function deploy.
+  12bab074 CAA BLOCKED (Sam agreed: no DNS tool, risk to the 11-21 cert renewal). Crons armed in this tab: 34776dcb,
+  ec1a70bd, d7def790, bf36e8d3 - RE-ARM if the tab is gone (prompts in R-NOW33 #1).
+  NEXT (e1b0fffc): two-step dialog press - open each tab/disclosure, then press what it reveals, to reach Garage
+  build/maintenance, StatementImport, ShareCard, BuyIt, LumpSum. One browser at a time.
 R-NOW35 (2026-10-07 ~17:35 ET, Ada getforgenta-d1). e133050a pushed (DIALOGS=1 v1: 120 pressed, 37 opened, 0 cut).
   UNCOMMITTED, NOT YET GREEN: scripts/check-narrow-overflow.mjs (v2: SIGNED_IN allowed with walk:press's rpc guard, press
   BY TAG not index, dialog named by its own heading, a fresh page before EVERY press), scripts/lib/read-only-rpcs.mjs
@@ -13845,17 +13853,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 17:23 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 17:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (10 file(s)):**
+- **Uncommitted (9 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M scripts/check-narrow-overflow.mjs
  M scripts/walk-press-every-control.mjs
  M supabase/.temp/cli-latest
@@ -13869,14 +13876,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+f6639c60 [security]: deploy:fn refuses deleted or tombstoned edge functions before deploying anything
+6cb0a08c [security]: record that reddit-scout was re-created by a CLI deploy and tombstoned again 88 s later (3e970880)
+e1ab02c5 [security]: compare the service-role key and two webhook secrets in constant time (3e970880)
+1510099c [handoff]: R-NOW35 - dialog arm v2 uncommitted, fresh-page run killed for low memory (e1b0fffc)
 e133050a test: check:narrow-overflow DIALOGS=1 presses every button on /demo and measures what opens (e1b0fffc)
 d92cb2df [handoff]: R-NOW34 - crons re-armed in getforgenta-d1; strip large-text fix 7ea393e9 (e1b0fffc)
 7ea393e9 [ui]: Net Worth strip tiles go two across when large text cannot fit four, so CC Debt is not cut off (e1b0fffc)
 4f1bee6e [handoff]: R-NOW33 - successor re-arms 10-08 crons; e1b0fffc standing
-89b19b4b test: check:health-banner THEME=dark|light measures the notice's contrast as numbers (e1b0fffc)
-ffc7f403 [ui]: Forecast title row wraps, so large text at tablet width cannot run the title under Guide (e1b0fffc)
-05df1e57 [handoff]: R-NOW32 - 150% text, Simple view, notice, nav cap; crons for 10-08
-18baaf08 [nav]: bottom-bar labels capped like an iOS tab bar, so large text cannot make them touch (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
