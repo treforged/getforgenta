@@ -395,6 +395,8 @@ section states reasoning, not measurement, and says so.
   $12.34 and Shopping $30.00 ($50 less a $20 refund); a $500 TRANSFER_OUT and a $900 LOAN_PAYMENTS row must not count. VIEW_MODE=advanced:
   the same card (both views since 2026-10-06). Red with the provider exclusion removed ($1,442.34, exit 1). SPENT reads BANK rows: measured 10-05, bank charges never reach
   `transactions` (it holds future one-offs). Rules + 18 unit tests: src/lib/budget-spent.ts (red under 4 mutants).
+  CONTRAST ARM (10-07): Dining pushed over plan, the red "over" line measured against its composited background in dark and
+  light at 390 (AA 4.5): 5.85:1 / 6.32:1. Red on the fill red (`text-destructive`): 3.02:1 dark, exit 1.
 - `npm run check:avg-spend` - Account > Analytics "Avg Monthly Spend" reads the BANK where it has rows (ask 0ac9c4b3), 1440,
   signed in, full synced_transactions read answered in-browser: must read $400.00 (two months of $1,000, $5,000 transfers
   excluded); NO_BANK=1 must read the old ledger figure. Red on the pre-fix card (exit 1). The ledger-only figure read

@@ -5,7 +5,7 @@
 // aborted. Expected: Dining $12.34; Shopping $30.00 (a $50 charge less a $20 refund); a $500 TRANSFER_OUT and a
 // $900 LOAN_PAYMENTS row are NOT spending, so the headline reads $42.34. Positive control: the card mounts.
 // VIEW_MODE=advanced must render it too (shown in both views since 2026-10-06). Does NOT cover matched-rule categories, user overrides, transfer
-// pairing (unit tests own those: src/lib/__tests__/budget-spent.test.ts), or colour.
+// pairing (unit tests own those: src/lib/__tests__/budget-spent.test.ts). Colour: only the red "over" line's contrast (arm below).
 import { readFileSync } from 'node:fs';
 
 const BASE = 'http://localhost:8080';
@@ -70,8 +70,7 @@ const SYNCED = [syn(1, 12.34, 'FOOD_AND_DRINK'), syn(2, 50, 'GENERAL_MERCHANDISE
 
 const browser = await chromium.launch();
 const failures = [];
-for (const VIEW of VIEWS) {
-  const tag = `${VIEW.width} ${MODE}`;
+async function openBudget(VIEW, synced, theme) {
   const ctx = await browser.newContext({ viewport: VIEW });
   const page = await ctx.newPage();
   await page.route('**/rest/v1/**', async (route) => {
@@ -79,7 +78,7 @@ for (const VIEW of VIEWS) {
     const u = req.url();
     if (req.method() === 'GET' || req.method() === 'HEAD') {
       if (/\/rest\/v1\/synced_transactions\b/.test(u) && !/select=count|head/.test(u)) {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(SYNCED) });
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(synced) });
       }
       if (/\/rest\/v1\/transactions\b/.test(u)) return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
       if (/\/rest\/v1\/profiles\b/.test(u)) {
@@ -99,12 +98,18 @@ for (const VIEW of VIEWS) {
   await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.stringify({
     version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false,
   })));
+  if (theme) await page.evaluate((t) => localStorage.setItem('forgenta.theme.v1', t), theme);
   await page.goto(`${BASE}/budget`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(8000);
   for (let i = 0; i < 6 && (await page.locator('div.backdrop-blur-sm, div.modal-overlay, [role="dialog"]').count()); i += 1) {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(500);
   }
+  return { ctx, page };
+}
+for (const VIEW of VIEWS) {
+  const tag = `${VIEW.width} ${MODE}`;
+  const { ctx, page } = await openBudget(VIEW, SYNCED, null);
   // Control that the Budget panel itself mounted, in either mode.
   await page.getByText(/budget allocation/i).first().waitFor({ timeout: 20000 }).catch(() => {});
   const read = () => page.evaluate(() => {
@@ -137,6 +142,45 @@ for (const VIEW of VIEWS) {
   if (/\$500\.00|\$900\.00|\$1,4/.test(cur.text)) failures.push(`${tag}: a transfer or loan payment was counted as spending`);
   await ctx.close();
 }
+// CONTRAST ARM (Sam, 2026-10-07): a Dining charge of $150 puts Dining over its plan, so the red "over" line renders.
+// Its text colour is measured against the COMPOSITED background stack (translucent cards included) in both themes,
+// at 390. AA for this small text is 4.5:1. Red-proven by repointing the line to the fill red (`text-destructive`).
+const OVER = [...SYNCED, { ...SYNCED[0], id: '00000000-0000-4000-8000-000000000506', amount: '150' }];
+const ratios = {};
+for (const theme of ['dark', 'light']) {
+  const { ctx, page } = await openBudget(VIEWS[0], OVER, theme);
+  let m = null;
+  for (let i = 0; i < 10 && !m; i += 1) {
+    await page.waitForTimeout(1500);
+    m = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll('[data-testid="spent-row"]')];
+      const line = rows.flatMap((r) => [...r.querySelectorAll('p')]).find((p) => /over$/.test(p.innerText.trim()));
+      if (!line) return null;
+      const parse = (c) => { const n = c.match(/[\d.]+/g).map(Number); return { r: n[0], g: n[1], b: n[2], a: n.length > 3 ? n[3] : 1 }; };
+      const stack = [];
+      for (let el = line; el; el = el.parentElement) {
+        const bg = parse(getComputedStyle(el).backgroundColor);
+        if (bg.a > 0) stack.push(bg);
+        if (bg.a >= 1) break;
+      }
+      const base = stack.length && stack[stack.length - 1].a >= 1 ? stack.pop() : { r: 255, g: 255, b: 255, a: 1 };
+      const bg = stack.reverse().reduce((acc, c) => ({ r: c.r * c.a + acc.r * (1 - c.a), g: c.g * c.a + acc.g * (1 - c.a), b: c.b * c.a + acc.b * (1 - c.a), a: 1 }), base);
+      const fgRaw = parse(getComputedStyle(line).color);
+      const fg = { r: fgRaw.r * fgRaw.a + bg.r * (1 - fgRaw.a), g: fgRaw.g * fgRaw.a + bg.g * (1 - fgRaw.a), b: fgRaw.b * fgRaw.a + bg.b * (1 - fgRaw.a) };
+      const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(c.r) + 0.7152 * f(c.g) + 0.0722 * f(c.b); };
+      const [a, b] = [lum(fg), lum(bg)];
+      return { text: line.innerText.trim(), ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05),
+        dark: document.documentElement.classList.contains('dark') };
+    });
+  }
+  await page.screenshot({ path: `test-results/spent-of-planned-over-${theme}.png`, fullPage: false });
+  await ctx.close();
+  if (!m) { await browser.close(); fail(2, `${theme}: CONTROL FAILED - no "over" line rendered with Dining at $162.34 of plan.`); }
+  if (m.dark !== (theme === 'dark')) { await browser.close(); fail(2, `${theme}: CONTROL FAILED - the page did not take the ${theme} theme.`); }
+  ratios[theme] = m.ratio.toFixed(2);
+  console.log(`${theme}: "${m.text}" contrast ${m.ratio.toFixed(2)}:1`);
+  if (m.ratio < 4.5) failures.push(`${theme}: over line "${m.text}" is ${m.ratio.toFixed(2)}:1, below AA 4.5:1`);
+}
 await browser.close();
 if (failures.length) fail(1, failures.join('; '));
-console.log(`PASS - ${MODE}: Spent so far reads $42.34 with Dining and Shopping rows.`);
+console.log(`PASS - ${MODE}: Spent so far reads $42.34 with Dining and Shopping rows; over line ${ratios.dark}:1 dark, ${ratios.light}:1 light.`);
