@@ -107,6 +107,11 @@ let pitchShown = false;
 let whatsNewOnHome = null;
 let tourOnHome = false;
 let dialogsOnHome = -1;
+// Ask 2c1170b3: the no-bank path asks for the checking balance on the Income step, so Home shows a
+// Safe to Spend NUMBER the moment the wizard ends, not the "Add a checking account" dead end.
+const CHECKING = '1234.56';
+let checkingFieldShown = false;
+let stsOnHome = '';
 try {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
@@ -124,6 +129,9 @@ try {
   await press(/Skip for now/);
   await page.getByText(/Income & Paycheck/i).first().waitFor({ timeout: 10000 });
   await page.getByLabel('Gross per paycheck', { exact: false }).first().fill('1500');
+  const checkingField = page.getByLabel('Money in checking right now', { exact: false }).first();
+  checkingFieldShown = await checkingField.isVisible().catch(() => false);
+  if (checkingFieldShown) await checkingField.fill(CHECKING);
   await shot('income');
   await press(/^Continue/);
   for (const name of ['expenses', 'debts', 'savings']) { await shot(name); await press(/^Continue/); }
@@ -157,6 +165,9 @@ try {
   // Counted by role and by the dialog's own accessible name, never by a class the fix touched.
   whatsNewOnHome = await page.getByRole('dialog', { name: /what's new in forgenta/i }).isVisible().catch(() => false);
   dialogsOnHome = await page.locator('[role=dialog]:visible, [role=alertdialog]:visible').count();
+  await page.keyboard.press('Escape').catch(() => {});
+  stsOnHome = await page.getByText(/Safe to Spend until/i).first().locator('xpath=..').innerText({ timeout: 15000 })
+    .catch(() => (page.getByTestId('safe-to-spend-empty').first().innerText({ timeout: 2000 }).catch(() => 'neither figure nor empty state')));
 } catch (err) {
   console.error(`walk stopped: ${err.message}`);
   await shot('stopped').catch(() => {});
@@ -168,6 +179,9 @@ const after1 = await readProfile();
 await page.waitForTimeout(10000);
 const after2 = await readProfile();
 await browser.close();
+const accR = await fetch(`${url}/rest/v1/accounts?select=account_type,balance,name&user_id=eq.${uid}`, { headers: rest });
+const accounts = accR.ok ? await accR.json() : [];
+const checkingRows = accounts.filter((a) => a.account_type === 'checking');
 
 for (const w of writes) console.log(`  write: ${w}`);
 console.log(`after:     ${JSON.stringify(after1)}`);
@@ -185,6 +199,11 @@ checks.push(
     `${after2.onboarding_furthest_step} / ${after2.onboarding_completed}`],
   ['the income saved (weekly_gross_income > 0)', Number(after2.weekly_gross_income) > 0, `${after2.weekly_gross_income}`],
   ['Home opens the tour for a brand-new account (control)', tourOnHome, `tour=${tourOnHome}`],
+  ['the Income step asks for the checking balance on the no-bank path', checkingFieldShown, `shown=${checkingFieldShown}`],
+  ['exactly one checking account saved, at the typed balance', checkingRows.length === 1 && Number(checkingRows[0].balance) === Number(CHECKING),
+    `${JSON.stringify(checkingRows)}`],
+  ['Home shows a Safe to Spend NUMBER, not the empty state', /Safe to Spend until[\s\S]*\$\d/i.test(stsOnHome),
+    `${JSON.stringify(stsOnHome.replace(/\s+/g, ' ').slice(0, 120))}`],
   ["Home does not open What's New for a brand-new account", landed === '/dashboard' && whatsNewOnHome === false,
     `whatsNew=${whatsNewOnHome}, visible dialogs=${dialogsOnHome}`],
   ['the row records the current release as seen (whats_new_* flag)',

@@ -167,6 +167,8 @@ interface OnboardingData {
   monthlySubscriptions: string;
   debts: DebtEntry[];
   savingsBalance: string;
+  /** Manual checking balance, asked only when no bank was linked. It is what Safe to Spend starts from (2c1170b3). */
+  checkingBalance?: string;
   savingsApy: string;
   goals: GoalEntry[];
 }
@@ -447,6 +449,17 @@ export default function Onboarding() {
         noteInsert(res, 'debts');
       }
 
+      const checking = parseFloat(data.checkingBalance ?? '');
+      if (!bankLinked && Number.isFinite(checking) && checking > 0) {
+        const res = await boundedWrite(supabase.from('accounts').insert({
+          user_id: user!.id,
+          name: 'Checking',
+          account_type: 'checking',
+          balance: Math.round(checking * 100) / 100,
+        }));
+        noteInsert(res, 'checking account');
+      }
+
       if (parseFloat(data.savingsBalance) > 0) {
         const res = await boundedWrite(supabase.from('accounts').insert({
           user_id: user!.id,
@@ -677,6 +690,16 @@ export default function Onboarding() {
                 <div className="bg-primary/8 border border-primary/20 px-3 py-2.5 text-xs" style={{ borderRadius: 'var(--radius)' }}>
                   <span className="text-muted-foreground">Estimated monthly take-home: </span>
                   <span className="font-semibold text-primary">${Number(monthly()).toLocaleString()}</span>
+                </div>
+              )}
+              {/* Without a bank link the app has no checking balance, so Safe to Spend could only say "Add a
+                  checking account" after the wizard - a dead end with no button (2c1170b3). One field here,
+                  beside pay, puts a real number on Home the moment the wizard ends. A linked bank already has it. */}
+              {!bankLinked && (
+                <div className="space-y-1">
+                  <FieldLabel>Money in checking right now ($)</FieldLabel>
+                  <Input label="Money in checking right now ($)" value={data.checkingBalance ?? ''} onChange={v => update('checkingBalance', v)} placeholder="e.g. 1200" type="number" prefix="$" />
+                  <p className="text-[10px] text-muted-foreground">Used for Safe to Spend until payday. Optional.</p>
                 </div>
               )}
             </div>
