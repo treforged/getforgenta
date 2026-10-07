@@ -1,6 +1,17 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW33 (2026-10-07 ~15:00 ET, Ada getforgenta-e8 -> successor; context 53%). START HERE, IN ORDER:
+  1. RE-ARM the 10-08 crons (they die with this tab):
+     a. one-shot "7 9 8 10 *": plaid-daily-sync 13:00Z proof - net._http_response within 2 min must be status 200,
+        timed_out false (60 s timeout, migration 20261007b). Tell Sam the run id + code.
+     b. one-shot "47 13 8 10 *": scheduled Android run (gh run list --workflow android-build.yml --event schedule -L 1);
+        if not done, re-arm +60 min. Require success AND "Generate release notes" success (log: "range source: last
+        SHIPPED"; fix da3f1bed). Send Sam (tre-forged-60 or the live TRE-Forged row) the run id.
+     c. "13 9,21 * * *" cancel buckets and "17 9,21 * * *" free-link grant (R-NOW21 #1 b/c).
+  2. 26a6dba8 waits on Tre ("submit 6.8.2", build 1399). When 6.8.2 goes live, tell Ruby the date (ask 7255c71b re-measures).
+  3. e1b0fffc standing. Today's probes: check:narrow-overflow (WIDTH, SIGNED_IN, TEXT_SCALE, VIEW_MODE), check:health-banner
+     (THEME), contrast --width 320 + TEXT_SCALE. Ideas: check:narrow-overflow at 1024; dialogs/menus are still unmeasured.
 R-NOW32 (2026-10-07 ~10:40 ET, Ada getforgenta-e8). R-NOW31 items 1-2 DONE:
   - Session crons re-armed HERE: 2ed9ad39 (11:37 nudge), 89f1fd2e (11:41 db1d6813), 0c41cf11 (13:06 push-send), b5bac19d
     (cancel buckets), f151e067 (free-link). RE-ARM if this tab is gone. Missed 09:13 cancel read: 0 rows; grants 0.
@@ -13820,17 +13831,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 15:27 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 15:42 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M handoff.md
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13841,14 +13851,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+05df1e57 [handoff]: R-NOW32 - 150% text, Simple view, notice, nav cap; crons for 10-08
+18baaf08 [nav]: bottom-bar labels capped like an iOS tab bar, so large text cannot make them touch (e1b0fffc)
+d80748f3 [ui]: network notice puts "Try again" under the message; check:health-banner proves it (e1b0fffc)
 88ecf3fb [ui]: Simple view + large text at 320 - Debt hero and the network notice re-flow (e1b0fffc)
 b1408ff9 test: contrast probe takes --width 320 and TEXT_SCALE=150 (969da7ed follow-up)
 c709e29b [ui]: 320px + 150% text reads 0 cut on every route (969da7ed, 6 -> 0)
 127cc0b1 [handoff]: R-NOW32 - timeouts, 150% text, release range fix
 da3f1bed fix(ci): last shipped run also scans scheduled + dispatched runs, so a busy push day cannot hide it
-fe700ab4 [ui]: 320px + 150% text - Home and Plan re-flow instead of cutting (969da7ed, 40 -> 6)
-ea72651b [ui]: large text (150%) at 390 no longer cuts or overlaps text; TEXT_SCALE in the probe (e1b0fffc)
-5f246b76 [cron]: every pg_net cron job now waits >= 60 s (Sam 10-07 sweep)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
