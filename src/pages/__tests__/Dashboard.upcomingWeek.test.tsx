@@ -58,6 +58,7 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useRecurringRules: () => ({ data: [RENT, INTERNET, PHONE], loading: false }),
   useAssets: () => ({ data: [], loading: false }),
   useLiabilities: () => ({ data: [], loading: false }),
+  usePendingSyncedDebits: () => ({ data: [] }),
   usePaymentPlans: () => ({ data: [] }),
   useSyncedTransactions: () => ({ data: [RENT_CHARGE, INTERNET_CHARGE] }),
   useSyncedTransactionReviewsQuery: () => ({ data: [] }),

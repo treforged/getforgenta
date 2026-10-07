@@ -292,6 +292,10 @@ section states reasoning, not measurement, and says so.
   minus floor = total = card). The maths is owned by `src/lib/__tests__/safe-to-spend.test.ts` (15 tests, each asserts
   a number, red under three mutants). Not on the deck-walk account: its income and checking rows are inactive, so it
   correctly shows the EMPTY state. `walk:empty` asserts an empty account shows no figure.
+  PENDING checking debits (10-06): the stored balance is Plaid's POSTED `current`, so unposted swipes are reserved today
+  (`safe-to-spend-pending.ts`, drawer row "Pending charges"). A pending row equal to the cent to a dated bill within
+  -3/+10 days REPLACES that bill (no double count). /demo has no pending rows, so this check cannot see the new row;
+  the unit tests own it (red under 3 mutants).
 - `npm run check:money-glance` - calls the DEPLOYED `money-glance` function (Leo's read of Safe to Spend, ask 1dc2c388)
   as the walk account: 401 without a token, 404 `no-snapshot` with no row, then a row planted through RLS with the
   account's own JWT must come back as EXACTLY 7 keys (amount_cents, payday, horizon, low_point_cents, low_date,

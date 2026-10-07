@@ -37,6 +37,7 @@ import type { ScheduledEvent } from '@/lib/scheduling';
 import {
   nextMonthReservations, nextMonthStart, datedMonthZero, type NextMonthTerm, type UndatedNextMonthItem,
 } from '@/lib/safe-to-spend-next-month';
+import { reservePendingDebits, type PendingDebit } from '@/lib/safe-to-spend-pending';
 
 export interface DatedCashEvent {
   /** 'YYYY-MM-DD' local date. */
@@ -57,6 +58,13 @@ export interface SafeToSpendInput {
   startBalance: number | null;
   /** Obligations this month that have no date; reserved in full on the first day (conservative). >= 0. */
   undatedReserve: number;
+  /**
+   * PENDING debits on the funding account, reserved today. The stored balance is the bank's POSTED
+   * balance, so a card swipe that has not posted is not in it. >= 0. Absent = 0.
+   */
+  pendingReserve?: number;
+  /** The pending debits behind `pendingReserve`, for the drawer. `replaces` names a bill it stood in for. */
+  pendingItems?: readonly { label: string; amount: number; date: string; replaces: string | null }[];
   events: readonly DatedCashEvent[];
   /** Manual cash floor in dollars. Pass 0 in automatic-floor mode (the automatic floor IS the committed outflows, already in `events`). */
   floor: number;
@@ -122,7 +130,8 @@ export function computeSafeToSpend(input: SafeToSpendInput | null): SafeToSpendR
   }
 
   // Start computation
-  let balance = startBalance - undatedReserve;
+  const pendingReserve = Number.isFinite(input.pendingReserve) && (input.pendingReserve ?? 0) > 0 ? input.pendingReserve! : 0;
+  let balance = startBalance - undatedReserve - pendingReserve;
   let lowPoint = balance;
   let lowDate = cutoffDate;
 
@@ -247,6 +256,12 @@ export interface SafeToSpendAssembly {
    * (`month0ProfilePaycheckIncome`'s rule). Rule paychecks come from `scheduledEvents`.
    */
   profilePaychecks?: readonly { date: string; net: number }[];
+  /**
+   * PENDING `synced_transactions` rows (positive amount = money out). Only those on the funding
+   * account - or on any liquid account when none is chosen, the same scope as `startBalance` - count.
+   * A pending row that equals a dated bill to the cent replaces that bill (`reservePendingDebits`).
+   */
+  pendingDebits?: readonly PendingDebit[];
 }
 
 /** Last day of `date`'s month, 'YYYY-MM-DD'. */
@@ -357,6 +372,11 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     }
   }
 
+  // Pending debits are outside the POSTED balance. Reserve them today; a pending row that IS an
+  // upcoming bill replaces that bill, so it is subtracted once (earlier, which can only lower the figure).
+  const pendingScope: ReadonlySet<string> = a.fundingAccountId ? new Set([a.fundingAccountId]) : a.liquidAccountIds;
+  const pending = reservePendingDebits(a.pendingDebits, events, pendingScope);
+
   return {
     cutoffDate: a.cutoffDate,
     payday,
@@ -364,7 +384,9 @@ export function assembleSafeToSpendInput(a: SafeToSpendAssembly): SafeToSpendInp
     // `liquidCash` fallback), so only "no cash account at all" is the empty state.
     startBalance: a.fundingAccountId || a.liquidAccountIds.size > 0 ? m.fundingBalance - m.carSavedEarmark : null,
     undatedReserve,
-    events,
+    pendingReserve: pending.reserve,
+    pendingItems: pending.items,
+    events: pending.events,
     floor: a.floor,
     undatedNextMonth: next.undated,
     nextMonthFirst: nextMonthStart(a.monthZeroDate ?? a.cutoffDate),

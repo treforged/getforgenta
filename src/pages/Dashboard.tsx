@@ -834,6 +834,10 @@ export default function Dashboard() {
       ...(safeToSpendInput.undatedReserve > 0
         ? [{ label: 'Set aside this month (goals, car, cards, other debt)', value: money(safeToSpendInput.undatedReserve), op: '−' }]
         : []),
+      // Card swipes on checking the bank has not posted yet: outside the balance above, so reserved today.
+      ...((safeToSpendInput.pendingReserve ?? 0) > 0
+        ? [{ label: 'Pending charges (not posted yet)', value: money(safeToSpendInput.pendingReserve!), op: '−' }]
+        : []),
       ...dated.map((e): CalcDrawerLine => {
         // Next month's items with no due date sit on its 1st (Sam's ruling 938fb5db). Each opens its
         // own screen, so the user can see what it is and, where the app has the field, date it.

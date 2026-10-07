@@ -9,7 +9,7 @@ import { toLocalDateStr } from '@/lib/scheduling';
 import { getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import { linkedLoanAccountIds } from '@/lib/vehicle-loan-link';
 import type { DebtServiceAccountInput, LiabilityDebtInput } from '@/lib/non-cc-liabilities';
-import { usePaymentPlans } from '@/hooks/useSupabaseData';
+import { usePaymentPlans, usePendingSyncedDebits } from '@/hooks/useSupabaseData';
 import {
   buildNextMonthTerms, nextMonthStart, nextMonthOtherDebts, nextMonthPlanPayments, cardTermsFor, type NextMonthTerm,
 } from '@/lib/safe-to-spend-next-month';
@@ -34,6 +34,7 @@ export function useSafeToSpend(args: {
 }): { result: SafeToSpendResult | null; input: SafeToSpendInput | null } {
   const { cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts } = useCardProjectionContext();
   const { data: paymentPlans } = usePaymentPlans();
+  const { data: pendingRows } = usePendingSyncedDebits();
   const { profile, confirmed, floor } = args;
 
   return useMemo(() => {
@@ -135,7 +136,10 @@ export function useSafeToSpend(args: {
       monthZeroDate: today,
       monthZeroTerms,
       profilePaychecks,
+      pendingDebits: (pendingRows ?? []).map(r => ({
+        accountId: r.account_id ?? '', date: r.date, amount: Number(r.amount), label: r.merchant_name || r.name || 'Pending charge',
+      })),
     });
     return { result: computeSafeToSpend(input), input };
-  }, [cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts, paymentPlans, profile, confirmed, floor]);
+  }, [cardProjection, scheduledEvents, syncCutoffDate, rules, accounts, pauseSavings, payConfig, carFunds, debts, paymentPlans, profile, confirmed, floor, pendingRows]);
 }

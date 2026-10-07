@@ -247,3 +247,49 @@ describe('assembleSafeToSpendInput - the walk past payday', () => {
     expect(r.kind === 'figure' && [r.amount, r.lowDate, r.cappedAfterPayday]).toEqual([1000, '2026-11-08', true]);
   });
 });
+
+describe('assembleSafeToSpendInput - pending checking debits (the posted balance excludes them)', () => {
+  const pend = (accountId: string, date: string, amount: number, label = 'Swipe') => ({ accountId, date, amount, label });
+
+  it('subtracts an unposted swipe on the funding account', () => {
+    // $3,000 posted, a $42.37 grocery swipe pending: $2,957.63, not $3,000.
+    const r = run(assembly({ pendingDebits: [pend('chk', '2026-10-01', 42.37, 'Grocer')] }));
+    expect(r.kind === 'figure' && r.amount).toBe(2957.63);
+  });
+
+  it('ignores pending rows on other accounts, pending deposits, and card accounts', () => {
+    const r = run(assembly({ pendingDebits: [pend('sav', '2026-10-01', 500), pend('chk', '2026-10-01', -250), pend('cc1', '2026-10-01', 80)] }));
+    expect(r.kind === 'figure' && r.amount).toBe(3000);
+  });
+
+  it('reads every liquid account when no funding account is chosen (the same scope as the start balance)', () => {
+    const r = run(assembly({ fundingAccountId: null, liquidAccountIds: new Set(['chk', 'chk2']),
+      pendingDebits: [pend('chk', '2026-10-01', 10), pend('chk2', '2026-10-01', 15)] }));
+    expect(r.kind === 'figure' && r.amount).toBe(2975);
+  });
+
+  it('DOUBLE-COUNT GUARD: a pending autopay that IS the rent due on the 5th is subtracted once, not twice', () => {
+    const r = run(assembly({
+      rules: [rule('rent', 'expense')], scheduledEvents: [ev('rent', '2026-10-05', 1200, 'expense')],
+      pendingDebits: [pend('chk', '2026-10-02', 1200, 'Landlord autopay')],
+    }));
+    // Twice would read 600. Once reads 1,800.
+    expect(r.kind === 'figure' && r.amount).toBe(1800);
+  });
+
+  it('a pending row that only resembles a far-off bill does not cancel it', () => {
+    const r = run(assembly({
+      rules: [rule('rent', 'expense')], scheduledEvents: [ev('rent', '2026-10-14', 1200, 'expense')],
+      pendingDebits: [pend('chk', '2026-10-01', 1200, 'Something else')],
+    }));
+    expect(r.kind === 'figure' && r.amount).toBe(600);
+  });
+
+  it('carries the pending total and items for the drawer, so lowest point minus floor equals the card', () => {
+    const input = assembleSafeToSpendInput(assembly({ floor: 100, pendingDebits: [pend('chk', '2026-10-01', 42.37, 'Grocer')] }))!;
+    expect(input.pendingReserve).toBe(42.37);
+    expect(input.pendingItems).toEqual([{ label: 'Grocer', amount: 42.37, date: '2026-10-01', replaces: null }]);
+    const r = computeSafeToSpend(input);
+    expect(r.kind === 'figure' && [r.lowPoint, r.amount]).toEqual([2957.63, 2857.63]);
+  });
+});

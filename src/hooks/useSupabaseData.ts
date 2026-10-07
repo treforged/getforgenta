@@ -580,6 +580,34 @@ export function useSyncedTransactions(monthKey: string) {
   });
 }
 
+/**
+ * PENDING debits (positive amount = money out) for Safe to Spend. The stored depository balance is
+ * Plaid's `balances.current`, which excludes pending debits, so an unposted card swipe on checking
+ * would otherwise leave the figure HIGH. Pending rows retire when they post, so this set stays small.
+ * Demo returns nothing (no aggregator behind demo data).
+ */
+export function usePendingSyncedDebits() {
+  const { user } = useAuth();
+  const { isDemo } = useDemo();
+  const { viewedUserId } = useViewedProfile();
+  return useQuery({
+    queryKey: ['synced_transactions', 'pending', isDemo ? 'demo' : (viewedUserId ?? user?.id)],
+    enabled: isDemo || !!user,
+    queryFn: async (): Promise<Pick<SyncedTransactionRow, 'id' | 'account_id' | 'amount' | 'date' | 'name' | 'merchant_name'>[]> => {
+      if (isDemo || !user) return [];
+      const { data, error } = await supabase
+        .from('synced_transactions')
+        .select('id, account_id, amount, date, name, merchant_name')
+        .eq('user_id', viewedUserId ?? user.id)
+        .eq('pending', true)
+        .gt('amount', 0)
+        .limit(500);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 /** What the §1B Bank Activity tab reads. Adds `category` — the provider bucket the map suggests from. */
 export type BankActivityRow = Pick<
   Tables<'synced_transactions'>,
