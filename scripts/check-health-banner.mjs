@@ -14,6 +14,10 @@
 import { readFileSync, mkdirSync } from 'node:fs';
 
 const BASE = process.env.BASE_URL || 'http://localhost:8080';
+// THEME=dark|light: set through the app's own stored choice (as check:dark-contrast), and each text's
+// contrast against the card is measured as a number (AA 4.5).
+const THEME = process.env.THEME || '';
+if (THEME && THEME !== 'dark' && THEME !== 'light') fail(2, `THEME must be dark or light, got ${THEME}.`);
 const fail = (code, msg) => { console.error(`FAIL: ${msg}`); process.exit(code); };
 const pick = (t, k) => (t.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.trim();
 let env; let creds;
@@ -52,17 +56,21 @@ async function measure(scale) {
   });
   const page = await ctx.newPage();
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
-  await page.evaluate(([k, v]) => {
+  await page.evaluate(([k, v, th]) => {
     localStorage.setItem(k, JSON.stringify(v));
+    if (th) localStorage.setItem('forgenta.theme.v1', th);
     localStorage.setItem('tre_cookie_consent', JSON.stringify({ version: '1.0', decidedAt: new Date().toISOString(), essential: true, analytics: false, marketing: false }));
-  }, [`sb-${ref}-auth-token`, session]);
+  }, [`sb-${ref}-auth-token`, session, THEME]);
   await page.goto(`${BASE}/goals`, { waitUntil: 'domcontentloaded' });
   const head = page.getByTestId('backend-health-headline');
   try { await head.waitFor({ state: 'visible', timeout: 30000 }); } catch {
     await ctx.close(); return { error: 'CONTROL FAILED: the notice never appeared, so nothing was measured.' };
   }
+  // Re-measure until the card has width: one dark run read the card mid-render (0px wide, every ratio 1:1).
+  let m;
+  for (let tries = 0; tries < 8; tries += 1) {
   await page.waitForTimeout(800);
-  const m = await head.evaluate((h) => {
+  m = await head.evaluate((h) => {
     const card = h.closest('div.pointer-events-auto');
     const text = h.parentElement.getBoundingClientRect();
     // The X is measured by its DRAWN icon: its 44px tap area uses a negative margin on purpose.
@@ -75,11 +83,27 @@ async function measure(scale) {
     return {
       overlaps: btns.filter((b) => glyphs.some((g) => lap(g, b.r))).map((b) => b.name),
       xTopRight: (() => { const x = btns.find((b) => b.name === 'Dismiss'); const hr = h.getBoundingClientRect(); return !!x && x.r.left >= hr.right - 1 && x.r.top < hr.bottom; })(),
+      contrast: (() => {
+        const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d', { willReadFrequently: true });
+        const rgb = (c) => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = '#000'; cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); const d = cx.getImageData(0, 0, 1, 1).data; return [d[0], d[1], d[2], d[3] / 255]; };
+        const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+        const over = (fg, bg) => fg.slice(0, 3).map((c, i) => c * fg[3] + bg[i] * (1 - fg[3]));
+        const bg = rgb(getComputedStyle(card).backgroundColor);
+        if (bg[3] < 0.95) return { error: `card background is translucent (alpha ${bg[3]})` };
+        const ratio = (el, under) => { const fg = over(rgb(getComputedStyle(el).color), under); const a = lum(fg); const b = lum(under); return Math.round(((Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)) * 100) / 100; };
+        const tryBtn = btns.find((b) => b.name === 'Try again');
+        const tryEl = [...card.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Try again');
+        const tryBg = tryEl ? over(rgb(getComputedStyle(tryEl).backgroundColor), bg) : bg;
+        return { headline: ratio(h, bg), detail: ratio(h.nextElementSibling, bg), tryAgain: tryEl ? ratio(tryEl, tryBg) : null, theme: ['dark', 'light'].find((c) => document.documentElement.classList.contains(c)) ?? 'unset' };
+      })(),
       textW: Math.round(text.width), btns: btns.map((b) => `${b.name}@${Math.round(b.r.left)},${Math.round(b.r.top)}`),
     };
   });
+  if (m.textW > 0) break;
+  }
+  if (!(m.textW > 0)) { await ctx.close(); return { error: 'the notice never laid out (0px wide) after 8 reads.' }; }
   mkdirSync('test-results/health-banner', { recursive: true });
-  await page.screenshot({ path: `test-results/health-banner/320-${scale}.png` });
+  await page.screenshot({ path: `test-results/health-banner/320-${scale}${THEME ? `-${THEME}` : ''}.png` });
   await ctx.close();
   return m;
 }
@@ -90,6 +114,12 @@ for (const scale of [100, 150]) {
   if (m.error) { await browser.close(); fail(2, `${scale}%: ${m.error}`); }
   console.log(`320 @ ${scale}%: text ${m.textW}px wide . buttons ${m.btns.join(' ')} . X top-right ${m.xTopRight} . overlaps [${m.overlaps.join(', ')}]`);
   if (m.overlaps.length) { findings += 1; console.log(`   FINDING: notice text runs under ${m.overlaps.join(', ')}`); }
+  if (m.contrast.error) { findings += 1; console.log(`   FINDING: ${m.contrast.error}`); }
+  else {
+    console.log(`   contrast (${m.contrast.theme}): headline ${m.contrast.headline} . detail ${m.contrast.detail} . Try again ${m.contrast.tryAgain}`);
+    if (THEME && m.contrast.theme !== THEME) { await browser.close(); fail(2, `CONTROL FAILED: asked for ${THEME}, the page is ${m.contrast.theme}.`); }
+    for (const [k, v] of Object.entries(m.contrast)) if (typeof v === 'number' && v < 4.5) { findings += 1; console.log(`   FINDING: ${k} at ${v}:1, below AA 4.5`); }
+  }
   if (!m.xTopRight) { findings += 1; console.log('   FINDING: the Dismiss X left the top-right corner'); }
 }
 await browser.close();

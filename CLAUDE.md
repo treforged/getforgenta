@@ -382,6 +382,8 @@ section states reasoning, not measurement, and says so.
 - `npm run check:health-banner` - the network notice at 320, normal and 150% text, RAISED on purpose in-browser (Cloudflare
   status page answers `major`, one savings_goals read answers 503; signed in, writes aborted). Its message must not run under
   "Try again" or the X, and the X keeps the top-right corner. Red on the pre-10-07 banner at 150% (text column 26px wide).
+  THEME=dark|light measures each text against the card (AA 4.5): dark 14.93 / 7.15 / 12.03, light 16.48 / 6.61 / 13.83;
+  red at 1.72:1 with the detail faded to /30.
 - `npm run check:narrow-overflow` - TEXT CUT OFF at 320x568 (WIDTH=390 too; TEXT_SCALE=150 sets root text to 150%; VIEW_MODE=simple (with SIGNED_IN=1) forces the Simple view: 390@150% 16 -> 0 on 10-07, 320@150% 40 -> 0 (969da7ed); SIGNED_IN=1 reads the walk account, table writes aborted, rpc passes - its first run found "-$4,590.00" past its third on /transactions, fixed); also requires every bottom-nav label WHOLE (red on equal fifths: "Transactions" 74>61px at 390) (iPhone SE 1st gen; deployment target 15.0 still runs it) on
   /demo, 9 main routes, no credentials. Measures each text run's CHARACTERS (a Range) against the viewport and every clipping
   ancestor; skips sideways scrollers, ellipsis, sr-only, svg. Planted control: clipped nowrap flagged, wrapping not. First run
