@@ -40,13 +40,13 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { cronSecretMatches } from "../_shared/plaid-webhook-register.ts";
 import { decideAnniversary, summarize } from "../_shared/og-anniversary.ts";
 import type { AnniversaryDecision, AnniversaryMember, ConsentState } from "../_shared/og-anniversary.ts";
 
 Deno.serve(async (req) => {
-  const secret = req.headers.get("x-cron-secret");
-  const expected = Deno.env.get("CRON_SECRET");
-  if (!expected || secret !== expected) {
+  // Constant-time compare; an unset CRON_SECRET never authorises (security review db1d6813).
+  if (!cronSecretMatches(req.headers.get("x-cron-secret"), Deno.env.get("CRON_SECRET"))) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
   }
 

@@ -24,6 +24,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { cronSecretMatches } from "../_shared/plaid-webhook-register.ts";
 import { decideAnniversary } from "../_shared/og-anniversary.ts";
 import type { AnniversaryMember, ConsentState } from "../_shared/og-anniversary.ts";
 import { CURRENT_CONSENT, buildConsentRow } from "../_shared/og-consent-text.ts";
@@ -40,9 +41,8 @@ const CONSENT_FROM = Deno.env.get("CONSENT_FROM") ?? "Forgenta <noreply@treforge
 const FUNCTIONS_BASE = Deno.env.get("FUNCTIONS_BASE_URL") ?? `${SUPABASE_URL}/functions/v1`;
 
 Deno.serve(async (req) => {
-  const secret = req.headers.get("x-cron-secret");
-  const expected = Deno.env.get("CRON_SECRET");
-  if (!expected || secret !== expected) {
+  // Constant-time compare; an unset CRON_SECRET never authorises (security review db1d6813).
+  if (!cronSecretMatches(req.headers.get("x-cron-secret"), Deno.env.get("CRON_SECRET"))) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
   }
 

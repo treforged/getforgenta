@@ -24,6 +24,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { cronSecretMatches } from "../_shared/plaid-webhook-register.ts";
 
 const CONDUCTOR_URL = Deno.env.get("CONDUCTOR_URL") ?? "https://conductor.treforged.com/api/session";
 
@@ -54,9 +55,8 @@ interface RevenueLine {
 const MAX_LINES = 200;
 
 Deno.serve(async (req) => {
-  const secret = req.headers.get("x-cron-secret");
-  const expected = Deno.env.get("CRON_SECRET");
-  if (!expected || secret !== expected) {
+  // Constant-time compare; an unset CRON_SECRET never authorises (security review db1d6813).
+  if (!cronSecretMatches(req.headers.get("x-cron-secret"), Deno.env.get("CRON_SECRET"))) {
     return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
   }
 
