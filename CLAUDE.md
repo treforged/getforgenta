@@ -575,6 +575,22 @@ section states reasoning, not measurement, and says so.
   delete-only 0, src/lib stub still 1. ⚠️ **KNOWN SELF-FLAG:** `docs/security-checklist-2026-09-12.md`
   line 46 quotes a synthetic `sb_secret_` example; restaging that doc will be refused until the
   example carries `...`. Mistral keys have no prefix and are NOT caught by content.
+- **Pre-commit SEMGREP** (`scripts/semgrep-staged.mjs`, ask 77cfda79) - after the secret scan, Semgrep runs on the
+  STAGED JS/TS blobs only, ~7-9 s per commit (fixed startup; file count barely matters). Exit 1 = finding, 2 = could
+  not check; BOTH refuse. `SEMGREP_SKIP=1` is the loud way past it. Two rule sets, both local, nothing fetched at commit:
+  `.semgrep/forgenta-sqli.yml` (repo-owned) and `p/owasp-top-ten` trimmed to its 71 JS/TS rules, pinned OUTSIDE the
+  public repo (Semgrep Rules License) at `~/.claude/tools/semgrep-rules/owasp-top-ten.jsts.yml` and checked by sha256
+  in the script. Semgrep 1.179.0 lives in `~/.claude/tools/semgrep-venv` (wheel sha256 6c6cf104...; no install-time
+  code; the engine `semgrep-core.exe` is a closed binary from Semgrep Inc), run with `--metrics=off` and no version check.
+  ⚠️ **THE OWASP PACK ALONE IS BLIND TO THIS STACK'S SQL**: its JS SQL rules fire only on Lambda events and knex, and it
+  read a planted `pool.query("..." + id)` and a Deno `sql.unsafe(\`...${id}\`)` as 0 findings. The repo rule is what
+  catches them. Whole-repo baseline 2026-10-06: 1,372 files, 1 finding (a false positive: `og-consent-page.ts` escapes
+  with `esc()`; ignored inline), 21 files NOT fully scanned (7 timeouts incl. `useCardProjection.ts`, 14 partial
+  parses), which the hook PRINTS rather than counting as clean. Tests: `scripts/__tests__/semgrep-staged.test.mjs` (4;
+  the scanning 3 SKIP in CI, which has no Semgrep), red with the concat pattern deleted. Proven on real commits in a
+  throwaway clone: planted refused, clean committed. Does NOT cover: SQL inside Postgres functions (plpgsql EXECUTE),
+  `--no-verify`, or a fresh clone/machine without the venv (it refuses there; install line is in the script).
+  Refresh the OWASP pin: re-download `https://semgrep.dev/c/p/owasp-top-ten`, re-trim to JS/TS, REVIEW, update `OWASP_SHA256`.
 - CI is `.github/workflows/tests.yml`. It asserts a test-count FLOOR, so a
   collapsed suite fails instead of passing quietly.
 - ⚠️ **CI RUNS NODE 22 AND YOUR MACHINE PROBABLY DOES NOT, SO A LOCAL GREEN IS WEAKER

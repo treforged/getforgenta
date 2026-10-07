@@ -68,9 +68,13 @@ export function consentPage(copy: ConsentCopy, path: string, token: string): str
     + `<button${primary ? ' class="primary"' : ''} type="submit">${esc(label)}</button>`
     + `</form>`;
 
+  // The body IS escaped (esc), but Semgrep's raw-html-format rule cannot see through esc(),
+  // and its match line sits inside the template, where a comment would land in the HTML.
+  const bodyHtml = `<pre>${esc(copy.body)}</pre>`; // nosemgrep: raw-html-format
+
   return shell(copy.subject, `
       <h1>${esc(copy.subject)}</h1>
-      <pre>${esc(copy.body)}</pre>
+      ${bodyHtml}
       <div class="actions">
         ${button('confirmed', copy.confirmLabel, true)}
         ${button('declined', copy.declineLabel, false)}

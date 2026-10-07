@@ -27,6 +27,13 @@ if [ "$HAS_CONTENT" -eq 1 ]; then
     echo "pre-commit REFUSED by the secret scan." >&2
     exit 1
   fi
+  # -- Stage 1b: Semgrep SAST on staged JS/TS (ask 77cfda79) ------------------------
+  # Exit 1 = a finding, 2 = could not check (no semgrep, missing or changed rules).
+  # Both refuse. SEMGREP_SKIP=1 is the loud way past it. Rules: scripts/semgrep-staged.mjs.
+  if ! node "$REPO/scripts/semgrep-staged.mjs" --repo "$REPO"; then
+    echo "pre-commit REFUSED by the Semgrep scan (see the lines above)." >&2
+    exit 1
+  fi
 elif [ "$HAS_CONTENT" -ne 0 ]; then
   echo "pre-commit REFUSED: could not read the staged file list (git exit $HAS_CONTENT)." >&2
   exit 1

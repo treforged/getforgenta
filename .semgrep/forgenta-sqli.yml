@@ -1,0 +1,27 @@
+# Repo-owned Semgrep rules (ask 77cfda79). Run by .githooks/pre-commit beside the pinned
+# OWASP pack. WHY THIS FILE EXISTS: p/owasp-top-ten's JavaScript SQL rules only fire on
+# AWS-Lambda event sources and knex, so they read a planted `pool.query("..." + id)` and
+# a Deno `sql.unsafe(`...${id}`)` as clean (measured 2026-10-06: 0 findings on both).
+# These rules flag raw SQL built by concatenation or interpolation, whatever the source.
+# Parameterised calls (`query(text, [params])`, supabase-js builders, tagged `sql`...``)
+# are NOT flagged. Proven red by scripts/__tests__/semgrep-planted/ (see CLAUDE.md).
+rules:
+  - id: forgenta.raw-sql-concatenation
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      Raw SQL built by string concatenation or template interpolation. Pass values as
+      parameters (query(text, [values]) or a tagged sql`...` template) instead.
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query($A + $B, ...)
+          - pattern: $DB.query(`...${$X}...`, ...)
+          - pattern: $DB.unsafe($A + $B, ...)
+          - pattern: $DB.unsafe(`...${$X}...`, ...)
+          - pattern: $DB.queryObject($A + $B, ...)
+          - pattern: $DB.queryObject(`...${$X}...`, ...)
+          - pattern: $DB.queryArray($A + $B, ...)
+          - pattern: $DB.queryArray(`...${$X}...`, ...)
+          - pattern: $DB.execute($A + $B, ...)
+          - pattern: $DB.execute(`...${$X}...`, ...)
+      - pattern-not: $DB.query("..." + "...", ...)
