@@ -1,3 +1,12 @@
+# 🚨 NEVER `supabase functions deploy reddit-scout` FROM THIS FOLDER
+
+**2026-10-07 (Ada, e1ab02c5):** a constant-time-compare fix was deployed from this folder with the CLI. Production
+had been DELETED (3d6e26a0), so the deploy RE-CREATED the function with the REAL body (version 1, 21:37:21Z) behind
+the burned `REDDIT_SCOUT_SECRET`. It was replaced 88 s later with a 410 tombstone (version 2, verify_jwt on,
+21:38:49Z). Logs for 21:30-21:50Z show one call in that window: the desk's own wrong-secret probe, 401.
+**Production now has the tombstone, not a deletion.** The CLI delete was refused by the session's permission
+check. Deleting it again is a one-command decision for whoever holds that permission.
+
 # ⚠️ `index.ts` IN THIS FOLDER IS **NOT** WHAT IS DEPLOYED
 
 Production `reddit-scout` was replaced with a **tombstone** on 2026-09-15 (version 39) to close a
