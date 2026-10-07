@@ -16,7 +16,11 @@ R-NOW30 (2026-10-07 ~08:45 ET, Ada). R-NOW29 items 1, 2 DONE:
   - check:first-save 5 arms 0 fail; check:one-banner PASS (fresh empty throwaway, deleted).
   - e1b0fffc DONE 69e4bc88: /demo has one $41.27 pending swipe (demoPendingDebits); check:safe-to-spend asserts the drawer
     row (red with it removed).
-  NEXT: 11:37 + 11:41 reads; then next e1b0fffc idea (walk:routes full, or check:nav at both widths after today's UI).
+  - walk:routes 27/27 + 17/17 links; check:nav PASS 390 + 1440.
+  - Safe-to-Spend "until Oct 9" with drawer rows past payday: NOT a mismatch (NEGATIVE on record). The horizon is
+    intended (Sam 10-01 cond. 1). The drawer footnote reads "Checked through Oct 31, paychecks included...". Low point
+    is before payday and equals the card. No change.
+  NEXT: 11:37 + 11:41 reads (crons a7d22393, 4bf61fd4).
 R-NOW29 (2026-10-07 ~07:45 ET, Ada -> successor; handoff gate at 217 calls). START HERE, IN ORDER:
   1. RE-ARM the session crons (they die with this tab):
      a. one-shot "37 11 7 10 *": no-save-nudge read (R-NOW19 #1 text), tell Sam, update a2c2d32f.
