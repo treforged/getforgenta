@@ -1,6 +1,16 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW26 (2026-10-07 ~02:20 ET, Ada getforgenta-fe). R-NOW25 items 1-4 DONE:
+  - Session crons re-armed: 67f25f04 (10-07 11:37 nudge read), 9148b26b (cancel buckets), 8a22fdde (free-link grant).
+    Session-only: RE-ARM them if this tab is gone (prompts in R-NOW21 #1).
+  - Sim run 37577846273 GREEN incl. "Lock - no content before the lock on a cold launch". Sam told.
+  - e1b0fffc: 12515d9c build-time App Store rating in the landing JSON-LD (scripts/app-store-rating.ts, Vite plugin,
+    apply 'build'). Prod curl shows ratingValue 5.0 / ratingCount 5. Omitted when Apple is unreadable; throws if the
+    JSON-LD block disappears. Tests scripts/__tests__/app-store-rating.test.ts (15, red x2). Undo: drop the plugin.
+  - f07700ff soft-404 STATUS parked on purpose: noindex ships; an allowlist risks 404ing real deep links. b0b54c92 waits on Tre.
+  - e501632b: no $200 Robinhood credit in Tre's Chase yet (only $78.41 on 10-03); estimate row 62bc2801 waits on Wes.
+  NEXT: the next e1b0fffc improvement.
 R-NOW25 (2026-10-07 ~01:55 ET, Ada -> successor; handoff gate at 208 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (die with each tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
      "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant (R-NOW21 #1 b/c).
@@ -13687,11 +13697,11 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 00:43 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 01:49 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
-- **vs upstream:** 2 ahead, 0 behind  <- UNPUSHED
+- **vs upstream:** 0 ahead, 0 behind
 
 - **Uncommitted (6 file(s)):**
 
@@ -13707,14 +13717,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
+8c7603cf [handoff]: R-NOW25 item 2 verified live
+6c83032b [handoff]: R-NOW25 - deploy-skip fix to verify, sim Lock to confirm, SEO remainder
+8ebba36e [deploy]: ignoreCommand diffs against the last DEPLOYED sha, not HEAD^ - pushes ending in a docs commit skipped every code change in them
+a733f6c7 [aso]: name/subtitle/keyword proposal for Tre (f07700ff)
+afcb2821 [handoff]: Sam confirmed the push hold; he releases it after the GitHub reset
 ad27ea26 [handoff]: R-NOW24 - local commit awaiting push permission
 5ada7adc [glass][seo]: one-shot sim glass flag (fixes the red Lock step) + noindex on the not-found page (cbf3535a)
 2710ded2 [handoff]: R-NOW24 - glass-flag fix and soft-404 in tree, gate running
-2c6731c7 [handoff]: R-NOW24 - SEO part 1 live, home title, next soft-404 and ASO
-b0842249 [seo]: home title carries "Budget App" (Sam's decision on f07700ff)
-531bcd56 [seo]: head-term and comparison pages, llms.txt, sitemap and internal links (f07700ff)
-f5dc21b1 [handoff]: R-NOW24 - glass proven, first-run checking field, SEO plan for f07700ff
-a4d2d584 [onboarding]: ask the checking balance beside pay, so Home shows a Safe to Spend number at the end of the wizard (2c1170b3)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
