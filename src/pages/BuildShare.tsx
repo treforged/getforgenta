@@ -106,14 +106,14 @@ export default function BuildShare() {
           <Link
             to="/"
             className="flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all hover:opacity-90"
-            style={{ background: 'hsl(var(--primary))', color: '#000' }}
+            style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
           >
             Powered by Forgenta
           </Link>
         </div>
         {/* Print-only Forgenta badge */}
         <div className="hidden print:flex justify-end mb-4">
-          <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded" style={{ background: 'hsl(var(--primary))', color: '#000' }}>
+          <span className="text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded" style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}>
             Powered by Forgenta
           </span>
         </div>
@@ -154,7 +154,7 @@ export default function BuildShare() {
                 onClick={() => setIncludePlanned(v => !v)}
                 className="mt-2 text-[11px] font-mono font-bold uppercase tracking-wider px-3 py-1.5 rounded transition-all print:hidden"
                 style={includePlanned
-                  ? { background: 'hsl(var(--primary))', color: '#000' }
+                  ? { background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }
                   : { background: '#1a1a1a', color: 'hsl(var(--primary))', border: '1px solid #c8a84b' }
                 }
               >
@@ -396,7 +396,7 @@ export default function BuildShare() {
           <Link
             to="/auth"
             className="inline-flex items-center gap-1.5 text-[12px] font-mono font-bold uppercase tracking-wider px-6 py-2.5 rounded transition-all hover:opacity-90"
-            style={{ background: 'hsl(var(--primary))', color: '#000' }}
+            style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
           >
             Share Your Build →
           </Link>

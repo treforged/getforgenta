@@ -114,7 +114,7 @@ export default function MaintenanceLog({ logs, transactions, loading, onAdd, onE
         <button
           onClick={onAdd}
           className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-bold uppercase tracking-wider rounded transition-colors"
-          style={{ background: 'hsl(var(--primary))', color: '#000' }}
+          style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
         >
           <Plus size={12} /> Log Service
         </button>

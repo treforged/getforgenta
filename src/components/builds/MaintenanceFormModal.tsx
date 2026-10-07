@@ -536,7 +536,7 @@ export default function MaintenanceFormModal({
               type="submit"
               disabled={saving}
               className="flex-1 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-50"
-              style={{ background: 'hsl(var(--primary))', color: '#000' }}
+              style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
             >
               {saving ? 'Saving…' : log ? 'Save Changes' : 'Log Service'}
             </button>

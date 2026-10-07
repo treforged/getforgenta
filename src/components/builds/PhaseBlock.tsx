@@ -392,7 +392,7 @@ export default function PhaseBlock({
             onKeyDown={e => { if (e.key === 'Enter') saveTitleEdit(); if (e.key === 'Escape') setEditingTitle(false); }}
           />
           <div className="flex gap-2 mt-2">
-            <button onClick={saveTitleEdit} className="px-3 py-1 text-xs font-mono font-bold uppercase tracking-wider rounded" style={{ background: 'hsl(var(--primary))', color: '#000' }}>Save</button>
+            <button onClick={saveTitleEdit} className="px-3 py-1 text-xs font-mono font-bold uppercase tracking-wider rounded" style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}>Save</button>
             <button onClick={() => setEditingTitle(false)} className="px-3 py-1 text-xs font-mono text-muted-foreground border border-border rounded hover:border-muted-foreground transition-colors">Cancel</button>
           </div>
         </div>
@@ -740,7 +740,7 @@ export default function PhaseBlock({
                         onClick={() => { void saveItemEdit(item); }}
                         disabled={savingItemId === item.id}
                         className="px-3 py-1 text-xs font-mono font-bold uppercase tracking-wider rounded disabled:opacity-40"
-                        style={{ background: 'hsl(var(--primary))', color: '#000' }}
+                        style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
                       >
                         {savingItemId === item.id ? 'Saving…' : 'Save'}
                       </button>

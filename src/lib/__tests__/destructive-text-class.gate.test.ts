@@ -67,6 +67,15 @@ describe('red and green text use the text tokens, never the fill colours', () =>
     expect(hits).toEqual([]);
   });
 
+  // BLACK ON GOLD (2026-10-07): Garage buttons hardcoded `color: '#000'` on `--primary`. Light mode's gold
+  // is dark (43 74% 26%), so that read 3.13:1. Text on the primary fill must use --primary-foreground.
+  it('no inline style puts a hardcoded colour on the primary fill', () => {
+    const BLACK_ON_GOLD = /background: 'hsl\(var\(--primary\)\)',\s*color: '#/;
+    const hits = files.flatMap((f) => readFileSync(f, 'utf-8').split(/\r?\n/).flatMap((line, i) =>
+      BLACK_ON_GOLD.test(line) ? [`${path.relative(SRC, f)}:${i + 1}`] : []));
+    expect(hits).toEqual([]);
+  });
+
   it('no source file paints text in a fill colour', () => {
     const hits = files.flatMap((f) =>
       readFileSync(f, 'utf-8').split(/\r?\n/).flatMap((line, i) =>

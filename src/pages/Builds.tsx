@@ -770,7 +770,7 @@ export default function Builds() {
         <button
           onClick={() => { setEditingBuild(null); setFormOpen(true); }}
           className="flex items-center justify-center gap-1.5 px-3 min-h-[44px] text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors shrink-0"
-          style={{ background: 'hsl(var(--primary))', color: '#000' }}
+          style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
         >
           <Plus size={13} /> New Build
         </button>
@@ -794,7 +794,7 @@ export default function Builds() {
                   <button
                     onClick={handleCopyLink}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded transition-colors"
-                    style={{ background: 'hsl(var(--primary))', color: '#000' }}
+                    style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
                   >
                     <Copy size={12} /> Copy
                   </button>
@@ -897,7 +897,7 @@ export default function Builds() {
                 onClick={handleEnableShare}
                 disabled={shareLoading}
                 className="flex items-center gap-1.5 px-4 py-2 text-[11px] font-bold uppercase tracking-wider rounded transition-colors disabled:opacity-40"
-                style={{ background: 'hsl(var(--primary))', color: '#000' }}
+                style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
               >
                 <Share2 size={12} /> {shareLoading ? 'Creating…' : 'Create Share Link'}
               </button>
@@ -913,7 +913,7 @@ export default function Builds() {
           <button
             onClick={() => { setEditingBuild(null); setFormOpen(true); }}
             className="px-5 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded"
-            style={{ background: 'hsl(var(--primary))', color: '#000' }}
+            style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
           >
             Create Your First Build
           </button>

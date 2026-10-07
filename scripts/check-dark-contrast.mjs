@@ -197,7 +197,11 @@ await page.evaluate(() => localStorage.setItem('tre_cookie_consent', JSON.string
 // structurally blind to text nobody repointed, so THIS is the only gate that can catch a
 // low-contrast string whose colour nobody thought to look for. A one-route version left that
 // job undone on 83% of the app.
-const ROUTES = LANDING ? ['/'] : ['/dashboard', '/budget', '/debt', '/forecast', '/account', '/settings'];
+// `--more` walks the other signed-in screens (2026-10-07): the six above were the only ones any
+// contrast probe had read, so Transactions, Goals, Garage, Net Worth, Premium and the AI advisor
+// were never measured.
+const MORE = ['/transactions', '/goals', '/vehicles', '/builds', '/net-worth', '/premium', '/ai', '/subscriptions'];
+const ROUTES = LANDING ? ['/'] : process.argv.includes('--more') ? MORE : ['/dashboard', '/budget', '/debt', '/forecast', '/account', '/settings'];
 const OVERLAY = 'div.backdrop-blur-sm, div.modal-overlay';
 
 const readPage = () => page.evaluate(() => {
