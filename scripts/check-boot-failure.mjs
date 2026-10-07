@@ -55,6 +55,10 @@ async function state(page) {
       screenText: visible ? el.innerText.split('\n')[0] : '',
       mounted: !!(root && root.childElementCount > 0 && getComputedStyle(root).display !== 'none'),
       recorded: localStorage.getItem('forgenta.bootFailure.v1'),
+      // e1b0fffc static landing text: in the DOM before mount, never painted, gone after.
+      seoPresent: !!document.getElementById('seo-landing'),
+      seoWords: (document.getElementById('seo-landing')?.textContent || '').trim().split(/\s+/).filter(Boolean).length,
+      seoPx: Math.round(document.getElementById('seo-landing')?.getBoundingClientRect().width || 0),
     };
   });
 }
@@ -99,6 +103,7 @@ try {
     if (!s.mounted) { console.log('CONTROL FAILED: the unblocked app did not mount - the instrument is broken'); exit = 2; }
     check('control', s.mounted && !s.screenVisible, `mounted=${s.mounted} screen=${s.screenVisible}`);
     check('control: splash gone once mounted', s.mounted && !s.splashVisible, `splash=${s.splashVisible}`);
+    check('control: static landing text removed once mounted', s.mounted && !s.seoPresent, `seo=${s.seoPresent}`);
     await ctx.unrouteAll({ behavior: 'ignoreErrors' }); await page.unrouteAll({ behavior: 'ignoreErrors' }); await ctx.close();
   }
 
@@ -134,10 +139,12 @@ try {
     const early = await state(page);
     // Best effort: WebKit waits for fonts before a screenshot, and a stalled page never finishes loading.
     if (process.env.SHOT_DIR) await page.screenshot({ path: `${process.env.SHOT_DIR}/boot-splash-390.png`, timeout: 4000 }).catch(() => console.log('note: splash screenshot skipped (page still loading)'));
+    check('stall: static landing text is in the DOM but not painted', early.seoPresent && early.seoWords > 150 && early.seoPx <= 1, `seo=${early.seoPresent} words=${early.seoWords} px=${early.seoPx}`);
     check('stall: splash shows the mark while loading', early.splashVisible && early.splashPx === 112 && !early.screenVisible, `splash=${early.splashVisible} px=${early.splashPx} screen=${early.screenVisible}`);
     await page.waitForTimeout(TIMEOUT_ARM_WAIT - 1500);
     const s = await state(page);
     check('stall: splash gone when the screen shows', s.screenVisible && !s.splashVisible, `splash=${s.splashVisible}`);
+    check('stall: static landing text gone when the screen shows', s.screenVisible && !s.seoPresent, `seo=${s.seoPresent}`);
     check('stall: timeout shows the screen', s.screenVisible && /Couldn't load Forgenta/.test(s.screenText), `screen=${s.screenVisible} after ${TIMEOUT_ARM_WAIT}ms`);
     await ctx.unrouteAll({ behavior: 'ignoreErrors' }); await page.unrouteAll({ behavior: 'ignoreErrors' }); await ctx.close();
   }

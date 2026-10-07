@@ -77,6 +77,52 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- STATIC LANDING TEXT (e1b0fffc, 2026-10-06). A crawler that runs NO JavaScript (Bing, link
+         unfurlers, most AI crawlers) used to read zero words here: the body was comments and the splash.
+         This is the landing page's own English copy from src/locales/en/landing.json, as plain HTML.
+         It is a SIBLING of #root, never inside it: the boot guard counts #root's children to decide
+         "mounted", so text inside #root would read as a mounted app. While JS runs it is visually
+         hidden (no paint, so no LCP change) and the guard REMOVES it on mount and on fail, so a user
+         never sees it twice. With JS off, the noscript rule shows it and drops the splash.
+         landing-static-text.test.ts fails if a string here drifts from landing.json. -->
+    <style>.seo-landing{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}</style>
+    <noscript><style>.seo-landing{position:static;width:auto;height:auto;margin:0 auto;padding:24px;overflow:visible;clip:auto;white-space:normal;max-width:640px;font-family:system-ui,sans-serif;color:#f5f5f5;background:#0a0a0a}#boot-splash{display:none}</style></noscript>
+    <main id="seo-landing" class="seo-landing">
+        <h1>Discipline builds wealth.</h1>
+        <p>Budget with precision. Eliminate debt. Stack savings. Track every goal. Forgenta is the financial cockpit for people who take their money seriously.</p>
+        <p><a href="/auth">Start Free</a> <a href="/demo">See Demo</a> <a href="https://apps.apple.com/us/app/forgenta-track-build-wealth/id6762540239">Download on the App Store</a> <a href="https://play.google.com/store/apps/details?id=com.treforged.forged">Get it on Google Play</a></p>
+        <section>
+            <h2>Core principles</h2>
+            <ul>
+                <li><strong>Track</strong> Every account, goal, and payment — one dashboard.</li>
+                <li><strong>Secure</strong> Bank-level encryption. MFA. Your data never sold.</li>
+                <li><strong>Automate</strong> Recurring rules, paycheck scheduling, auto-projection.</li>
+            </ul>
+        </section>
+        <section>
+            <h2>Built for financial discipline</h2>
+            <p>Every tool designed to give you clarity, control, and confidence over your money.</p>
+            <ul>
+                <li><strong>Cash Flow Control</strong> Track every dollar in and out. See your real-time financial position at a glance.</li>
+                <li><strong>Spending Analytics</strong> Break down expenses by category. Identify patterns. Cut waste.</li>
+                <li><strong>Debt Payoff Engine</strong> Snowball or avalanche — compare strategies and crush debt systematically.</li>
+                <li><strong>Savings Goals</strong> Set targets, track progress, and watch your financial runway grow.</li>
+                <li><strong>Car Fund Tracker</strong> Plan your next vehicle purchase with precision. Know your numbers.</li>
+                <li><strong>Premium Tools</strong> Advanced exports, unlimited history, and pro-level analytics.</li>
+            </ul>
+        </section>
+        <section>
+            <h2>A Note from the Founder</h2>
+            <blockquote>"Like a lot of people, I've been in the weeds with credit card debt. I know what it feels like to look at a balance and not know where to even start. I built Forgenta because I couldn't find a tool that was honest with me about my numbers and actually helped me make a plan. This isn't just an app. It's what I wish I had when I was trying to get my head above water."</blockquote>
+            <p>Tre, Founder, Forgenta</p>
+        </section>
+        <section>
+            <h2>Start building wealth today.</h2>
+            <p>Free to start. No credit card. No ads. Just your money, finally under control.</p>
+            <p><a href="/auth">Get Started Free</a></p>
+        </section>
+        <nav><a href="/privacy">Privacy Policy</a> <a href="/terms">Terms of Service</a></nav>
+    </main>
     <!-- BOOT SPLASH (ask 98cbf494, Tre: "same for other loading/cover screens"). Before the bundle
          runs, a web cold load showed an empty page. This is the Forgenta mark at the same 112px as
          LoadingMark, pulsing, as a SIBLING of #root: the boot guard below counts #root's children
@@ -113,7 +159,7 @@
         var KEY = 'forgenta.bootFailure.v1';
         var shown = false;
         function mounted() { var r = document.getElementById('root'); return !!(r && r.childElementCount > 0); }
-        function hideSplash() { var s = document.getElementById('boot-splash'); if (s && s.parentNode) s.parentNode.removeChild(s); }
+        function hideSplash() { ['boot-splash', 'seo-landing'].forEach(function (id) { var s = document.getElementById(id); if (s && s.parentNode) s.parentNode.removeChild(s); }); }
         function show() { hideSplash(); var el = document.getElementById('boot-failed'); if (el) el.style.display = 'flex'; }
         function record(reason) {
           try { localStorage.setItem(KEY, JSON.stringify({ reason: String(reason).slice(0, 200), at: new Date().toISOString(), path: location.pathname })); } catch (e) { /* storage blocked: the screen still shows */ }

@@ -282,6 +282,11 @@ section states reasoning, not measurement, and says so.
   index.html on purpose: a guard in the bundle cannot report that the bundle failed. The next good boot sends
   the record to `public.client_boot_failures` (insert-own only; the desk reads it with SQL), because
   `reportError` is off in the native app. Does NOT cover a crash AFTER mount (that is the ErrorBoundary's job).
+  Also asserts the STATIC LANDING TEXT (`#seo-landing`, e1b0fffc): before mount it is in the DOM (>150 words) but
+  not painted (1px), and it is GONE after mount and on the error screen. It is the landing copy as plain HTML for
+  crawlers that run no JS (a plain curl read only the <title> before, 272 words after). A SIBLING of #root for the same reason as
+  the splash. Red with the guard's removal stripped (2 fail). Its copy drift is owned by `landing-static-text.test.ts`
+  (fails if a string differs from `src/locales/en/landing.json`): change the landing copy, change the block too.
 - `npm run check:safe-to-spend` - on /demo at 390x844 (no credentials): the "Safe to Spend until <date>" figure
   (ask 23fe1862) renders, PRESSING it opens its calculator drawer, and the drawer agrees with the card (lowest point
   minus floor = total = card). The maths is owned by `src/lib/__tests__/safe-to-spend.test.ts` (15 tests, each asserts
