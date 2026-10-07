@@ -92,7 +92,7 @@ function LumpSumModal({
           </div>
           <div>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-              Months <span className="text-muted-foreground/60">(consecutive, starting this date)</span>
+              Months <span className="text-muted-foreground">(consecutive, starting this date)</span>
             </p>
             <input aria-label="Months"
               type="number"

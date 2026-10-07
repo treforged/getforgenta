@@ -130,7 +130,7 @@ function PreferencesModal({
                     <p className="text-xs text-muted-foreground leading-relaxed pt-2">
                       {cat.description}
                     </p>
-                    <p className="text-[11px] text-muted-foreground/70">
+                    <p className="text-[11px] text-muted-foreground">
                       <span className="font-medium text-muted-foreground">Examples: </span>
                       {cat.examples.join(', ')}
                     </p>

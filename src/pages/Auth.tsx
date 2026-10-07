@@ -1247,7 +1247,7 @@ export default function Auth() {
               <img src="/apple-logo.png" alt="" aria-hidden="true" style={{ height: 20, width: 'auto', display: 'block' }} />
               Continue with Apple
             </button>
-            <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+            <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
               You may see a supabase.co prompt. This is Forgenta's secure sign-in provider.
             </p>
           </div>

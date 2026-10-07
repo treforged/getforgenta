@@ -177,7 +177,7 @@ export default function DebtRecommendationsWidget({ debtBreakdown, cards = [], s
                     // nothing to act on and the row above already carries the claim.
                     <span className={(r.dueThisMonth ?? r.payment) > 0
                       ? 'text-[10px] text-foreground'
-                      : 'text-[9px] text-muted-foreground/70'}>
+                      : 'text-[9px] text-muted-foreground'}>
                       {formatCurrency(r.dueThisMonth ?? r.payment)} due this month
                     </span>
                   )}

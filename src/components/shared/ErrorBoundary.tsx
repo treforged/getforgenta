@@ -152,7 +152,7 @@ class ErrorBoundaryInner extends Component<InnerProps, State> {
                 The rest of this page still works.
               </p>
               {detail && (
-                <p className="text-[11px] text-muted-foreground/70 mt-1 break-words">{detail}</p>
+                <p className="text-[11px] text-muted-foreground mt-1 break-words">{detail}</p>
               )}
               <button
                 onClick={this.handleRetry}
@@ -178,7 +178,7 @@ class ErrorBoundaryInner extends Component<InnerProps, State> {
             {willReload ? 'Reloading usually clears this up.' : 'This is usually temporary — try again.'}
           </p>
           {detail && (
-            <p className="text-[11px] text-muted-foreground/70 mt-2 break-words">{detail}</p>
+            <p className="text-[11px] text-muted-foreground mt-2 break-words">{detail}</p>
           )}
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2">

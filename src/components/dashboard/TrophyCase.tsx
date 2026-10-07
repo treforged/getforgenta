@@ -115,7 +115,7 @@ export default function TrophyCase() {
                     )}
                   </p>
                   <p className="text-[10px] text-muted-foreground leading-snug">{a.description}</p>
-                  <p className="text-[10px] text-muted-foreground/70">Earned {earnedOn(a.earnedAt)}</p>
+                  <p className="text-[10px] text-muted-foreground">Earned {earnedOn(a.earnedAt)}</p>
                 </div>
                 {/* A moment of value with no money in it (Sam 2026-09-30). The user starts every
                     share after a preview; an unknown badge has no card, so it has no button. */}
@@ -162,7 +162,7 @@ export default function TrophyCase() {
                   {/* The threshold is the server's own number, returned by the same call that
                       decided this is unearned — so the target shown can never disagree with the
                       target checked. */}
-                  <span className="text-[10px] text-muted-foreground/70 shrink-0 tabular-nums">
+                  <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
                     {reached}/{m.threshold}
                   </span>
                 </li>

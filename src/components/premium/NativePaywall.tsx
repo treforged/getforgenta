@@ -462,7 +462,7 @@ export default function NativePaywall() {
           >
             Privacy Policy
           </a>
-          <span className="text-muted-foreground/30 text-[10px]">·</span>
+          <span aria-hidden="true" className="text-muted-foreground/30 text-[10px]">·</span>
           <a
             href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
             target="_blank"

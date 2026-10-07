@@ -118,7 +118,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
 
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Monthly Payment Account <span className="text-muted-foreground/60">(defaults to general cash if unset)</span>
+              Monthly Payment Account <span className="text-muted-foreground">(defaults to general cash if unset)</span>
             </label>
             <select aria-label="Monthly payment account"
               value={form.loan_payment_account}
@@ -132,7 +132,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
 
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Linked Loan Account <span className="text-muted-foreground/60">(same loan tracked as an account? link it so net worth doesn't count it twice)</span>
+              Linked Loan Account <span className="text-muted-foreground">(same loan tracked as an account? link it so net worth doesn't count it twice)</span>
             </label>
             <select aria-label="Linked loan account"
               value={form.linked_loan_account_id}
@@ -146,7 +146,7 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
 
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1">
-              Monthly Payment Override <span className="text-muted-foreground/60">(leave blank to use {formatCurrency(scheduledPmt)}/mo)</span>
+              Monthly Payment Override <span className="text-muted-foreground">(leave blank to use {formatCurrency(scheduledPmt)}/mo)</span>
             </label>
             <input aria-label="Monthly payment override"
               type="number"

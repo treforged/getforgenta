@@ -77,7 +77,7 @@ function CookiePreferencesInline() {
                 {isExpanded && (
                   <div className="px-3 pb-3 border-t border-border/40 pt-2 space-y-1">
                     <p className="text-[11px] text-muted-foreground leading-relaxed">{cat.description}</p>
-                    <p className="text-[10px] text-muted-foreground/70"><span className="font-medium text-muted-foreground">Examples: </span>{cat.examples.join(', ')}</p>
+                    <p className="text-[10px] text-muted-foreground"><span className="font-medium text-muted-foreground">Examples: </span>{cat.examples.join(', ')}</p>
                   </div>
                 )}
               </div>

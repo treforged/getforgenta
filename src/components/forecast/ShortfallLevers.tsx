@@ -98,7 +98,7 @@ export default function ShortfallLevers({ shortMonths, compute }: Props) {
               ))}
             </ol>
           )}
-          <p className="text-[10px] text-muted-foreground/80 mt-3">
+          <p className="text-[10px] text-muted-foreground mt-3">
             Each figure comes from re-running your forecast without that one item. Retirement contributions are never suggested.
           </p>
         </div>

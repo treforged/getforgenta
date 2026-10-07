@@ -368,7 +368,7 @@ function EntryView({ entry, isFirst }: { entry: ChatEntry; isFirst: boolean }) {
             </div>
           )}
 
-          <p className="text-xs text-muted-foreground/50 pl-1">
+          <p className="text-xs text-muted-foreground pl-1">
             {new Date(entry.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}
           </p>
         </div>

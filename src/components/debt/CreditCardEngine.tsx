@@ -2104,7 +2104,7 @@ export default function CreditCardEngine({ accounts, transactions, rules, debts,
                         // nothing to act on and the row above already carries the claim.
                         <span className={(r.dueThisMonth ?? r.payment) > 0
                           ? 'text-[10px] sm:text-xs text-foreground'
-                          : 'text-[9px] text-muted-foreground/70'}>
+                          : 'text-[9px] text-muted-foreground'}>
                           {formatCurrency(r.dueThisMonth ?? r.payment)} due this month
                         </span>
                       )}
