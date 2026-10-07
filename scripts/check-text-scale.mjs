@@ -120,6 +120,8 @@ const before = await page.evaluate((sel) => {
     if (!t || el.children.length > 0 || t.length > 60) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
+    // Recharts' offscreen text-measuring node (top: -20000px), never on screen. Named by its own id (66f3467e).
+    if (el.closest('#recharts_measurement_span')) continue;
     out.push({ size: parseFloat(getComputedStyle(el).fontSize), text: t.slice(0, 34),
                 where: `${el.tagName}.${String(el.className).slice(0, 40)}`,
                 ctx: (el.parentElement ? el.parentElement.outerHTML : '').slice(0, 260) });
@@ -140,6 +142,8 @@ const readAfter = () => page.evaluate((sel) => {
     if (!t || el.children.length > 0 || t.length > 60) continue;
     const r = el.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) continue;
+    // Recharts' offscreen text-measuring node (top: -20000px), never on screen. Named by its own id (66f3467e).
+    if (el.closest('#recharts_measurement_span')) continue;
     out.push({ size: parseFloat(getComputedStyle(el).fontSize), text: t.slice(0, 34),
                 where: `${el.tagName}.${String(el.className).slice(0, 40)}`,
                 ctx: (el.parentElement ? el.parentElement.outerHTML : '').slice(0, 220) });
