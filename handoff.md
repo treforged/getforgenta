@@ -4,7 +4,7 @@
 R-NOW25 (2026-10-07 ~01:55 ET, Ada -> successor; handoff gate at 208 calls). START HERE, IN ORDER:
   1. RE-ARM session crons (die with each tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
      "13 9,21 * * *" cancel buckets; "17 9,21 * * *" free-link grant (R-NOW21 #1 b/c).
-  2. VERIFY DEPLOY FIX 3c? (last commit "[deploy]: ignoreCommand diffs against the last DEPLOYED sha"): curl -s
+  2. [DONE 01:58: home title LIVE, /no-such-page-xyz/ renders noindex + 'Page not found'; cbf3535a closed] VERIFY DEPLOY FIX (last commit "[deploy]: ignoreCommand diffs against the last DEPLOYED sha"): curl -s
      "https://getforgenta.com/?v=$RANDOM" | grep -o '<title>[^<]*' must read "Forgenta: Budget App That Shows What Is
      Safe to Spend". If not, read Vercel deployments for the getforgenta project (MCP list_deployments) - the old
      ignoreCommand (HEAD^..HEAD) skipped every push ending in a docs/handoff commit. Then JS-render
