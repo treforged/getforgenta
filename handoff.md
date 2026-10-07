@@ -17,7 +17,7 @@ R-NOW28 (2026-10-07 ~04:10 ET, Ada). R-NOW27 items 1, 4, 5 DONE; 2 and 3 WAIT:
   - e1b0fffc DONE f312cd52: tile hint icons muted/60 (2.69:1 light) -> full; faded-muted gate exempts aria-hidden only.
   NEXT: db1d6813 close after 72f96fc2 (11:41 ET); then next e1b0fffc improvement.
   - HTML-sink sweep (05:40, NEGATIVE on record): src has ONE sink (exportPdf document.write, fixed 0c8a1277; no dangerouslySetInnerHTML/innerHTML/insertAdjacentHTML). Edge HTML: newsletter-digest, friend-link, partner-link, unverified-nudge, og-consent-* all wrap every interpolation in esc(). Nothing to fix.
-  - Free-tier test slices: f434ecb7 sanitize (groq), 9131468f sanitizePayload now cleans jsonb (balance_tranches.label), ea2a088c upcoming-obligations (qwen3:14b, unchanged). ea11292d+87b3fe5a other-account-cash (qwen3:14b; tsc went red for one push, fixed - gate tsc BEFORE commit). 7dafb833 pre-push now refuses on red tsc (proven). month0-drawer-lines: groq draft weak (2 tests, 2 tsc errors), parked uncommitted at %TEMP%/ada-llm/month0-draft.test.ts - re-brief with the Month0Result type pasted. month0 retry TIMED OUT (GPU locked), scored, dropped for now. NEXT: net-worth-snapshot.ts on a free GPU; month0 by hand or on a quiet GPU.
+  - Free-tier test slices: f434ecb7 sanitize (groq), 9131468f sanitizePayload now cleans jsonb (balance_tranches.label), ea2a088c upcoming-obligations (qwen3:14b, unchanged). ea11292d+87b3fe5a other-account-cash (qwen3:14b; tsc went red for one push, fixed - gate tsc BEFORE commit). 7dafb833 pre-push now refuses on red tsc (proven). month0-drawer-lines: groq draft weak (2 tests, 2 tsc errors), parked uncommitted at %TEMP%/ada-llm/month0-draft.test.ts - re-brief with the Month0Result type pasted. month0 DONE f615a3dc (hand-built after a 3rd free-tier timeout; af3e9a3d closed). NEXT: net-worth-snapshot.ts.
   Sam 05:30: cap 78% - route the next e1b0fffc slices to the free tier (llm.py) while waiting.
 R-NOW27 (2026-10-07 ~03:30 ET, Ada getforgenta-fe -> successor; handoff gate at 178 calls). START HERE, IN ORDER:
   1. RE-ARM the 3 session crons (died with this tab): one-shot "37 11 7 10 *" no-save-nudge read (R-NOW19 #1 text);
@@ -13736,7 +13736,7 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 04:15 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 04:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
@@ -13756,14 +13756,14 @@ M deno.lock
 - **Recent commits:**
 
 ```
-25191dd0 [handoff]: R-NOW28 - HTML sink sweep clean
-1813d5d5 [handoff]: R-NOW28 - hint icons
-f312cd52 [a11y]: tappable-tile hint icons use full muted grey (e1b0fffc)
-b99e3182 [handoff]: R-NOW28 - landing contrast
-19f5d00e [a11y]: contrast probe reads the signed-out landing page (check:landing-contrast)
-391949fb [a11y]: landing stat labels and testimonial disclosure use the muted token (e1b0fffc)
-68baa72b [handoff]: R-NOW28 - muted/NN sweep ba00f5a9
-ba00f5a9 [a11y]: no faded muted-grey text anywhere; gate refuses it (e1b0fffc)
+145d09a1 [handoff]: R-NOW28 - month0 free-tier retry failed, scored
+012b80f9 [handoff]: R-NOW28 - pre-push tsc
+7dafb833 [ci]: pre-push refuses a push while tsc --noEmit is red
+100083ff [handoff]: R-NOW28 - other-account-cash tests
+87b3fe5a fix(test): other-account-cash malformed-row case typechecks (tsc was red after ea11292d)
+ea11292d test: pin otherAssetSourceId and assetAccountIdsOf (e1b0fffc)
+ea88b688 [handoff]: R-NOW28 - free-tier test slices
+ea2a088c test: pin toScheduledObligations (Bills This Week source) (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
