@@ -378,7 +378,9 @@ section states reasoning, not measurement, and says so.
   (813px before, 564px after). Proven red by forcing one tile to 60px. Positive control: exactly 7 tiles found.
 - `npm run check:grid-orphans` - every CSS grid of card-sized tiles on the 7 main screens at 360, 390, 768, 1024,
   1280, 1440 and 1920, signed in: fails on an ORPHAN last row (fewer tiles than the first row and >25% of the width
-  empty) and on an OVERSIZED tile (>1.4x its siblings' median width with its text spanning <60% of it). Planted
+  empty) and on an OVERSIZED tile (>1.4x its siblings' median width with its text spanning <60% of it).
+  GRID_EMAIL / GRID_PASSWORD walk another @forgenta.test account; run walk:empty on it first to settle first-run.
+  EMPTY account, 2026-10-07: 49 reads, 0 findings (after 499107be). Planted
   controls run first (3+1, blank double, even 2x2). Proven red on Tre's two 2026-10-05 screenshots (Monthly Income
   spanning 2 columns; Minimums Due alone at 768). Its first sweep also found raw account ids printed on the
   Transactions source tiles. Does NOT cover flex-wrap rows, grids behind a dialog, or colour.

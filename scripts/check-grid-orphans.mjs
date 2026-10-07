@@ -34,8 +34,9 @@ try { creds = readFileSync('.env.deck-walk.local', 'utf8'); } catch { fail(2, '.
 const pick = (s, k) => (s.match(new RegExp('^' + k + '=(.*)$', 'm')) || [])[1]?.trim();
 const url = pick(env, 'VITE_SUPABASE_URL');
 const anon = pick(env, 'VITE_SUPABASE_PUBLISHABLE_KEY');
-const email = pick(creds, 'REACH_TEST_EMAIL');
-const password = pick(creds, 'REACH_TEST_PASSWORD');
+// GRID_EMAIL / GRID_PASSWORD walk another @forgenta.test account, e.g. an EMPTY one settled by walk:empty first.
+const email = process.env.GRID_EMAIL || pick(creds, 'REACH_TEST_EMAIL');
+const password = process.env.GRID_PASSWORD || pick(creds, 'REACH_TEST_PASSWORD');
 if (!url || !anon || !email || !password) fail(2, 'missing env or walk credentials.');
 if (!/@forgenta\.test$/.test(email)) fail(2, `refusing to sign in as "${email}" - @forgenta.test only.`);
 const ref = new URL(url).hostname.split('.')[0];
