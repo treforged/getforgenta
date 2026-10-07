@@ -18,6 +18,19 @@ const NotFound = () => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
   }, [location.pathname]);
 
+  // SOFT-404 GUARD (cbf3535a, Ellis 10-07): the SPA rewrite answers every unknown path with 200 and the
+  // home title, which crawlers can index as a duplicate home page. A crawler that runs JS reads this
+  // noindex; the tag is removed on leaving so a real page is never left noindexed.
+  useEffect(() => {
+    const meta = document.createElement("meta");
+    meta.name = "robots";
+    meta.content = "noindex";
+    document.head.appendChild(meta);
+    const prevTitle = document.title;
+    document.title = "Page not found | Forgenta";
+    return () => { meta.remove(); document.title = prevTitle; };
+  }, []);
+
   const signedIn = Boolean(user) || isDemo;
   const homeTo = signedIn ? "/dashboard" : "/";
   const homeLabel = signedIn ? "Go to dashboard" : "Go to homepage";

@@ -103,6 +103,12 @@ describe('useSimGlassExperiment', () => {
     chrome.remove();
   });
 
+  it('clears the flag after reading it, so a later launch without it is a normal launch', async () => {
+    renderHook(() => useSimGlassExperiment());
+    await waitFor(() => expect(glass.apply).toHaveBeenCalled());
+    expect(localStorage.getItem(FLAG)).toBeNull();
+  });
+
   it('never sets the layout class without the flag', async () => {
     localStorage.removeItem(FLAG);
     renderHook(() => useSimGlassExperiment());

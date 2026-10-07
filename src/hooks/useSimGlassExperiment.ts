@@ -19,6 +19,10 @@ export function useSimGlassExperiment(): void {
         let flag = false;
         try {
           flag = window.localStorage.getItem('forgenta:sim-glass-experiment') === '1';
+          // ONE-SHOT. The flag persisted into the workflow's later Lock launch, which then ran this
+          // scrolled layout and failed its content classifier (run 37568011814 rerun: 0 of 32). Each
+          // glass launch sets it again from its launch environment, so clearing it costs nothing.
+          if (flag) window.localStorage.removeItem('forgenta:sim-glass-experiment');
         } catch {
           flag = false;
         }
