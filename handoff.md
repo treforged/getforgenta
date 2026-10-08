@@ -1,6 +1,10 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW39 (2026-10-08, Ada CLOUD session, quick add 661548f5) IN PROGRESS. Checkpoint from the context gate.
+  "3 Mortgage over Add Transaction at 390" = the bank Decision Deck (BankActivity.tsx:319 deckOpen) covering /transactions
+  on /demo (70 charges waiting), NOT a stray overlap. Plan: centre `+` in the phone bar (MobileNav) opening a quick-add
+  sheet (keypad, category chips, "Add $X"), behind the existing isPremium||isDemo gate. Nothing committed yet.
 R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in
   docs/quick-add-comparison-2026-10-07.md. Fincend 5 taps; ours 7 + 2 keystrokes, no add on Home, Premium-only on web.
   BUILD waits for Mon 10-12 18:00 (no spare reset). Check first: an element ("3 Mortgage") sits over Add Transaction at 390.
