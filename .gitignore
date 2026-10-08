@@ -129,3 +129,7 @@ landing-first-screen-*.png
 scripts/install-local-stack.log
 local-stack/
 scripts/block-local-stack-inbound.log
+
+# Cloudflare Workers local state (ask 8a5268d9)
+.wrangler/
+.dev.vars*

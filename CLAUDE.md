@@ -71,6 +71,11 @@ section states reasoning, not measurement, and says so.
   is the real gate.** A single-timezone run has missed a live money bug before.
 - `npx tsc --noEmit` and `npm run lint`.
 - `npm run build` — needed when the change touches build config or `browserslist`.
+- `npm run check:cloudflare-serve` - CLOUDFLARE HOSTING PREP (ask 8a5268d9, NOT LIVE; plan: `docs/cloudflare-move-plan.md`).
+  `npm run build:cloudflare` (vite build + `dist/_headers` DERIVED from vercel.json), then `npx wrangler@4.136.3 dev` and
+  `BASE_URL=http://127.0.0.1:8788 npm run check:cloudflare-serve`: 6 arms, PASS on 2026-10-08. ⚠️ SPA mode with no Worker
+  answered a missing chunk with 200 index.html (the 09-24 blank-screen shape); `cloudflare/worker.js` 404s it. Red with `main`
+  removed (exit 1). The probe uses node:http because fetch rewrites Sec-Fetch-Mode. No shell at / = exit 2.
 - `npm run walk:routes` — opens EVERY route the router declares, SIGNED IN, in a real
   browser and asserts each renders (not 404, not an ErrorBoundary, not blank, not bounced
   to /auth); then requires every in-app `<a href="/…">` target it met to be a declared

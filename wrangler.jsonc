@@ -1,0 +1,20 @@
+// Cloudflare Workers static-assets config for the WEB app (ask 8a5268d9, PREP ONLY).
+// Nothing reads this until a Cloudflare project is connected; Vercel ignores it.
+// Build: `npm run build:cloudflare` (vite build + dist/_headers derived from vercel.json).
+// Deploy: Workers Builds runs `npx wrangler@4.136.3 deploy` - never from a laptop.
+// Plan, cutover and rollback: docs/cloudflare-move-plan.md.
+{
+  "name": "forgenta-web",
+  "compatibility_date": "2026-09-22",
+  // Invoked ONLY for a non-navigation request that matches no file: it answers 404 so a missing
+  // chunk is never served index.html. Read its header before removing it.
+  "main": "./cloudflare/worker.js",
+  "assets": {
+    "directory": "./dist",
+    // React Router: NAVIGATION requests that match no file get index.html (no Worker invoked).
+    "not_found_handling": "single-page-application"
+  },
+  // No API here: every webhook and API is a Supabase edge function.
+  "workers_dev": true,
+  "preview_urls": true
+}

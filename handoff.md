@@ -1,6 +1,12 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW39 (2026-10-08, Ada CLOUD session, branch claude/cloudflare-8a5268d9, NOT merged). 8a5268d9 / f54c3e7a (Tre: move the
+  calculations to Cloudflare, private, CI on the PC): PLAN in docs/cloudflare-move-plan.md + prep that changes nothing live
+  (wrangler.jsonc, cloudflare/worker.js, build:cloudflare, check:cloudflare-serve PASS 6/6, red without the Worker). KEY FACTS:
+  the repo is PUBLIC (Actions free) - going private puts CI on the exhausted pool, so CI moves BEFORE the flip; the live
+  source maps publish all src with comments (Tre's own balances) - `sourcemap: 'hidden'` is decision #1; Cloudflare alone hides
+  no math. Waits on Tre's 5 decisions (plan section 6). Nothing deployed, no DNS/Vercel/visibility change.
 R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in
   docs/quick-add-comparison-2026-10-07.md. Fincend 5 taps; ours 7 + 2 keystrokes, no add on Home, Premium-only on web.
   BUILD waits for Mon 10-12 18:00 (no spare reset). Check first: an element ("3 Mortgage") sits over Add Transaction at 390.
