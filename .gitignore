@@ -129,3 +129,6 @@ landing-first-screen-*.png
 scripts/install-local-stack.log
 local-stack/
 scripts/block-local-stack-inbound.log
+
+# Probe frames from scripts/check-*.mjs (screenshots, not source).
+test-results/
