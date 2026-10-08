@@ -2,7 +2,7 @@
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
 R-NOW39 (2026-10-08, Ada CLOUD session on Tre's credit, ask 661548f5 quick add). SHIPPED to branch
-  `ada/quick-add-661548f5` (NOT main: a push to main deploys the web app, and this session was told no production
+  `claude/quick-add-661548f5` (Sam renamed it; an earlier push also sits on `ada/quick-add-661548f5`, same commits) (NOT main: a push to main deploys the web app, and this session was told no production
   deploys). Commit 86d97b2. MERGING IT IS THE NEXT STEP and is Sam's/Tre's call; then dispatch iOS for TestFlight.
   - Centre `+` in the phone bar (MobileNav, not PRIMARY_NAV) and Home's "Add" both open QuickAddSheet: keypad hero,
     5 most-used expense chips + More, last category/account preselected, "Add $36". Same row + add hook as the full form.
