@@ -88,6 +88,7 @@ import { exportDashboardPdf } from '@/lib/exportPdf';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDemo } from '@/contexts/DemoContext';
+import { useQuickAdd } from '@/contexts/QuickAddContext';
 import { calculateMonthlyPayment } from '@/lib/calculations';
 import { supabase } from '@/integrations/supabase/client';
 import { widgetLabel, type WidgetId } from '@/lib/dashboard-widgets';
@@ -143,6 +144,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
+  const { openQuickAdd } = useQuickAdd();
   const navigate = useNavigate();
 
   /**
@@ -1454,14 +1456,19 @@ export default function Dashboard() {
               </button>
             )}
 
-            <Link
-              to="/transactions"
+{/* Opens QUICK ADD in place (ask 661548f5). It used to be a link to /transactions, where
+                the bank Decision Deck opens over the page and Add Transaction is behind it: Home had
+                no real way to add. Free users still land on /premium, the existing gate. */}
+            <button
+              type="button"
+              onClick={openQuickAdd}
+              data-testid="home-quick-add"
               className="flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-2.5 py-1.5 text-[11px] font-semibold btn-press hover:bg-primary/90 transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
               <Plus size={13} /> Add
               <span className="sr-only"> Transaction</span>
-            </Link>
+            </button>
             <SurfaceGuide surface="dashboard" />
           </div>
         </div>

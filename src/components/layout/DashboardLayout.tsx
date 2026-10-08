@@ -6,6 +6,7 @@ import DemoBanner from '@/components/shared/DemoBanner';
 import PartnerViewBanner from '@/components/shared/PartnerViewBanner';
 import { useDemo } from '@/contexts/DemoContext';
 import { CardProjectionProvider } from '@/contexts/CardProjectionContext';
+import { QuickAddProvider } from '@/contexts/QuickAddContext';
 import { useAutoEndSyncReconcile } from '@/hooks/useAutoEndReconcile';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import { useSimGlassExperiment } from '@/hooks/useSimGlassExperiment';
@@ -21,6 +22,8 @@ export default function DashboardLayout() {
   // CI-only native glass experiment (8a202850). Inert unless the Debug simulator build set its flag.
   useSimGlassExperiment();
   return (
+    // QuickAddProvider: one quick-add sheet for every door into it (bar `+`, Home's Add).
+    <QuickAddProvider>
     <div className="app-shell flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
 
@@ -85,5 +88,6 @@ export default function DashboardLayout() {
       {/* Store capture (`/demo?capture=1`) frames the screen without the tab bar. */}
       {!isCapture && <MobileNav />}
     </div>
+    </QuickAddProvider>
   );
 }

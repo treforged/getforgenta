@@ -2,6 +2,9 @@ import { Link, useLocation } from 'react-router';
 import { cn } from '@/lib/utils';
 import { useBankReviewQueueCount } from '@/hooks/useBankReviewQueue';
 import { PRIMARY_NAV } from '@/lib/primary-nav';
+import { Fragment } from 'react';
+import { Plus, Crown } from 'lucide-react';
+import { useQuickAdd } from '@/contexts/QuickAddContext';
 
 // The bottom bar is a 5-column grid of five destinations. It used to be four plus a "More" button;
 // the button's panel became the top-left hamburger drawer on 2026-08-18 (Tre: "make settings
@@ -60,6 +63,7 @@ export default function MobileNav() {
   // loading and null at zero. The mobile bar gets it too because a review queue only a desktop user
   // can see is the same invisibility bug in a smaller window.
   const reviewQueueCount = useBankReviewQueueCount();
+  const { openQuickAdd, canQuickAdd } = useQuickAdd();
 
   return (
     // ⚠️ `z-40`, NOT `z-50`. The tab bar is CHROME and belongs under every overlay in the app.
@@ -104,11 +108,34 @@ export default function MobileNav() {
           at every width (2026-08-27). Each cell is at least its word; the rest is shared.
           check:narrow-overflow asserts every label is whole (WIDTH=320 and 390). */}
       <div className="flex items-stretch px-0.5 min-[360px]:px-1.5 py-1.5 min-h-[64px]">
-        {PRIMARY.map(item => {
+        {PRIMARY.map((item, index) => {
           const active = pathname === item.to;
           return (
+            <Fragment key={item.to}>
+            {/* QUICK ADD, IN THE CENTRE (ask 661548f5, Tre: "quick add like Fincend"). Fincend's `+`
+                sits mid-bar on every screen and gets a $36 expense saved in 5 taps; ours took 7 taps
+                and 2 keystrokes from Transactions and had no door on Home at all. It is an ACTION, not
+                a destination, so it is NOT in PRIMARY_NAV (the rail and nav-parity stay about routes).
+                Icon only, no label: the filled gold circle is the convention, and a sixth word would
+                not fit at 320. Without manual entry it is crowned and goes to /premium, the same gate
+                as the Transactions page's own Add button. */}
+            {index === 2 && (
+              <button
+                type="button"
+                onClick={openQuickAdd}
+                aria-label={canQuickAdd ? 'Quick add a transaction' : 'Quick add a transaction (Premium)'}
+                data-testid="nav-quick-add"
+                className="flex shrink-0 items-center justify-center px-0.5 min-[360px]:px-1 btn-press"
+              >
+                <span className="relative flex h-10 w-10 min-[360px]:h-11 min-[360px]:w-11 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md shadow-black/25">
+                  <Plus size={22} strokeWidth={2.4} />
+                  {!canQuickAdd && (
+                    <Crown size={11} className="absolute -top-1 -right-1 rounded-full bg-background p-0.5 text-primary" />
+                  )}
+                </span>
+              </button>
+            )}
             <Link
-              key={item.to}
               to={item.to}
               aria-current={active ? 'page' : undefined}
               onClick={active ? scrollMainToTop : undefined}
@@ -144,6 +171,7 @@ export default function MobileNav() {
                   as a DECLARED exemption. */}
               <span data-text-scale-exempt="ios-tab-bar" className="truncate max-w-full text-[min(0.625rem,10px)] tracking-tight min-[360px]:text-[min(0.75rem,12px)] min-[360px]:tracking-normal">{item.label}</span>
             </Link>
+            </Fragment>
           );
         })}
       </div>

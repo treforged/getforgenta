@@ -33,3 +33,17 @@ Open questions for Sam, not Tre: (a) does quick add stay Premium-only on web? Ga
 habit loop that keeps a free user. (b) which `+` slot: Plan took Garage's slot on 10-06 (c5e29d9e).
 
 Gate when built: a Playwright press count from Home to a saved row, asserted <= 5, red on the current flow (7).
+
+## Built (2026-10-08, ask 661548f5)
+
+| | Before | After |
+| --- | --- | --- |
+| Door on Home | none (Home's "Add" linked to /transactions, where the bank Decision Deck covers the page) | bar's centre `+` on every phone tab; Home's "Add" opens the sheet at every width |
+| Presses for a $36 groceries expense, from Home | 7 + 2 keystrokes (from Transactions) | **5** (`+`, Groceries, 3, 6, "Add $36"); **4** when Groceries was the last category used |
+| Amount entry | `type=number`, OS keyboard | in-sheet keypad; a hardware keyboard types into it too |
+| Category | `<select>` of 26 | one row of the 5 most-used expense chips + More |
+| Save label | "Add Transaction" | "Add $36", disabled at $0 |
+
+The "3 Mortgage over Add Transaction" finding was the Decision Deck (BankActivity's `deckOpen`), which opens by design
+over /transactions while charges wait; it is not a stray overlap and was not changed. Quick add does not go through it.
+Gate: `npm run check:quick-add` (CLAUDE.md). Still Premium-only on web by the existing gate: open question for Tre.

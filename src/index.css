@@ -8,6 +8,11 @@
    must NOT get a rail that only opens on hover, because it has no hover to open it with — which
    would leave it permanently showing icons and no labels. */
 @custom-variant fine-pointer (@media (hover: hover) and (pointer: fine));
+/* SHORT SCREENS, by height (an iPhone SE is 667 and 568 tall). The quick-add sheet uses these so
+   its save button is on screen without scrolling (check:quick-add HEIGHT=667 and 568). An arbitrary
+   `[@media(max-height:...)]:` variant generated nothing here, which is why these are named. */
+@custom-variant short (@media (min-height: 601px) and (max-height: 700px));
+@custom-variant very-short (@media (max-height: 600px));
 
 @utility container {
   margin-inline: auto;
