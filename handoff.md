@@ -1,6 +1,23 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW39 (2026-10-08 ~22:00 ET, Ada CLOUD session on Tre's credit; Sam dispatched, his plan at 87%). e1b0fffc: the five
+  unreached dialogs PROBED on /demo at 390x844, 320x568, 1440x900 (no creds needed; signed-in not tried - no walk creds here).
+  NEW GATE `npm run check:dialog-reach` (7 dialogs x 3 viewports; red on pre-fix code: 21 findings, exit 1; green 21/21).
+  FIXED (one commit, SHA in git log "[ui]: dialogs reachable"):
+  - Add Extra Payment (LumpSumPanel) was trapped inside its .card-forged card (backdrop-filter = containing block for fixed):
+    next card painted over it, "Add Payment" below the screen, at every width. createPortal to body, as FormModal.
+  - New/Edit Build unscrollable: 745px tall, at 568 Close at -69px and Save at 595px. max-h-full + overflow + sticky header.
+  - Close targets 27px (Build, Log Service) and 14px (Share card, Read a statement) -> 44px.
+  - Read a statement title truncated the card name away at 320 -> line-clamp-2.
+  - BuyIt ("I bought it") defaulted First Payment/Interest to today+1mo while Loan Start = planned date (2030): Confirm with
+    defaults was REFUSED. Now a month after a future loan start. BuyItDialog.defaults.test.tsx (red 2/4 pre-fix).
+  NOT a dialog: Add Phase is inline. Garage Builds switch is a plain button (not role=tab) - why DIALOGS=1 never reached it.
+  LEFT: StatementImport/BuyIt/Build/Maintenance modals are not portalled (iOS fixed-in-scroller scrim gap per FormModal's note;
+  not measurable in desktop Chromium) - portal them if the scrim shows short on a device. ProductQ for Tre: should "I bought it"
+  default Loan Start to TODAY when the planned date is still in the future? (kept the planned date; conservative.)
+  Cloud notes: Playwright here needs PW_EXECUTABLE=/opt/pw-browsers/chromium (repo pins a newer headless shell); vite must bind
+  127.0.0.1 (IPv6 listen fails). The context-gate hook counts CUMULATIVE tokens in cloud and fires early - not live context.
 R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in
   docs/quick-add-comparison-2026-10-07.md. Fincend 5 taps; ours 7 + 2 keystrokes, no add on Home, Premium-only on web.
   BUILD waits for Mon 10-12 18:00 (no spare reset). Check first: an element ("3 Mortgage") sits over Add Transaction at 390.

@@ -133,7 +133,7 @@ export default function ShareCardButton({
               <button
                 type="button"
                 aria-label="Close"
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors btn-press"
+                className="shrink-0 min-w-[44px] min-h-[44px] -my-3 -mr-3 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors btn-press"
                 onClick={close}
               >
                 <X size={14} />

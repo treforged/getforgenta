@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { LUMP_SUM_AUTO_EXTRA_NOTE } from '@/lib/lump-sum-guard';
 import MoreInfo from '@/components/shared/MoreInfo';
 import { Plus, X, Edit2, Check } from 'lucide-react';
@@ -53,7 +54,11 @@ function LumpSumModal({
   };
 
   useEscapeToClose(onClose);
-  return (
+  // PORTALLED to `document.body`, as FormModal is. This panel renders inside a `.card-forged`
+  // card whose `backdrop-filter` makes it the containing block for `position: fixed`, so the
+  // overlay was trapped inside the card: the next card painted over it and "Add Payment" sat
+  // below the screen (measured at 390x844 on /demo, 2026-10-08).
+  return createPortal((
     <div
       className="modal-overlay z-60"
       style={{ touchAction: 'none', background: 'rgba(0,0,0,0.85)' }}
@@ -126,7 +131,7 @@ function LumpSumModal({
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 interface LumpSumGroup {

@@ -271,7 +271,7 @@ export default function MaintenanceFormModal({
           <span className="text-sm font-semibold text-foreground">
             {log ? 'Edit Service' : 'Log Service'}
           </span>
-          <button aria-label="Close" onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+          <button aria-label="Close" onClick={onClose} className="min-w-[44px] min-h-[44px] -my-2 -mr-2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
             <X size={16} />
           </button>
         </div>

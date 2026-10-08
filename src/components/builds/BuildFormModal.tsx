@@ -82,12 +82,15 @@ export default function BuildFormModal({ open, build, carFunds = [], onClose, on
 
   return (
     <div className="modal-overlay z-50 bg-black/60 backdrop-blur-sm" onClick={dismiss}>
-      <div role="dialog" aria-modal="true" aria-label={build ? 'Edit Build' : 'New Build'} className="bg-card border border-border rounded w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+      <div role="dialog" aria-modal="true" aria-label={build ? 'Edit Build' : 'New Build'} className="bg-card border border-border rounded w-full max-w-md shadow-2xl max-h-full overflow-y-auto" onClick={e => e.stopPropagation()}>
+        {/* `max-h-full overflow-y-auto` + a sticky header, as MaintenanceFormModal: without them the
+            form is 745px tall and on a 568px phone its Close and Save sat off both edges of the
+            screen with nothing to scroll (measured at 320x568, 2026-10-08). */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card z-10">
           <span className="text-sm font-semibold text-foreground">
             {build ? 'Edit Build' : 'New Build'}
           </span>
-          <button aria-label="Close" onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+          <button aria-label="Close" onClick={onClose} className="min-w-[44px] min-h-[44px] -my-2 -mr-2 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
             <X size={16} />
           </button>
         </div>

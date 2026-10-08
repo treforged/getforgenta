@@ -146,9 +146,9 @@ export function StatementImport({ card, onApply, onClose }: Props) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <FileText size={14} className="text-primary shrink-0" />
-            <h2 className="text-sm font-semibold truncate">Read a statement — {card.name}</h2>
+            <h2 className="text-sm font-semibold line-clamp-2">Read a statement — {card.name}</h2>
           </div>
-          <button onClick={onClose} aria-label="Close" className="shrink-0 text-muted-foreground hover:text-foreground btn-press">
+          <button onClick={onClose} aria-label="Close" className="shrink-0 min-w-[44px] min-h-[44px] -my-3 -mr-3 flex items-center justify-center text-muted-foreground hover:text-foreground btn-press">
             <X size={14} />
           </button>
         </div>
