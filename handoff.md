@@ -1,6 +1,9 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in
+  docs/quick-add-comparison-2026-10-07.md. Fincend 5 taps; ours 7 + 2 keystrokes, no add on Home, Premium-only on web.
+  BUILD waits for Mon 10-12 18:00 (no spare reset). Check first: an element ("3 Mortgage") sits over Add Transaction at 390.
 R-NOW37 (2026-10-07 ~18:30 ET, Ada getforgenta-d1, PARKED at the weekly wrap-up, meter 86-87% of 98, resets Mon 10-12 18:00).
   Two-step dialog press committed (signed in 320: 24 distinct dialogs, 0 cut). NEXT (e1b0fffc): why the Accounts tab rows and
   the five (Garage build/maintenance, StatementImport, ShareCard, BuyIt, LumpSum) are not reached - the Accounts switch is
@@ -13857,17 +13860,16 @@ setting, not of a choice - so **do not retrofit the money claim onto them.**
 <!-- AUTO-SNAPSHOT:BEGIN - machine-written, replaced each compaction -->
 ## Auto-snapshot
 
-_Written 2026-10-07 18:10 by handoff_hook. Everything below this heading is
+_Written 2026-10-07 21:43 by handoff_hook. Everything below this heading is
 machine-generated and replaced each time; put durable notes above it._
 
 - **Branch:** `main`
 - **vs upstream:** 0 ahead, 0 behind
 
-- **Uncommitted (7 file(s)):**
+- **Uncommitted (6 file(s)):**
 
 ```
 M deno.lock
- M scripts/check-narrow-overflow.mjs
  M supabase/.temp/cli-latest
 ?? .claude/settings.local.json.bak-20261001-cron
 ?? _inbox/
@@ -13878,6 +13880,7 @@ M deno.lock
 - **Recent commits:**
 
 ```
+a328f832 test: dialog arm two-step press - open each tab/disclosure, then press what it reveals (e1b0fffc)
 f74a0c51 [handoff]: R-NOW36 - dialog v2 green, secrets constant-time, deploy deny list, CAA blocked
 f1fed993 test: dialog arm v2 - signed in under walk:press's rpc guard, fresh page per press, dialogs named by heading (e1b0fffc)
 f6639c60 [security]: deploy:fn refuses deleted or tombstoned edge functions before deploying anything
@@ -13885,7 +13888,6 @@ f6639c60 [security]: deploy:fn refuses deleted or tombstoned edge functions befo
 e1ab02c5 [security]: compare the service-role key and two webhook secrets in constant time (3e970880)
 1510099c [handoff]: R-NOW35 - dialog arm v2 uncommitted, fresh-page run killed for low memory (e1b0fffc)
 e133050a test: check:narrow-overflow DIALOGS=1 presses every button on /demo and measures what opens (e1b0fffc)
-d92cb2df [handoff]: R-NOW34 - crons re-armed in getforgenta-d1; strip large-text fix 7ea393e9 (e1b0fffc)
 ```
 
 <!-- AUTO-SNAPSHOT:END -->
