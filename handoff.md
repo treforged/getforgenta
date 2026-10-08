@@ -1,10 +1,21 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
-R-NOW39 (2026-10-08, Ada CLOUD session, quick add 661548f5) IN PROGRESS. Checkpoint from the context gate.
-  "3 Mortgage over Add Transaction at 390" = the bank Decision Deck (BankActivity.tsx:319 deckOpen) covering /transactions
-  on /demo (70 charges waiting), NOT a stray overlap. Plan: centre `+` in the phone bar (MobileNav) opening a quick-add
-  sheet (keypad, category chips, "Add $X"), behind the existing isPremium||isDemo gate. Nothing committed yet.
+R-NOW39 (2026-10-08, Ada CLOUD session on Tre's credit, ask 661548f5 quick add). SHIPPED to branch
+  `ada/quick-add-661548f5` (NOT main: a push to main deploys the web app, and this session was told no production
+  deploys). Commit 86d97b2. MERGING IT IS THE NEXT STEP and is Sam's/Tre's call; then dispatch iOS for TestFlight.
+  - Centre `+` in the phone bar (MobileNav, not PRIMARY_NAV) and Home's "Add" both open QuickAddSheet: keypad hero,
+    5 most-used expense chips + More, last category/account preselected, "Add $36". Same row + add hook as the full form.
+  - TAPS from Home for a $36 groceries expense: BEFORE 7 + 2 keystrokes (and no door on Home); AFTER 5 (Fincend 5),
+    4 when Groceries was the last category. `npm run check:quick-add` green at 320x568/375x667/390x844/1440x900, red
+    on the pre-change app. test:tz 6,379 x3 green, lint 0 errors, check:narrow-overflow 0 cut (320, 320@150%, 390).
+  - "3 Mortgage over Add Transaction" = the bank Decision Deck, open by design over /transactions while charges wait.
+    Not changed. It also covers the bar there, so `+` on Transactions needs the deck closed first (known gap).
+  - OPEN FOR TRE: make quick add FREE on web? It is behind the existing gate (isPremium || isDemo, else /premium, the
+    `+` shows a crown). Gating the most basic action costs the free user's habit loop; pricing is his call.
+  - NOT VERIFIED: a signed-in save in a browser (no .env.deck-walk.local in the cloud; demo is read only). The row's
+    shape is unit-tested (QuickAddSheet.save.test.tsx). Next: run check:quick-add signed in, and walk:press + check:nav
+    on a machine with the walk account (the `+` is a new top-layer control on every phone route).
 R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in
   docs/quick-add-comparison-2026-10-07.md. Fincend 5 taps; ours 7 + 2 keystrokes, no add on Home, Premium-only on web.
   BUILD waits for Mon 10-12 18:00 (no spare reset). Check first: an element ("3 Mortgage") sits over Add Transaction at 390.
