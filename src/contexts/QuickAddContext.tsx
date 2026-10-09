@@ -1,5 +1,6 @@
 import { createContext, lazy, Suspense, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
+import { Capacitor } from '@capacitor/core';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
 
@@ -19,16 +20,17 @@ const QuickAddContext = createContext<QuickAddValue>({ openQuickAdd: () => {}, c
  * One sheet for every door into it (the bottom bar's `+`, Home's Add button), mounted once in
  * `DashboardLayout`.
  *
- * ⚠️ THE GATE IS THE EXISTING ONE, NOT A NEW PRICING DECISION. Manual entry is `isPremium || isDemo`
- * on the Transactions page (its Add Transaction button is a crowned /premium link otherwise), and
- * this reads the same two flags. Whether quick add should be free is Tre's call (handoff R-NOW39).
+ * ⚠️ FREE ON WEB, GATED IN THE NATIVE APP (Tre, 2026-10-09, relayed by Sam: "make quick add free on
+ * web?" - "yes"). Only this door changed: the Transactions page's own Add Transaction button keeps
+ * its `isPremium || isDemo` gate, and the native app keeps the same gate here. A web free user gets
+ * the sheet; a native free user is sent to /premium, as before.
  */
 export function QuickAddProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
-  const canQuickAdd = isPremium || isDemo;
+  const canQuickAdd = isPremium || isDemo || !Capacitor.isNativePlatform();
 
   const openQuickAdd = useCallback(() => {
     if (canQuickAdd) setOpen(true);

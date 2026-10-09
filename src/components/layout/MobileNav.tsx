@@ -117,8 +117,8 @@ export default function MobileNav() {
                 and 2 keystrokes from Transactions and had no door on Home at all. It is an ACTION, not
                 a destination, so it is NOT in PRIMARY_NAV (the rail and nav-parity stay about routes).
                 Icon only, no label: the filled gold circle is the convention, and a sixth word would
-                not fit at 320. Without manual entry it is crowned and goes to /premium, the same gate
-                as the Transactions page's own Add button. */}
+                not fit at 320. Free on web (Tre, 2026-10-09). In the native app a free user's `+` is
+                crowned and goes to /premium, the gate the Transactions page's own Add button keeps. */}
             {index === 2 && (
               <button
                 type="button"
