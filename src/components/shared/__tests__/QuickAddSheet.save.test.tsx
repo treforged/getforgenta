@@ -22,13 +22,24 @@ vi.mock('@/hooks/useSupabaseData', () => ({
   useTransactions: () => ({ data: state.transactions, add: { mutateAsync, isPending: false } }),
   useAccounts: () => ({ data: state.accounts }),
 }));
-vi.mock('sonner', () => ({ toast: { error: vi.fn(), warning: vi.fn(), success: vi.fn() } }));
+const toastMock = vi.hoisted(() => Object.assign(vi.fn(), { error: vi.fn(), warning: vi.fn(), success: vi.fn() }));
+vi.mock('sonner', () => ({ toast: toastMock }));
+const demo = vi.hoisted(() => ({ isDemo: false }));
+vi.mock('@/contexts/DemoContext', () => ({ useDemo: () => demo }));
+const navigate = vi.hoisted(() => vi.fn());
+vi.mock('react-router', () => ({ useNavigate: () => navigate }));
+const recordFunnelStep = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/signup-funnel', () => ({ recordFunnelStep }));
 
 const press = (name: string) => fireEvent.click(screen.getByRole('button', { name }));
 const keypad = () => within(screen.getByRole('group', { name: 'Amount keypad' }));
 
 beforeEach(() => {
   mutateAsync.mockReset();
+  toastMock.mockReset();
+  navigate.mockReset();
+  recordFunnelStep.mockReset();
+  demo.isDemo = false;
   state.transactions = [];
 });
 
@@ -46,6 +57,27 @@ describe('QuickAddSheet', () => {
     expect(mutateAsync.mock.calls[0][0]).toMatchObject({
       type: 'expense', amount: 36, category: 'Groceries', account: 'Checking', note: 'Transaction', payment_source: '',
     });
+  });
+
+  // Growth pass Proposal B (Tre approved 10-09): the demo asks for the signup at the save press.
+  // Would-fail: call the write in demo (mutateAsync called, generic refusal) or drop the action's
+  // funnel step / navigation.
+  it('in /demo, "Add $36" asks for the signup instead of writing, and the ask leads to /auth', async () => {
+    demo.isDemo = true;
+    const onClose = vi.fn();
+    render(<QuickAddSheet onClose={onClose} />);
+    fireEvent.click(keypad().getByRole('button', { name: '3' }));
+    fireEvent.click(keypad().getByRole('button', { name: '6' }));
+    press('Add $36');
+    const ask = await screen.findByTestId('demo-signup-ask');
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(ask.textContent).toMatch(/5-tap add/);
+    // Control: nothing is recorded or navigated until the visitor presses the ask.
+    expect(recordFunnelStep).not.toHaveBeenCalled();
+    fireEvent.click(within(ask).getByRole('button', { name: 'Sign up free' }));
+    expect(recordFunnelStep).toHaveBeenCalledWith('demo_signup_tap', { detail: 'quick_add' });
+    expect(navigate).toHaveBeenCalledWith('/auth');
   });
 
   it('cannot save $0', () => {

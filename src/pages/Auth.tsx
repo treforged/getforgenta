@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { SAMPLE_SAFE_TO_SPEND, SAMPLE_CARDS_PAID_OFF } from '@/lib/sample-figures';
 import { Link, useSearchParams, useNavigate } from 'react-router';
 import { settleWithin } from '@/lib/onboarding-state';
 import { supabase } from '@/lib/supabase';
@@ -745,11 +746,11 @@ export default function Auth() {
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Example · sample data</p>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-sm text-foreground/80">Safe to spend until payday</span>
-              <span className="text-base font-bold text-primary tabular-nums">$2,229</span>
+              <span className="text-base font-bold text-primary tabular-nums">{SAMPLE_SAFE_TO_SPEND}</span>
             </div>
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-sm text-foreground/80">Credit cards paid off</span>
-              <span className="text-base font-bold text-primary tabular-nums">Dec 2027</span>
+              <span className="text-base font-bold text-primary tabular-nums">{SAMPLE_CARDS_PAID_OFF}</span>
             </div>
           </div>
           <div className="space-y-3">

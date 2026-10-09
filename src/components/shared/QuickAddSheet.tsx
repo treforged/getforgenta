@@ -17,6 +17,10 @@ import {
   type KeypadKey,
 } from '@/lib/quick-add';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router';
+import { useDemo } from '@/contexts/DemoContext';
+import { recordFunnelStep } from '@/lib/signup-funnel';
+import { DEMO_QUICK_ADD_ASK } from '@/lib/demo-signup-ask';
 
 const KEYS: readonly KeypadKey[] = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '0', 'back'];
 
@@ -44,11 +48,14 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
 
   const { data: transactions, add } = useTransactions();
   const { data: accounts } = useAccounts();
+  const { isDemo } = useDemo();
+  const navigate = useNavigate();
   const sourceOptions = useMemo(() => buildPaymentSourceOptions(accounts), [accounts]);
   const chips = useMemo(() => topExpenseCategories(transactions), [transactions]);
 
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
+  const [demoAsk, setDemoAsk] = useState(false);
   const [category, setCategory] = useState<string | null>(null);
   const [date, setDate] = useState(() => toLocalDateStr(new Date()));
   const [source, setSource] = useState<string | null>(null);
@@ -70,6 +77,10 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
     if (!payload) return;
     const violation = getCardStartDateViolation(payload.date, payload.payment_source, accounts ?? []);
     if (violation) { toast.error(violation); return; }
+    // /demo cannot write. Instead of the generic refusal, ask for the signup at the moment the
+    // visitor has just used the feature (see demo-signup-ask.ts). INSIDE the sheet, not a toast:
+    // a toast rendered under this overlay's scrim, half off the bottom of a 390x844 screen.
+    if (isDemo) { setDemoAsk(true); return; }
     try {
       await add.mutateAsync(payload);
     } catch {
@@ -199,6 +210,32 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
             />
           </div>
 
+          {demoAsk ? (
+            // Replaces the keypad AND the save button: the visitor is done typing, and at 320x568
+            // the ask did not fit in the save button's slot alone (cut off by the sheet's edge).
+            <div
+              role="status"
+              data-testid="demo-signup-ask"
+              className="flex flex-col gap-3 border border-primary/40 bg-primary/5 p-4"
+              style={{ borderRadius: 'var(--radius)' }}
+            >
+              <p className="text-sm text-foreground leading-snug">
+                <strong>{DEMO_QUICK_ADD_ASK.title}</strong> {DEMO_QUICK_ADD_ASK.description}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  recordFunnelStep('demo_signup_tap', { detail: DEMO_QUICK_ADD_ASK.funnelDetail });
+                  navigate('/auth');
+                }}
+                className="w-full min-h-[44px] bg-primary text-primary-foreground px-4 text-sm font-semibold btn-press"
+                style={{ borderRadius: 'var(--radius)' }}
+              >
+                {DEMO_QUICK_ADD_ASK.action}
+              </button>
+            </div>
+          ) : (
+          <>
           <div className="grid grid-cols-3 gap-1.5 very-short:gap-1" role="group" aria-label="Amount keypad">
             {KEYS.map(k => (
               <button
@@ -224,6 +261,8 @@ export default function QuickAddSheet({ onClose }: { onClose: () => void }) {
             {saving && <Loader2 size={14} className="animate-spin" />}
             {quickAddSaveLabel(amount)}
           </button>
+          </>
+          )}
         </div>
       </div>
     </div>

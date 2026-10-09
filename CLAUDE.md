@@ -157,7 +157,7 @@ section states reasoning, not measurement, and says so.
 - `--more` on any check:*-contrast walks 8 MORE signed-in screens (/transactions /goals /vehicles /builds /net-worth
   /premium /ai /subscriptions) that no contrast probe had read before 2026-10-07. First run: 2 Garage buttons at 3.13:1 in light
   (hardcoded black on gold), fixed; now 0 of 478 in both themes. e.g. `node scripts/check-dark-contrast.mjs --more --theme light`.
-- `npm run check:landing-contrast` - the same probe SIGNED OUT on `/` (`--landing`), light then dark. No contrast probe had
+- `npm run check:landing-contrast` - the same probe SIGNED OUT on `/` (`--landing`), light then dark. Needs NO walk creds and writes nothing since 2026-10-09 (it used to sign in and PATCH the walk profile first). No contrast probe had
   read the landing before 2026-10-07. Red on the old stat labels (text-foreground/60): 4.21:1, exit 1; now 0 of 49. A redirect
   away from `/` exits 2. Does NOT see the testimonial disclosure while `src/data/testimonials.ts` is empty.
 - ⚠️ **SINCE 2026-10-07 THE WALK-UP ARM COMPOSITES TRANSLUCENT TEXT INSTEAD OF SKIPPING IT.** Chrome reports every
@@ -400,7 +400,7 @@ section states reasoning, not measurement, and says so.
 - `npm run check:quick-add` - QUICK ADD's tap count (ask 661548f5, Tre: "quick add like Fincend") on /demo, no credentials:
   from HOME it presses the bar's centre `+` (Home's Add at WIDTH>=1024), Groceries, 3, 6 and "Add $36", COUNTING every
   press, and requires <= 5 (Fincend's number; before: 7 taps + 2 keystrokes and no door on Home), the hero "-$36", every
-  control inside the sheet's own box without scrolling, the demo's read-only refusal as proof save reached the write,
+  control inside the sheet's own box without scrolling, on /demo the save's SIGNUP ASK ("That's the 5-tap add.", since 10-09 in place of the read-only refusal) ON SCREEN inside the sheet and its "Sign up free" landing on /auth,
   and every bar label whole beside the `+`. Green at 320x568, 375x667, 390x844, 1440x900. Red on the pre-change app at 390
   and 1440 (exit 1); its first 375x667 run found "Add $36" below the fold, and its first 320x568 run (once it measured
   against the sheet's clip, not the viewport) the same - both fixed. The row's shape is owned by quick-add.test.ts and
