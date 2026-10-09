@@ -24,7 +24,7 @@ import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
 import SpentOfPlanned from '@/components/budget/SpentOfPlanned';
 import { CURRENT_MONTH_LABEL, isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
+import { getBudgetAllocationShares, clipSegment, isOverageCoveredByCashAboveFloor } from '@/lib/budget-allocation';
 import { getPaycheckNet, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
@@ -577,7 +577,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
   const {
     buckets: { incomeRules, fixedRules, variableRules, debtRules, transferRules },
     totals, toCurrentMonthAmount, debtPaymentRules, liabilityPaymentRules,
-    goalTransferRules, autoMatchedRuleIds,
+    goalTransferRules, autoMatchedRuleIds, debtBreakdown,
   } = useBudgetMonthTotals();
 
   // ⚠️ `txns` IS NO LONGER READ, and the call is kept ON PURPOSE rather than deleted with the
@@ -1532,11 +1532,20 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
                     </div>
                   ))}
                 </div>
-                {overByPct > 0 && (
-                  <p className="mt-3 text-xs sm:text-sm text-destructive-text font-medium">
+                {overByPct > 0 && (isOverageCoveredByCashAboveFloor({
+                  remaining,
+                  extraCardPayments: debtBreakdown.totalRecommended - debtBreakdown.totalMinimumsDue,
+                  cashWarning: debtBreakdown.cashWarning,
+                }) ? (
+                  // Not an overspend: the debt engine is sending cash above the floor to the cards.
+                  <p className="mt-3 text-xs sm:text-sm text-muted-foreground" data-testid="overage-covered">
+                    Planned {formatCurrency(Math.abs(remaining))} more than {CURRENT_MONTH_LABEL}'s take-home. The extra card payment comes from cash above your floor.
+                  </p>
+                ) : (
+                  <p className="mt-3 text-xs sm:text-sm text-destructive-text font-medium" data-testid="overage-warning">
                     Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining))} more allocated {CURRENT_MONTH_LABEL} than you take home).
                   </p>
-                )}
+                ))}
               </div>
             </div>
           );

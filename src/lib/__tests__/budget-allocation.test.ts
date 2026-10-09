@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getBudgetAllocationShares, clipSegment, type BudgetAllocationTotals } from '../budget-allocation';
+import { getBudgetAllocationShares, clipSegment, isOverageCoveredByCashAboveFloor, type BudgetAllocationTotals } from '../budget-allocation';
 
 // Site walk §4.2. The Budget Allocation legend clamped its Remaining share at 0%, so an
 // over-allocated month printed five shares summing to 146% with the overspend — the one number
@@ -75,5 +75,30 @@ describe('clipSegment', () => {
   it('never returns a positive width for a negative share', () => {
     expect(clipSegment(-46, 100)).toBeLessThanOrEqual(0);
     expect(clipSegment(-46, 0)).toBeLessThanOrEqual(0);
+  });
+});
+
+describe('isOverageCoveredByCashAboveFloor (Plan banner, 2026-10-09)', () => {
+  it('COVERED: the overage is an extra card payment funded above the floor (the /demo month)', () => {
+    // 129% allocated: $1,355.46 over, while the engine sends $2,215.30 beyond the minimums.
+    expect(isOverageCoveredByCashAboveFloor({ remaining: -1355.46, extraCardPayments: 2215.30, cashWarning: false })).toBe(true);
+  });
+
+  it('NOT COVERED: bills alone over-run income and the cards get only minimums', () => {
+    expect(isOverageCoveredByCashAboveFloor({ remaining: -400, extraCardPayments: 0, cashWarning: false })).toBe(false);
+  });
+
+  it('NOT COVERED: the overage is bigger than the extra card payment', () => {
+    expect(isOverageCoveredByCashAboveFloor({ remaining: -900, extraCardPayments: 500, cashWarning: false })).toBe(false);
+  });
+
+  it('NOT COVERED: the engine flags a cash warning, whatever the extra', () => {
+    expect(isOverageCoveredByCashAboveFloor({ remaining: -100, extraCardPayments: 2000, cashWarning: true })).toBe(false);
+  });
+
+  it('exactly equal is covered; within budget is never "covered"', () => {
+    expect(isOverageCoveredByCashAboveFloor({ remaining: -500, extraCardPayments: 500, cashWarning: false })).toBe(true);
+    expect(isOverageCoveredByCashAboveFloor({ remaining: 0, extraCardPayments: 500, cashWarning: false })).toBe(false);
+    expect(isOverageCoveredByCashAboveFloor({ remaining: 250, extraCardPayments: 500, cashWarning: false })).toBe(false);
   });
 });
