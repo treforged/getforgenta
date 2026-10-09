@@ -20,6 +20,8 @@ import { findExclusiveReview } from '@/lib/synced-transaction-review';
 import { detectTransferPairs, indexPairsByLeg } from '@/lib/transfer-pair-detection';
 import { computeMonthSpent, buildSpentRows, matchedRuleCategory } from '@/lib/budget-spent';
 import { toLocalDateStr } from '@/lib/scheduling';
+import { useDemo } from '@/contexts/DemoContext';
+import { demoSyncedTransactions } from '@/lib/demo-data';
 
 interface Props {
   rules: readonly { id: string; category: string; rule_type?: string | null }[];
@@ -40,7 +42,16 @@ const SpentOfPlanned = ({ rules, plannedRules }: Props) => {
     };
   }, []);
 
-  const { data: synced } = useSyncedTransactions(monthKey);
+  const { isDemo } = useDemo();
+  const { data: syncedQuery } = useSyncedTransactions(monthKey);
+  // DEMO reads its fixture feed here, month-to-date (2026-10-09: /demo's Plan read "$0.00 of $2,709
+  // planned"). `useSyncedTransactions` itself stays `[]` in demo ON PURPOSE: CardProjectionContext
+  // reads it to settle this month's bills, so filling it would move every demo forecast, Safe to
+  // Spend and payoff figure the store frames are shot from. This card only reads.
+  const synced = useMemo(
+    () => (isDemo ? demoSyncedTransactions.filter(r => r.date >= from && r.date <= to) : syncedQuery),
+    [isDemo, syncedQuery, from, to],
+  );
   const { data: transactions } = useTransactions();
   const { data: accounts } = useAccounts();
   const { data: reviews } = useSyncedTransactionReviewsQuery();
@@ -56,12 +67,15 @@ const SpentOfPlanned = ({ rules, plannedRules }: Props) => {
 
   const overrides = useMemo(() => {
     const map = new Map<string, string>();
+    // Demo rows carry the APP's category (Bills, Groceries, Income), not a provider primary, and no
+    // demo rule match exists to file them, so they read as the user's own choice. Demo only.
+    if (isDemo) (synced ?? []).forEach(r => { if (r.category) map.set(r.id, r.category); });
     groupedReviews.forEach((group, id) => {
       const override = findExclusiveReview(group)?.category_override;
       if (override) map.set(id, override);
     });
     return map;
-  }, [groupedReviews]);
+  }, [groupedReviews, isDemo, synced]);
 
   const matchedCategory = useMemo(() => {
     const map = new Map<string, string>();

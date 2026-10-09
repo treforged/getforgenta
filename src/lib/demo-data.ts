@@ -487,10 +487,17 @@ function demoFeed(): DemoSyncedTransaction[] {
     rows.push(demoCharge('storage', M, 7, 'd1', 145.00, 'IRON PEAK STORAGE UNIT', 'Iron Peak Storage', 'Bills'));
   }
 
-  // The semiannual insurance premium, in the one covered month it actually falls in (r4b,
-  // September 12). A twelfth of it every month is exactly the smoothing the fixture exists to
-  // avoid — see the rule's own comment.
-  rows.push(demoCharge('insurance', 0, 12, 'd1', 1014.00, 'HALSTEAD MUTUAL AUTO PREM', 'Halstead Mutual', 'Car'));
+  // The semiannual insurance premium, in the covered month it actually falls in (r4 March 12,
+  // r4b September 12). A twelfth of it every month is exactly the smoothing the fixture exists to
+  // avoid — see the rule's own comment. Until 2026-10-09 this row was pinned to offset 0, i.e. the
+  // CURRENT month whatever it was, so October's "Spent so far" on /demo carried a $1,014 premium the
+  // October plan never had. Months with no premium in the window get none.
+  for (const M of DEMO_FEED_MONTHS) {
+    const month = new Date(y, m + M, 1).getMonth() + 1;
+    if (month === 3 || month === 9) {
+      rows.push(demoCharge('insurance', M, 12, 'd1', 1014.00, 'HALSTEAD MUTUAL AUTO PREM', 'Halstead Mutual', 'Car'));
+    }
+  }
 
   // ── One-offs: no cadence, no rule, no suggestion — the build-thread spending ─
   rows.push(demoCharge('speedshop', -1, 9, 'd7', 218.44, 'REDLINE SPEED SHOP', 'Redline Speed Shop', 'Car'));
