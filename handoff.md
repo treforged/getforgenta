@@ -1,6 +1,20 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW43 (2026-10-09, Ada CLOUD session, growth/retention pass, Tre approved 10-09 via Sam). Branch
+  `claude/growth-pass-10-09` off main 7d24c9d (NOT main; nothing deployed/submitted/sent). Report:
+  docs/growth-pass-2026-10.md (ranked findings + proposals A-H); store drafts: marketing/app-store/listing-draft-2026-10-09.md.
+  - MEASURED (read-only SQL): 5 real signups in 90 days, 1 in 30 (iOS 10-04, never reached the first onboarding write);
+    0 paid; push still dry-run; weekly email still 1 recipient. Web: 16 landing views -> 0 store taps, 0 signups.
+    Android: 14 OAuth taps all `user_cancelled`, no install_id (likely Play pre-launch robots - check the report).
+  - FIXED: finish screen "Where things are" said "five icons ... Garage" (Plan replaced it 10-06) and never named the `+`:
+    now built from PRIMARY_NAV (src/lib/first-run-nav.ts) + a quick-add line where `quickAddIsOpen`. Tour: 4 stale
+    pointers + 3 in the premium tour, new quick-add step (dropped for a free native account), index clamped. Home empty
+    states offer quick add. Landing "unlimited history" (false) replaced in en/es/index.html.
+  - onboarding-orientation.gate passed on the wrong copy because "Plan" sits in an unrelated sentence; now accepts the
+    derived list. tour-steps.test derived from PRIMARY_NAV (red on the old tour: 2 fail).
+  - PC STEPS (no walk creds in cloud): walk:empty + walk:first-run on a throwaway @forgenta.test user to SEE the finish
+    box and Home's empty-state buttons; check:narrow-overflow SIGNED_IN=1 WIDTH=320.
 R-NOW42 (2026-10-09, Ada CLOUD session, ask 661548f5 quick add; was R-NOW39 on its branch). Integrated on
   `claude/release-10-09` with claude/dialog-reach-e1b0fffc (R-NOW41) for Tre to fast-forward main from his PC:
   docs/release-10-09.md has the exact commands. NOT on main yet (a push to main deploys the web app).

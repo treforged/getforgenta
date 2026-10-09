@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Capacitor } from '@capacitor/core';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
+import { quickAddIsOpen } from '@/lib/quick-add';
 
 // LAZY: the sheet is only paid for by someone who presses `+`.
 const QuickAddSheet = lazy(() => import('@/components/shared/QuickAddSheet'));
@@ -30,7 +31,7 @@ export function QuickAddProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
-  const canQuickAdd = isPremium || isDemo || !Capacitor.isNativePlatform();
+  const canQuickAdd = quickAddIsOpen({ isPremium, isDemo, native: Capacitor.isNativePlatform() });
 
   const openQuickAdd = useCallback(() => {
     if (canQuickAdd) setOpen(true);

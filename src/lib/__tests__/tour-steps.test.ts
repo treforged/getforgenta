@@ -5,10 +5,16 @@
 // wrong instruction is worse than no instruction, so the destinations are asserted here
 // against the navigation the app actually renders.
 import { describe, it, expect } from 'vitest';
-import { NEW_USER_STEPS, PREMIUM_STEPS, type TourStep } from '@/lib/tour-steps';
+import { NEW_USER_STEPS, PREMIUM_STEPS, stepsFor, type TourStep } from '@/lib/tour-steps';
+import { PRIMARY_NAV } from '@/lib/primary-nav';
 
-/** The five bottom-bar tabs, as `MobileTopBar`/`Sidebar` label them today. */
-const LIVE_SURFACES = ['Home', 'Activity', 'Debt', 'Forecast', 'Garage'];
+/**
+ * The bottom-bar tabs, DERIVED from the nav. This list used to be hand-written
+ * (Home, Activity, Debt, Forecast, Garage) and went stale twice without a red: Activity was
+ * renamed Transactions on 08-27 and Plan took Garage's slot on 10-06, so the test kept
+ * demanding the tour name two places the bar no longer has. 2026-10-09 growth pass.
+ */
+const LIVE_SURFACES = PRIMARY_NAV.map((d) => d.label);
 
 /** Places the redesign removed. A step naming one of these is sending a user nowhere. */
 const DEAD_DESTINATIONS = [
@@ -18,6 +24,11 @@ const DEAD_DESTINATIONS = [
   'Budget Control tab',
   'Accounts tab',
   'Vehicles tab',
+  // Renamed or folded by 10-06; each was still in the tour on 10-09.
+  'Activity \u2192',
+  'Budget Control',
+  'menu at the top left',
+  'the Forecast tab',
 ];
 
 const allSteps: TourStep[] = [...NEW_USER_STEPS, ...PREMIUM_STEPS];
@@ -39,6 +50,15 @@ describe('AppTour steps', () => {
     for (const surface of LIVE_SURFACES) {
       expect(text, `no step mentions ${surface}`).toContain(surface);
     }
+  });
+
+  it('mentions quick add, and drops it where the + is a Premium door', () => {
+    const live = stepsFor(NEW_USER_STEPS, { quickAdd: true });
+    const gated = stepsFor(NEW_USER_STEPS, { quickAdd: false });
+    expect(live.some((s) => s.body.includes('+'))).toBe(true);
+    expect(gated.some((s) => s.body.includes('quick add'))).toBe(false);
+    // Control: the filter removes ONLY the gated step.
+    expect(live.length - gated.length).toBe(1);
   });
 
   it('is one idea per step and short enough to read on a phone', () => {

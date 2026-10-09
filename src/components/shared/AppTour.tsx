@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useProfile } from '@/hooks/useSupabaseData';
 import { X, ChevronRight, ChevronLeft, Sparkles } from 'lucide-react';
-import { NEW_USER_STEPS, PREMIUM_STEPS } from '@/lib/tour-steps';
+import { NEW_USER_STEPS, PREMIUM_STEPS, stepsFor } from '@/lib/tour-steps';
+import { useQuickAdd } from '@/contexts/QuickAddContext';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
 
 export type TourVariant = 'new-user' | 'premium';
@@ -25,6 +26,7 @@ interface AppTourProps {
 
 export default function AppTour({ variant, onDone }: AppTourProps) {
   const [step, setStep] = useState(0);
+  const { canQuickAdd } = useQuickAdd();
   const [dismissed, setDismissed] = useState(false);
 
   /**
@@ -82,9 +84,12 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
     } catch { /* nothing to do; the account remains the source of truth */ }
   }, [variant, deviceDone, ready, accountDone]);
 
-  const steps = variant === 'premium' ? PREMIUM_STEPS : NEW_USER_STEPS;
-  const current = steps[step];
-  const isLast = step === steps.length - 1;
+  const steps = stepsFor(variant === 'premium' ? PREMIUM_STEPS : NEW_USER_STEPS, { quickAdd: canQuickAdd });
+  // Clamped: the quick-add step comes and goes with `canQuickAdd`, which can settle after the
+  // tour opens (subscription still loading), so the list can shrink under the current index.
+  const index = Math.min(step, steps.length - 1);
+  const current = steps[index];
+  const isLast = index === steps.length - 1;
 
   const dismiss = async () => {
     setDismissed(true);
@@ -129,7 +134,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
           <div className="flex items-center gap-2">
             {variant === 'premium' && <Sparkles size={14} className="text-primary" />}
             <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              {variant === 'premium' ? 'Premium Tour' : 'Getting Started'} · {step + 1}/{steps.length}
+              {variant === 'premium' ? 'Premium Tour' : 'Getting Started'} · {index + 1}/{steps.length}
             </span>
           </div>
           <button aria-label="Close tour" onClick={dismiss} className="text-muted-foreground hover:text-foreground transition-colors p-3 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center">
@@ -143,7 +148,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
             <div
               key={i}
               className="h-0.5 flex-1 rounded-full transition-all duration-300"
-              style={{ background: i <= step ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}
+              style={{ background: i <= index ? 'hsl(var(--primary))' : 'hsl(var(--border))' }}
             />
           ))}
         </div>
@@ -158,8 +163,8 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
         {/* Navigation */}
         <div className="flex items-center justify-between pt-1">
           <button
-            onClick={() => setStep(s => s - 1)}
-            disabled={step === 0}
+            onClick={() => setStep(index - 1)}
+            disabled={index === 0}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30"
           >
             <ChevronLeft size={13} /> Back
@@ -175,7 +180,7 @@ export default function AppTour({ variant, onDone }: AppTourProps) {
             </button>
           ) : (
             <button
-              onClick={() => setStep(s => s + 1)}
+              onClick={() => setStep(index + 1)}
               className="flex items-center gap-1 bg-primary text-primary-foreground px-4 py-1.5 text-xs font-semibold btn-press hover:bg-primary/90 transition-colors"
               style={{ borderRadius: 'var(--radius)' }}
             >
