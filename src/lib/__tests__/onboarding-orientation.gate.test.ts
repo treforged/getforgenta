@@ -112,7 +112,20 @@ describe('onboarding orientation - positive controls', () => {
 });
 
 describe('onboarding orientation - first run names what the app has', () => {
+  /**
+   * ⚠️ THE TEXT MATCH PASSED WHILE THE COPY WAS WRONG (found 2026-10-09, growth pass). The box
+   * said "five icons ... Garage for vehicles" three days after Plan replaced Garage, and this
+   * stayed green because "Plan" occurs in an UNRELATED finish-screen sentence ("Add your bills
+   * under Plan"). A substring anywhere in the slice is not the label in the list.
+   * Since then the list renders from `firstRunNavSummary()` (PRIMARY_NAV itself), so the labels
+   * are no longer literals here; `first-run-nav.test.ts` owns the per-destination coverage.
+   * The literal branch stays for the day someone hand-writes the list again.
+   */
   it('names every bottom-bar destination', () => {
+    if (FINISH_STEP.includes('navSummary.map(')) {
+      expect(ONBOARDING_SRC).toContain('firstRunNavSummary()');
+      return;
+    }
     const missing = NAV_LABELS.filter((l) => !FINISH_STEP.includes(l));
     expect(missing).toEqual([]);
   });

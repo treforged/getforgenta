@@ -50,6 +50,8 @@ import {
 } from 'lucide-react';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Capacitor } from '@capacitor/core';
+import { firstRunNavSummary } from '@/lib/first-run-nav';
+import { quickAddIsOpen } from '@/lib/quick-add';
 
 type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
 
@@ -257,6 +259,10 @@ export default function Onboarding() {
   const [bankLinked, setBankLinked] = useState(false);
 
   const steps = useMemo(() => buildSteps(isPremium), [isPremium]);
+  // "Where things are" on the finish screen: derived from the nav, plus the quick-add pointer only
+  // where the `+` adds (a free native account's `+` is a Premium door). Growth pass 2026-10-09.
+  const navSummary = useMemo(() => firstRunNavSummary(), []);
+  const quickAddOpen = quickAddIsOpen({ isPremium, isDemo: false, native: Capacitor.isNativePlatform() });
 
   // Signal Swift cover that a post-auth page has mounted (same flag as Dashboard).
   // New users land here after OAuth sign-up; without this the cover waits the full
@@ -923,19 +929,26 @@ export default function Onboarding() {
 
                 ⚠️ EVERY NAME BELOW IS ONE THE APP ACTUALLY RENDERS, and that is now enforced
                 rather than promised: `copy-pointers.gate.test.ts` checks this class, and the
-                names come from `PRIMARY_NAV` and Account's own section bar. This is the copy the
+                names come from `PRIMARY_NAV` (literally, via `firstRunNavSummary`, since 2026-10-09: the hand-written list still said Garage three days after Plan replaced it) and Account's own section bar. This is the copy the
                 gate was built to protect, which is why it was built first.
               */}
               <div className="border border-border bg-secondary px-3 py-2.5 space-y-1.5" style={{ borderRadius: 'var(--radius)' }}>
                 <p className="text-[10px] font-semibold text-foreground">Where things are</p>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  The bar at the bottom has five icons:{' '}
-                  <strong className="text-foreground">Home</strong> for what needs paying next,{' '}
-                  <strong className="text-foreground">Transactions</strong> for what you have spent,{' '}
-                  <strong className="text-foreground">Debt</strong> for payoff,{' '}
-                  <strong className="text-foreground">Garage</strong> for vehicles, and{' '}
-                  <strong className="text-foreground">Account</strong> for everything else.
+                  The bar at the bottom of the screen:{' '}
+                  {navSummary.map((d, i) => (
+                    <span key={d.label}>
+                      {i > 0 && (i === navSummary.length - 1 ? ', and ' : ', ')}
+                      <strong className="text-foreground">{d.label}</strong>{d.purpose && ` for ${d.purpose}`}
+                    </span>
+                  ))}.
                 </p>
+                {quickAddOpen && (
+                  <p className="text-[10px] text-muted-foreground leading-relaxed" data-testid="finish-quick-add">
+                    Spent something? Tap the gold <strong className="text-foreground">+</strong> in the middle of the bar
+                    (or <strong className="text-foreground">Add</strong> on Home) to log it in a few taps.
+                  </p>
+                )}
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
                   Inside <strong className="text-foreground">Account</strong> you will find{' '}
                   Profile, Leaderboard, Achievements, Learn, Analytics and Forgenta AI.

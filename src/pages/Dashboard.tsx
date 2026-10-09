@@ -144,7 +144,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
-  const { openQuickAdd } = useQuickAdd();
+  const { openQuickAdd, canQuickAdd } = useQuickAdd();
   const navigate = useNavigate();
 
   /**
@@ -1186,7 +1186,17 @@ export default function Dashboard() {
                   </div>
                 );
               })() : (
-                <p className="text-xs text-muted-foreground text-center py-8">No expenses recorded yet.</p>
+                // Empty states point at quick add (growth pass 2026-10-09): a new account's Home said
+                // "No expenses recorded yet." with no way forward, while the `+` sat in the bar unnamed.
+                <div className="text-center py-8">
+                  <p className="text-xs text-muted-foreground">No expenses recorded yet.</p>
+                  {canQuickAdd && (
+                    <button type="button" onClick={openQuickAdd} data-testid="empty-expenses-quick-add"
+                      className="mt-1 min-h-[44px] px-3 text-xs font-semibold text-primary hover:underline">
+                      Add your first expense
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
@@ -1232,7 +1242,17 @@ export default function Dashboard() {
                     </span>
                   </div>
                 ))}
-                {recentTxns.length === 0 && <p className="text-xs text-muted-foreground text-center py-4">No transactions yet.</p>}
+                {recentTxns.length === 0 && (
+                  <div className="text-center py-4">
+                    <p className="text-xs text-muted-foreground">No transactions yet.</p>
+                    {canQuickAdd && (
+                      <button type="button" onClick={openQuickAdd} data-testid="empty-recent-quick-add"
+                        className="mt-1 min-h-[44px] px-3 text-xs font-semibold text-primary hover:underline">
+                        Add one in a few taps
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
