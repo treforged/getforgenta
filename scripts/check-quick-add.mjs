@@ -127,7 +127,9 @@ if (!DESKTOP) {
 const door = DESKTOP ? page.getByTestId('home-quick-add') : page.getByTestId('nav-quick-add');
 await press(door, DESKTOP ? "Home's Add button" : "the bottom bar's +");
 const sheet = page.getByRole('dialog', { name: 'Quick add' });
-try { await sheet.waitFor({ timeout: 5000 }); } catch { await done(1, `FINDING: pressing the door opened no "Quick add" dialog (url ${page.url()}).`); }
+// 15 s, not 5: the sheet is a LAZY chunk, and a dev server compiles it on its first request. The first
+// 390 run after a vite restart (2026-10-09) missed a 5 s window and passed twice straight after.
+try { await sheet.waitFor({ timeout: 15000 }); } catch { await done(1, `FINDING: pressing the door opened no "Quick add" dialog within 15 s (url ${page.url()}).`); }
 
 const groceries = sheet.getByRole('group', { name: 'Category' }).getByRole('button', { name: /Groceries/ });
 if (!(await groceries.count())) await done(1, 'FINDING: Groceries is not a one-tap chip.');
