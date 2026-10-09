@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getBudgetAllocationShares, clipSegment, isOverageCoveredByCashAboveFloor, type BudgetAllocationTotals } from '../budget-allocation';
+import { getBudgetAllocationShares, clipSegment, isOverageCoveredByCashAboveFloor, remainingLegendRow, type BudgetAllocationTotals } from '../budget-allocation';
 
 // Site walk §4.2. The Budget Allocation legend clamped its Remaining share at 0%, so an
 // over-allocated month printed five shares summing to 146% with the overspend — the one number
@@ -100,5 +100,20 @@ describe('isOverageCoveredByCashAboveFloor (Plan banner, 2026-10-09)', () => {
     expect(isOverageCoveredByCashAboveFloor({ remaining: -500, extraCardPayments: 500, cashWarning: false })).toBe(true);
     expect(isOverageCoveredByCashAboveFloor({ remaining: 0, extraCardPayments: 500, cashWarning: false })).toBe(false);
     expect(isOverageCoveredByCashAboveFloor({ remaining: 250, extraCardPayments: 500, cashWarning: false })).toBe(false);
+  });
+});
+
+describe('remainingLegendRow (donut legend, 2026-10-09)', () => {
+  it('covered month: names the source, positive share, no warning colour', () => {
+    expect(remainingLegendRow(-29.4, true)).toEqual({ label: 'From cash above floor', pct: 29.4, warn: false });
+  });
+
+  it('uncovered overage: keeps the red "Remaining" with its negative share', () => {
+    expect(remainingLegendRow(-29.4, false)).toEqual({ label: 'Remaining', pct: -29.4, warn: true });
+  });
+
+  it('within budget: plain "Remaining", covered flag or not', () => {
+    expect(remainingLegendRow(12, false)).toEqual({ label: 'Remaining', pct: 12, warn: false });
+    expect(remainingLegendRow(12, true)).toEqual({ label: 'Remaining', pct: 12, warn: false });
   });
 });

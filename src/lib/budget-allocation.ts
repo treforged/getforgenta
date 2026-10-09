@@ -86,3 +86,14 @@ export function isOverageCoveredByCashAboveFloor(input: {
   if (input.cashWarning) return false;
   return overage <= Math.max(0, input.extraCardPayments) + 0.005;
 }
+
+/**
+ * The donut legend's last row. On an over-allocated month it read "Remaining (-29%)" in red; when
+ * the overage is covered (`isOverageCoveredByCashAboveFloor`) that red contradicts the line under
+ * it, so the row names where the money comes from instead, as a positive share, without the
+ * warning colour. Not covered, or not over, the row is unchanged.
+ */
+export function remainingLegendRow(remPct: number, covered: boolean): { label: string; pct: number; warn: boolean } {
+  if (covered && remPct < 0) return { label: 'From cash above floor', pct: -remPct, warn: false };
+  return { label: 'Remaining', pct: remPct, warn: remPct < 0 };
+}
