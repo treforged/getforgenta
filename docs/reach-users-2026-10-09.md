@@ -13,7 +13,8 @@ No live database was read for this work; the schema comes from `supabase/migrati
 - How many entries they saved this week, or, if none, a link that opens quick add.
 - "Add your pay" if they have no income set.
 - Blog posts from the last 7 days, when there are any.
-- Footer: why they get it, a one-click unsubscribe link, "TRE Forged LLC" and the postal address.
+- Footer: "You're getting this product email from Forgenta (TRE Forged LLC) because you have an account."
+  (the CAN-SPAM identifier for opt-out mail, per Ruby's memo), a one-click unsubscribe link, "TRE Forged LLC" and the postal address.
 
 Newsletter-only subscribers (not app users) keep the blog digest. Anyone who unsubscribed from the app
 email is also left off the newsletter list.

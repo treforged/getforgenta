@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   isDryRun, sendBlockers, runDigest, buildUserDigest, freshSafeToSpend, parseFeed, formatCents,
-  MAX_RECIPIENTS_PER_RUN, type DigestDeps, type DigestRecipient, type Post,
+  MAX_RECIPIENTS_PER_RUN, USER_EMAIL_IDENTIFIER, type DigestDeps, type DigestRecipient, type Post,
 } from '../../../supabase/functions/_shared/weekly-digest';
 
 const NOW = new Date('2026-10-12T15:00:00Z');
@@ -106,6 +106,15 @@ describe('who gets it', () => {
     const { d, send } = deps({ loadPosts: async () => [], loadSubscriberEmails: async () => ['reader@example.invalid'] });
     await runDigest(d, { dryRun: false, blockers: [] });
     expect((send.mock.calls[0][0] as unknown[]).length).toBe(1);
+  });
+
+  it('every user email identifies itself as a product email from Forgenta, in text and HTML', async () => {
+    const { d, send } = deps();
+    await runDigest(d, { dryRun: false, blockers: [] });
+    const e = (send.mock.calls[0][0] as { text: string; html: string }[])[0];
+    expect(USER_EMAIL_IDENTIFIER).toMatch(/product email from Forgenta \(TRE Forged LLC\) because you have an account/);
+    expect(e.text).toContain(USER_EMAIL_IDENTIFIER);
+    expect(e.html).toContain(USER_EMAIL_IDENTIFIER);
   });
 
   it('every user email carries one-click headers', async () => {

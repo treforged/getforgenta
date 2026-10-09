@@ -50,6 +50,14 @@ export interface OutgoingEmail {
   user_id: string | null;
 }
 
+/**
+ * The footer's first line on every user email. It goes to every confirmed user unless they opt out
+ * (no affirmative consent), so CAN-SPAM wants a commercial email to identify itself clearly; this says
+ * what it is and who sends it, plainly, without shouting "AD" (Ruby's memo, via Sam, 2026-10-09).
+ */
+export const USER_EMAIL_IDENTIFIER =
+  "You're getting this product email from Forgenta (TRE Forged LLC) because you have an account.";
+
 /** A runaway recipient query must not become a mass mailing. */
 export const MAX_RECIPIENTS_PER_RUN = 200;
 /** Older than this, a Safe to Spend figure is left out of the email. */
@@ -366,7 +374,7 @@ export async function runDigest(deps: DigestDeps, opts: { dryRun: boolean; block
       now: deps.now,
       posts,
       footer: {
-        reason: "You get this weekly email because you have a Forgenta account.",
+        reason: USER_EMAIL_IDENTIFIER,
         unsubscribeUrl: url,
         unsubscribeMailto: deps.unsubscribeMailto,
         postalAddress: deps.postalAddress,
