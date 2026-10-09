@@ -24,7 +24,7 @@ import { useBudgetMonthTotals } from '@/hooks/useBudgetMonthTotals';
 import SpentOfPlanned from '@/components/budget/SpentOfPlanned';
 import { CURRENT_MONTH_LABEL, isFixedRule } from '@/lib/budget-month-totals';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
-import { getBudgetAllocationShares, clipSegment } from '@/lib/budget-allocation';
+import { getBudgetAllocationShares, clipSegment, isOverageCoveredByCashAboveFloor, remainingLegendRow } from '@/lib/budget-allocation';
 import { getPaycheckNet, getRemainingPaychecksThisMonth, getNextPaycheckDate, getPaychecksInMonth, type PayFrequency } from '@/lib/pay-schedule';
 import { useTransactions } from '@/hooks/useSupabaseData';
 import { useAutoEndReconcile } from '@/hooks/useAutoEndReconcile';
@@ -577,7 +577,7 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
   const {
     buckets: { incomeRules, fixedRules, variableRules, debtRules, transferRules },
     totals, toCurrentMonthAmount, debtPaymentRules, liabilityPaymentRules,
-    goalTransferRules, autoMatchedRuleIds,
+    goalTransferRules, autoMatchedRuleIds, debtBreakdown,
   } = useBudgetMonthTotals();
 
   // ⚠️ `txns` IS NO LONGER READ, and the call is kept ON PURPOSE rather than deleted with the
@@ -1490,6 +1490,12 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
             transfers: totalTransfers,
             remaining,
           });
+          const overageCovered = overByPct > 0 && isOverageCoveredByCashAboveFloor({
+            remaining,
+            extraCardPayments: debtBreakdown.totalRecommended - debtBreakdown.totalMinimumsDue,
+            cashWarning: debtBreakdown.cashWarning,
+          });
+          const lastRow = remainingLegendRow(remPct, overageCovered);
           const R = 15.91549430918954;
           const seg = (pct: number, offset: number, color: string) => {
             const drawn = clipSegment(pct, offset);
@@ -1524,19 +1530,24 @@ export default function BudgetControl({ embedded = false, simple = false }: { em
                     { label: 'Variable',  pct: variablePct, color: 'hsl(35, 85%, 50%)'  },
                     { label: 'Debt',      pct: debtPct,     color: 'hsl(210, 70%, 50%)' },
                     { label: 'Transfers', pct: xferPct,     color: 'hsl(280, 60%, 55%)' },
-                    { label: 'Remaining', pct: remPct,      color: 'hsl(142, 50%, 40%)' },
-                  ].map(({ label, pct, color }) => (
+                    { label: lastRow.label, pct: lastRow.pct, warn: lastRow.warn, color: overageCovered ? 'hsl(var(--muted-foreground))' : 'hsl(142, 50%, 40%)' },
+                  ].map(({ label, pct, color, warn }: { label: string; pct: number; color: string; warn?: boolean }) => (
                     <div key={label} className="flex items-center gap-1.5 min-w-0">
                       <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: color }} />
-                      <span className={`truncate ${pct < 0 ? 'text-destructive-text font-medium' : ''}`}>{label} ({pct.toFixed(0)}%)</span>
+                      <span className={`truncate ${(warn ?? pct < 0) ? 'text-destructive-text font-medium' : ''}`}>{label} ({pct.toFixed(0)}%)</span>
                     </div>
                   ))}
                 </div>
-                {overByPct > 0 && (
-                  <p className="mt-3 text-xs sm:text-sm text-destructive-text font-medium">
+                {overByPct > 0 && (overageCovered ? (
+                  // Not an overspend: the debt engine is sending cash above the floor to the cards.
+                  <p className="mt-3 text-xs sm:text-sm text-muted-foreground" data-testid="overage-covered">
+                    Planned {formatCurrency(Math.abs(remaining))} more than {CURRENT_MONTH_LABEL}'s take-home. The extra card payment comes from cash above your floor.
+                  </p>
+                ) : (
+                  <p className="mt-3 text-xs sm:text-sm text-destructive-text font-medium" data-testid="overage-warning">
                     Over budget by {overByPct.toFixed(0)}% of income ({formatCurrency(Math.abs(remaining))} more allocated {CURRENT_MONTH_LABEL} than you take home).
                   </p>
-                )}
+                ))}
               </div>
             </div>
           );

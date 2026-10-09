@@ -62,3 +62,38 @@ export function getBudgetAllocationShares(totals: BudgetAllocationTotals): Budge
 export function clipSegment(pct: number, offset: number): number {
   return Math.min(pct, Math.max(0, 100 - offset));
 }
+
+/**
+ * Is this month's over-allocation fully paid for by an EXTRA card payment the debt engine sized
+ * from cash above the floor? (Sam/Tre, 2026-10-09.) Then the plan is not "over budget": the engine
+ * chose to send savings above the floor to the cards, and "Over budget by 29%" on that month
+ * contradicted the advice one tab over. /demo read exactly that: a $2,220 Cobalt payment funded
+ * from cash above the floor, shown as a 29% overspend.
+ *
+ * `extraCardPayments` is the month's card payments beyond their minimums
+ * (`totalRecommended - totalMinimumsDue`). The engine only ever sizes that extra from Safe to Pay,
+ * i.e. above the floor, so an overage no larger than it is covered by construction. Anything
+ * bigger, or any month the engine flags a cash warning, keeps the real over-budget warning.
+ */
+export function isOverageCoveredByCashAboveFloor(input: {
+  /** income − buckets, as passed to the donut. Negative when over-allocated. */
+  remaining: number;
+  extraCardPayments: number;
+  cashWarning: boolean;
+}): boolean {
+  const overage = -input.remaining;
+  if (!(overage > 0)) return false;
+  if (input.cashWarning) return false;
+  return overage <= Math.max(0, input.extraCardPayments) + 0.005;
+}
+
+/**
+ * The donut legend's last row. On an over-allocated month it read "Remaining (-29%)" in red; when
+ * the overage is covered (`isOverageCoveredByCashAboveFloor`) that red contradicts the line under
+ * it, so the row names where the money comes from instead, as a positive share, without the
+ * warning colour. Not covered, or not over, the row is unchanged.
+ */
+export function remainingLegendRow(remPct: number, covered: boolean): { label: string; pct: number; warn: boolean } {
+  if (covered && remPct < 0) return { label: 'From cash above floor', pct: -remPct, warn: false };
+  return { label: 'Remaining', pct: remPct, warn: remPct < 0 };
+}
