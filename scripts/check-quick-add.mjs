@@ -11,8 +11,9 @@
  *   - PRESSING it opens the "Quick add" dialog (a change, found by its own heading);
  *   - Groceries is a one-tap chip, 3 and 6 are keypad keys, the hero reads "-$36" and the save
  *     button says "Add $36" - all ON SCREEN without scrolling (the OS keyboard never opens);
- *   - pressing save reaches the write: /demo is read only, so the hook's own refusal toast
- *     ("The demo is read only") is the proof the press got to the mutation and not just to a button;
+ *   - pressing save reaches the save path: /demo is read only, and since 2026-10-09 (growth pass,
+ *     Proposal B) the save asks for the signup ("That's the 5-tap add." + "Sign up free") instead of
+ *     the generic refusal; PRESSING that ask must land on /auth. Its tap is not counted in the 5.;
  *   - <= 5 presses in all, the Fincend number;
  *   - at phone widths every bottom-bar label is still WHOLE beside the extra cell.
  * Red on the pre-change app (no `+`, Home's Add was a link to /transactions): exit 1.
@@ -158,9 +159,17 @@ if (SIGNED_IN) {
     await done(1, `FINDING: the insert is not a $36 Groceries expense: ${JSON.stringify(row)}.`);
   }
 } else {
-  const refusal = page.getByText(/The demo is read only/);
-  try { await refusal.first().waitFor({ timeout: 5000 }); } catch { await done(1, 'FINDING: pressing "Add $36" did not reach the write (no read-only refusal on /demo).'); }
+  const ask = page.getByText(/That's the 5-tap add/);
+  try { await ask.first().waitFor({ timeout: 5000 }); } catch { await done(1, 'FINDING: pressing "Add $36" did not reach the save path (no signup ask on /demo).'); }
   if (!(await sheet.count())) await done(1, 'FINDING: the sheet closed on a refused write; what was typed is lost.');
+  await page.screenshot({ path: `${OUT}/demo-ask-${WIDTH}.png` });
+  // The ask must LEAD somewhere: pressing it lands on /auth (it also records demo_signup_tap).
+  const signUp = page.getByRole('button', { name: 'Sign up free' });
+  // ON SCREEN without scrolling, like every other control here: the first version sat in the save
+  // button's slot and was cut off by the sheet's edge at 320x568.
+  if (!(await signUp.count()) || !(await onScreen(signUp))) await done(1, `FINDING: "Sign up free" is not fully on screen inside the sheet at ${WIDTH}x${HEIGHT}.`);
+  try { await signUp.first().click({ timeout: 5000 }); } catch { await done(1, 'FINDING: the demo signup ask has no pressable "Sign up free".'); }
+  try { await page.waitForURL(/\/auth/, { timeout: 8000 }); } catch { await done(1, `FINDING: "Sign up free" did not land on /auth (url ${page.url()}).`); }
 }
 
 if (taps > MAX_TAPS) await done(1, `FINDING: ${taps} presses from Home to save, more than Fincend's ${MAX_TAPS}.`);

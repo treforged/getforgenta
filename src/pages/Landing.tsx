@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { SAMPLE_SAFE_TO_SPEND, SAMPLE_CARDS_PAID_OFF } from '@/lib/sample-figures';
 import { Link } from 'react-router';
 import { motion, useMotionValue, useSpring, type Variants } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -169,7 +170,7 @@ export default function Landing() {
         </motion.div>
 
         <motion.h1
-          className="font-display font-extrabold text-4xl md:text-6xl lg:text-7xl tracking-tight text-foreground relative"
+          className="font-display font-extrabold text-3xl md:text-5xl lg:text-6xl tracking-tight text-foreground relative max-w-5xl mx-auto text-balance"
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.05 }}
@@ -212,6 +213,28 @@ export default function Landing() {
               {t('hero.seeDemo')}
             </Link>
           </motion.div>
+        </motion.div>
+
+        {/* The sample card from /auth, so the hero SHOWS the two numbers it names (growth pass
+            Proposal A, Tre approved 10-09). Labelled sample data: these are the demo's figures.
+            Under the buttons so Start Free stays above the fold on a 375x667 phone. */}
+        <motion.div
+          className="card-forged mt-8 p-4 space-y-2 text-left max-w-xs mx-auto"
+          aria-label={t('hero.sampleLabel')}
+          data-testid="landing-sample-card"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3, duration: 0.5 }}
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('hero.sampleLabel')}</p>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm text-foreground/80">{t('hero.sampleSafe')}</span>
+            <span className="text-base font-bold text-primary tabular-nums">{SAMPLE_SAFE_TO_SPEND}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm text-foreground/80">{t('hero.samplePaidOff')}</span>
+            <span className="text-base font-bold text-primary tabular-nums">{SAMPLE_CARDS_PAID_OFF}</span>
+          </div>
         </motion.div>
 
         <motion.div

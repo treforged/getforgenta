@@ -94,6 +94,18 @@ across pages, shared components, contexts, copy-pointers, quick-add and tour; `n
 and Home's new empty-state buttons; `npm run check:narrow-overflow SIGNED_IN=1` at 320 for the new
 finish-screen line.
 
+## Built after approval (Tre said yes to A and B on 10-09, relayed by Sam)
+Branch `claude/landing-demo-10-09`, stacked on `claude/growth-pass-10-09`.
+- **A.** Landing hero: "Discipline builds / wealth." -> "Know what's safe to spend before payday, / and the
+  day you're debt-free." (the sign-in screen's line), subtitle to match, and the sign-in screen's labelled
+  sample card under the buttons (figures shared in `src/lib/sample-figures.ts`). en + es, static SEO block,
+  og/twitter descriptions. The card sits UNDER the buttons so Start Free stays above the fold at 375x667.
+- **B.** /demo quick add: "Add $36" now replaces the keypad with "That's the 5-tap add. Make it yours: sign
+  up free and build your own plan." + **Sign up free** (records `demo_signup_tap`, detail `quick_add`; goes
+  to /auth). Inside the sheet, not a toast: a toast rendered under the sheet's scrim, half off the screen.
+- Found on the way: `check-dark-contrast.mjs --landing` still signs in and PATCHES the walk account's profile
+  although the landing arm never uses the session; it could skip that block in landing mode.
+
 ## Proposals that need Tre's call (each with a recommendation)
 
 - **A. Landing hero to the approved positioning.** Recommend: headline "Know what's safe to spend

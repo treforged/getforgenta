@@ -400,7 +400,7 @@ section states reasoning, not measurement, and says so.
 - `npm run check:quick-add` - QUICK ADD's tap count (ask 661548f5, Tre: "quick add like Fincend") on /demo, no credentials:
   from HOME it presses the bar's centre `+` (Home's Add at WIDTH>=1024), Groceries, 3, 6 and "Add $36", COUNTING every
   press, and requires <= 5 (Fincend's number; before: 7 taps + 2 keystrokes and no door on Home), the hero "-$36", every
-  control inside the sheet's own box without scrolling, the demo's read-only refusal as proof save reached the write,
+  control inside the sheet's own box without scrolling, on /demo the save's SIGNUP ASK ("That's the 5-tap add.", since 10-09 in place of the read-only refusal) ON SCREEN inside the sheet and its "Sign up free" landing on /auth,
   and every bar label whole beside the `+`. Green at 320x568, 375x667, 390x844, 1440x900. Red on the pre-change app at 390
   and 1440 (exit 1); its first 375x667 run found "Add $36" below the fold, and its first 320x568 run (once it measured
   against the sheet's clip, not the viewport) the same - both fixed. The row's shape is owned by quick-add.test.ts and
