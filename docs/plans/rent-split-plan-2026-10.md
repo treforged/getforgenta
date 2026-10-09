@@ -14,7 +14,7 @@ He wants it to actually affect the forecast, not sit as a what-if. His future re
 
 Later, after his car is paid off, he may help repay that portion. That part is optional and is covered at the end.
 
-**One new entry:** an income rule for her half of the rent, July–December of the year the new rent starts.
+**One new entry:** an income rule for her half of the BASE rent (electricity is not split), July–December of the year the new rent starts. That is six months; it is not open-ended.
 
 ## Read these first (all on `/budget`, the Plan tab, unless noted)
 
@@ -42,7 +42,7 @@ Do not change payoff order, surplus shares or auto-extra.
    | Field | Value |
    | --- | --- |
    | Name | `GF half of rent (first semester)` |
-   | Amount | **RENT_NEW / 2** (rent only; Tre said "half of rent") |
+   | Amount | **RENT_NEW / 2**: half of the BASE rent only. DECIDED (Tre, 10-09): "we don't split the electric, just the base rent". Do not add any part of "Electricity (new place)". |
    | Type / Frequency / Category | as copied (Income / Monthly) |
    | Due Day of Month | **1**, the day the rent is due (the copied day is the old rule's) |
    | Start date | **LEASE_START** |
@@ -52,6 +52,15 @@ Do not change payoff order, surplus shares or auto-extra.
 
 4. Press **Add Rule**.
 5. Read the row back. It should show the new amount, "Starts LEASE_START · Ends <Dec 31 of that year>", and the original "GF Half of Rent/Groceries" rule unchanged.
+
+## Expected effect (estimates, not the engine)
+
+These estimates come from a rough monthly model run in the cloud on 10-09, not from the app's engine. The dates themselves went to Sam privately, because the repo is public.
+
+- The six payments mainly pull the **Discover** card and the **car** payoff earlier, by roughly a year and a few months respectively.
+- The highest-APR cards barely move: they are paid off around the start of the window.
+
+**The app's Forecast and Debt Payoff are the authority after entry.** Record what they say and do not reconcile them to these estimates.
 
 ## Verify: read before and after, and compare
 
