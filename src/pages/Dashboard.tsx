@@ -45,7 +45,7 @@ import { CC_DEFAULT_CATEGORIES } from "@/lib/credit-card-engine";
 import { getMonthlyPlanCashExpenses, generatePaymentPlanTransactions } from '@/lib/payment-plan-generator';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { useMonthlyCashFlow } from '@/hooks/useMonthlyCashFlow';
-import { generateCarLoanTransactions, getSavingPhaseCarFund, getCarFundSaved } from '@/lib/vehicle-loan-engine';
+import { generateCarLoanTransactions, getSavingPhaseCarFund, getCarFundSaved, getActiveCarLoanPayments } from '@/lib/vehicle-loan-engine';
 import {
   totalsFromBreakdown, nonCardLiabilityTotal, sumBalanceByAccountType,
   isLiabilityAccountType,
@@ -223,7 +223,10 @@ export default function Dashboard() {
   // hero directly under it, so it is on the first screen at 375x667. A user who HID the widget keeps it
   // hidden; it is only moved, never forced on. Layout order only.
   const leadSnapshot = widgetsToRender.includes('monthly_snapshot');
-  const stackWidgets = leadSnapshot ? widgetsToRender.filter(id => id !== 'monthly_snapshot') : widgetsToRender;
+  // The CAR card is Home's front door to the car side (Tre, 2026-10-09: "Car card on Home"). It sits
+  // under the debt hero in Simple AND Advanced; only a user who hid it in Customize goes without.
+  const leadCar = visibleWidgets.includes('car_goal');
+  const stackWidgets = widgetsToRender.filter(id => id !== 'monthly_snapshot' && id !== 'car_goal');
 
   // Signal Swift cover that the dashboard has mounted and is ready to paint.
   useEffect(() => {
@@ -780,6 +783,9 @@ export default function Dashboard() {
   // (vehicle-loan-engine.ts): activating a loan makes the saving construct disappear on its own,
   // with no separate release step. A loan-phase vehicle is represented by its payment rows and
   // the Vehicles page, not by a goal.
+  // Active car loans, for the Home car card's loan line (and its loan-only state).
+  const carLoans = useMemo(() => getActiveCarLoanPayments(carFunds ?? []), [carFunds]);
+
   const carGoalData = useMemo(() => {
     const savingFund = getSavingPhaseCarFund(carFunds);
     if (savingFund) {
@@ -1065,10 +1071,45 @@ export default function Dashboard() {
           />
         );
 
-      case 'car_goal':
-        if (!carGoalData) return null;
+      case 'car_goal': {
+        // Three states, never an empty card (2026-10-09): saving for a car (with any running loan as a
+        // line under it), a loan only, or nothing yet -> a light prompt into the car plan.
+        const loanLine = carLoans.length > 0 && (
+          <button type="button" onClick={(e) => { e.stopPropagation(); navigate('/debt?tab=auto'); }}
+            className="mt-3 w-full flex items-center justify-between gap-3 text-left text-sm btn-press" data-testid="home-car-loan">
+            <span className="min-w-0 text-muted-foreground">
+              {carLoans.length === 1 ? `${carLoans[0].vehicleName} loan` : `${carLoans.length} car loans`}
+            </span>
+            <span className="shrink-0 font-semibold tabular-nums">{formatCurrency(carLoans.reduce((t, l) => t + l.payment, 0))}/mo ›</span>
+          </button>
+        );
+        if (!carGoalData && carLoans.length > 0) {
+          return (
+            <div key="car_goal" className="card-forged p-4 sm:p-5 card-clickable" data-testid="home-car-card" onClick={() => navigate('/debt?tab=auto')}>
+              <div className="flex items-center gap-2">
+                <Car size={14} className="text-primary" />
+                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your car</h3>
+              </div>
+              {loanLine}
+              <p className="mt-1 text-xs text-muted-foreground">See the month it's paid off, and what an extra payment saves.</p>
+            </div>
+          );
+        }
+        if (!carGoalData) {
+          return (
+            <button type="button" key="car_goal" onClick={() => navigate('/debt?tab=auto')} data-testid="home-car-empty"
+              className="card-forged p-4 sm:p-5 w-full text-left flex items-center gap-3 btn-press">
+              <Car size={18} className="text-primary shrink-0" />
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">Planning a car?</span>
+                <span className="block text-xs text-muted-foreground">See what you can afford and save the down payment on the same plan.</span>
+              </span>
+              <span className="ml-auto text-primary shrink-0" aria-hidden="true">›</span>
+            </button>
+          );
+        }
         return (
-          <div key="car_goal" className="card-forged p-4 sm:p-5 card-clickable" onClick={() => navigate(carGoalData.isCarFund ? '/debt?tab=auto' : '/goals')}>
+          <div key="car_goal" className="card-forged p-4 sm:p-5 card-clickable" data-testid="home-car-card" onClick={() => navigate(carGoalData.isCarFund ? '/debt?tab=auto' : '/goals')}>
             <div className="flex items-center gap-2 mb-4">
               <Car size={14} className="text-primary" />
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Car Goal: {carGoalData.name}</h3>
@@ -1107,8 +1148,10 @@ export default function Dashboard() {
             <div className="mt-3">
               <ProgressBar value={carGoalData.saved} max={carGoalData.target} color="gold" />
             </div>
+            {loanLine}
           </div>
         );
+      }
 
       case 'transactions_spending':
         return (
@@ -1500,6 +1543,11 @@ export default function Dashboard() {
         )}
         {/* The hero. Fixed: NOT a `useDashboardLayout` widget, so it is neither reorderable nor hideable. */}
         <DashboardHero state={heroState} onFloorClick={openFloorCalc} trajectory={heroTrajectory} showFinishSooner={isSimple} />
+        {leadCar && (
+          <ErrorBoundary variant="widget" label={widgetLabel('car_goal')}>
+            <Widget id="car_goal" render={renderWidget} />
+          </ErrorBoundary>
+        )}
       </div>
       )}
 
@@ -1638,7 +1686,7 @@ export default function Dashboard() {
               { label: 'Debt Payoff', desc: 'Avalanche engine computes how fast each card gets paid using every dollar above the cash floor.', path: '/debt' },
               { label: 'Forecast', desc: '60-month sim. Debt payoff adjusts monthly so end cash never sits idle — it goes straight to debt.', path: '/forecast' },
               { label: 'Transactions', desc: 'One-time income (tax refund, bonus) and expenses update cash flow and feed the debt engine.', path: '/transactions' },
-              { label: 'Savings & Car Fund', desc: 'Goals track toward specific targets. The car fund models the full purchase: down payment + loan.', path: '/goals' },
+              { label: 'Car Plan', desc: 'Save the down payment for the next car and see the month the current one is paid off. The Garage is one tap from there.', path: '/debt?tab=auto' },
               { label: 'Accounts', desc: 'Net worth history, assets/liabilities breakdown, and all account balances in one place.', path: '/dashboard?tab=accounts' },
             ].map(f => (
               <Link key={f.path} to={f.path} className="group flex gap-2.5 p-3 bg-secondary/40 hover:bg-secondary/70 transition-colors btn-press" style={{ borderRadius: 'var(--radius)' }}>

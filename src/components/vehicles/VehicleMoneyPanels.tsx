@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Plus, Car } from 'lucide-react';
+import { Plus, Car, Wrench } from 'lucide-react';
+import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import FormModal, { type Field } from '@/components/shared/FormModal';
@@ -415,6 +416,12 @@ export default function VehicleMoneyPanels() {
 
   return (
     <div className="space-y-6">
+      {/* One tap to the cars themselves (2026-10-09): Home's car card lands here, and the Garage's only
+          other door is the Account header. */}
+      <Link to="/vehicles" className="flex items-center justify-between gap-3 text-sm btn-press hover:underline" data-testid="auto-garage-link">
+        <span className="flex items-center gap-2 text-muted-foreground"><Wrench size={14} className="text-primary" /> Builds and service log</span>
+        <span className="font-semibold text-primary shrink-0">Garage ›</span>
+      </Link>
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Active Loans</h2>
