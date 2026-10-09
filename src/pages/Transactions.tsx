@@ -51,6 +51,8 @@ import { useDemo } from '@/contexts/DemoContext';
 import { useViewMode } from '@/hooks/useViewMode';
 import { ViewModeSwitch } from '@/components/shared/ViewModeSwitch';
 import { useSubscription } from '@/hooks/useSubscription';
+import { Capacitor } from '@capacitor/core';
+import { canAddTransactions } from '@/lib/manual-entry-gate';
 import { generatePaymentPlanTransactions, getPlanProgress, getNextPaymentDate, isPlanInProgress, PaymentPlan, PaymentPlanFrequency } from '@/lib/payment-plan-generator';
 import { generateCarLoanTransactions } from '@/lib/vehicle-loan-engine';
 import { scanForDuplicateTransactions } from '@/lib/duplicate-transaction-detection';
@@ -102,6 +104,9 @@ const emptyPlanForm = {
 export default function Transactions() {
   const { isDemo, showDemoGuides } = useDemo();
   const { isPremium } = useSubscription();
+  // Manual entry is free on the web and Premium in the native app (Tre, 2026-10-09). Only Add
+  // Transaction and its upsell card read this; Export, payment plans and conversions keep their gates.
+  const canAdd = canAddTransactions({ isPremium, isDemo, isNative: Capacitor.isNativePlatform() });
   const { data: transactions, add, update, remove, loading: transactionsLoading } = useTransactions();
   const { data: accounts, loading: accountsLoading } = useAccounts();
   const { data: rules, add: addRule, update: updateRule, loading: rulesLoading } = useRecurringRules();
@@ -984,7 +989,7 @@ export default function Transactions() {
       </Link>
     )}
 
-    {(isPremium || isDemo) ? (
+    {canAdd ? (
       <button
         onClick={openAdd}
         className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold"
@@ -1040,7 +1045,8 @@ export default function Transactions() {
             style={{ order: bankNeedsDecision ? 2 : 1 }}
           >
 
-      {!isPremium && !isDemo && (
+      {/* The upsell for one-time transactions, so it shows exactly where adding one is gated. */}
+      {!canAdd && (
         <div className="card-forged p-4 border-primary/20 flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="flex-1 space-y-2">
             <p className="text-xs font-semibold text-foreground">One-time transactions — Premium</p>
