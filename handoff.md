@@ -74,6 +74,14 @@ R-NOW39 (2026-10-08, Ada getforgenta-d1, PARKED to Mon 10-12 18:00, weekly 92%).
   cb2d25d7: source maps OFF (sourcemap false; live .map 404). 77 src comments quote Tre's real balances; repo PUBLIC ->
   aa3cd557 needs-tre (make private). NEW asks for the reset: 661548f5 quick add (center +; 56eb181c needs-tre: free on web),
   44c1d7ed interest-saving balance (Prime Visa statement_balance is a stale hand-typed 1451.88; Chase ISB 660.29).
+R-NOW43 (2026-10-09, Ada CLOUD, Sam's brief; R-NOW39-42 live on claude/release-10-09, not main yet).
+  Job 0: balance scrub needs Tre's figures or a named list. R-NOW39's "77 src comments quote Tre's real balances" names no
+  files/lines, and its session note is not in the repo; no fuzzy sweep was done. claude/scrub-balances-10-09 never existed on
+  origin. Job 1 (claude/demo-plan-fix-10-09): /demo Plan "Spent so far" read $0.00 (useSyncedTransactions is [] in demo ON
+  PURPOSE - the card projection reads it); SpentOfPlanned now reads the demo feed month-to-date, and the feed's insurance
+  premium lands in March/September only (it was pinned to the current month). "Over budget by 29%" on /demo is NOT a demo-data
+  bug: the debt engine's month-0 advice pays the Cobalt card ~$2,220 from cash above the floor, so allocations exceed
+  take-home. A copy call for Sam/Tre (real-user path); not changed.
 R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in
   docs/quick-add-comparison-2026-10-07.md. Fincend 5 taps; ours 7 + 2 keystrokes, no add on Home, Premium-only on web.
   BUILD waits for Mon 10-12 18:00 (no spare reset). Check first: an element ("3 Mortgage") sits over Add Transaction at 390.
