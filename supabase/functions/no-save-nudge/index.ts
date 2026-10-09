@@ -5,13 +5,16 @@
  * account, 3 to 30 days old, that has still saved nothing (Tre, 2026-10-06, ask 6d0e50b0: "make
  * future items like this auto follow up", after approving the same email by hand for 10 users).
  *
- * The copy is the approved win-back email, unchanged. No postal line (decision 0e582396). Each send
+ * Copy: _shared/no-save-nudge-copy.ts (since 2026-10-09 it asks for one quick add, proposal D).
+ * No postal line (decision 0e582396). Each send
  * is recorded in public.email_nudges as stage 'no_save_72h', and the selector skips anyone with
  * that row, so nobody gets it twice. Secured by the CRON_SECRET header - no user JWT required.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { cronSecretMatches } from "../_shared/plaid-webhook-register.ts";
+import { buildNudgeText, NUDGE_SUBJECT } from "../_shared/no-save-nudge-copy.ts";
+import { listUnsubscribeHeaders, unsubscribeUrl } from "../_shared/email-unsubscribe.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -27,33 +30,10 @@ interface Target {
   email: string;
 }
 
-const SUBJECT = "Your Forgenta plan is one minute away";
-
-export function buildText(appUrl: string): string {
-  return [
-    "Hi,",
-    "",
-    "You made a Forgenta account, but your plan is still empty.",
-    "",
-    "It takes about 60 seconds to fix: add how much you get paid and your main bills. Forgenta then shows how much is safe to spend before your next payday.",
-    "",
-    `Finish setup: ${appUrl}/onboarding`,
-    "",
-    "If you started on this device, setup opens on the step where you stopped. On a new phone or computer, it starts from the beginning.",
-    "",
-    "Questions? Reply to this email. A person reads it.",
-    "",
-    "Tre",
-    "Forgenta",
-    "",
-    "---",
-    `You get this email because you made a Forgenta account. To stop these emails, reply with "unsubscribe" or write to ${CONTACT}.`,
-    "",
-    "TRE Forged LLC",
-  ].join("\n");
-}
-
-async function sendEmail(to: string): Promise<boolean> {
+async function sendEmail(to: string, userId: string): Promise<boolean> {
+  // One-click unsubscribe when its secret is set; the mailto line otherwise, as before.
+  const secret = Deno.env.get("EMAIL_UNSUBSCRIBE_SECRET");
+  const unsub = secret ? await unsubscribeUrl(`${SUPABASE_URL}/functions/v1`, userId, secret) : null;
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -64,9 +44,11 @@ async function sendEmail(to: string): Promise<boolean> {
       from: NUDGE_FROM,
       to: [to],
       reply_to: CONTACT,
-      subject: SUBJECT,
-      text: buildText(APP_URL),
-      headers: { "List-Unsubscribe": `<mailto:${CONTACT}?subject=unsubscribe>` },
+      subject: NUDGE_SUBJECT,
+      text: buildNudgeText(APP_URL, CONTACT, unsub),
+      headers: unsub
+        ? listUnsubscribeHeaders(unsub, CONTACT)
+        : { "List-Unsubscribe": `<mailto:${CONTACT}?subject=unsubscribe>` },
       tags: [{ name: "campaign", value: "no-save-nudge" }],
     }),
   });
@@ -105,7 +87,7 @@ Deno.serve(async (req) => {
       failures.push({ user_id: row.user_id, reason: `record_failed: ${insertError.message}` });
       continue;
     }
-    const ok = await sendEmail(row.email);
+    const ok = await sendEmail(row.email, row.user_id);
     if (!ok) {
       failures.push({ user_id: row.user_id, reason: "resend_send_failed" });
       continue;

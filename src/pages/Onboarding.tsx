@@ -51,7 +51,8 @@ import {
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Capacitor } from '@capacitor/core';
 import { firstRunNavSummary } from '@/lib/first-run-nav';
-import { quickAddIsOpen } from '@/lib/quick-add';
+import { canAddTransactions } from '@/lib/manual-entry-gate';
+import { recordFirstWeekStep } from '@/lib/first-week-funnel';
 
 type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
 
@@ -262,7 +263,8 @@ export default function Onboarding() {
   // "Where things are" on the finish screen: derived from the nav, plus the quick-add pointer only
   // where the `+` adds (a free native account's `+` is a Premium door). Growth pass 2026-10-09.
   const navSummary = useMemo(() => firstRunNavSummary(), []);
-  const quickAddOpen = quickAddIsOpen({ isPremium, isDemo: false, native: Capacitor.isNativePlatform() });
+  // Same rule as QuickAddContext's door and the Transactions button (folded 2026-10-09).
+  const quickAddOpen = canAddTransactions({ isPremium, isDemo: false, isNative: Capacitor.isNativePlatform() });
 
   // Signal Swift cover that a post-auth page has mounted (same flag as Dashboard).
   // New users land here after OAuth sign-up; without this the cover waits the full
@@ -420,6 +422,8 @@ export default function Onboarding() {
       // Cleared only after the profile write above succeeded (it throws on error), so a failed
       // setup that the user retries does not lose the attribution on the first attempt.
       if (refCode) clearReferral();
+      // First-week funnel (proposal G): the wizard's profile save is what 'finished' means.
+      recordFirstWeekStep('onboarding_finished', user);
 
       const expenses = [
         { label: 'Rent / Mortgage', amount: data.monthlyRent, category: 'Housing' },

@@ -118,6 +118,12 @@ verify_jwt = false
 [functions.newsletter-digest]
 verify_jwt = false
 
+# One-click unsubscribe behind every user email (2026-10-09). Opened from an inbox on a device
+# that may never have signed in, and POSTed by Gmail / Apple Mail for RFC 8058 one-click, so it
+# cannot require a JWT. Identity is the HMAC link (_shared/email-unsubscribe.ts); a GET writes nothing.
+[functions.email-unsubscribe]
+verify_jwt = false
+
 # [functions.publish-slot] was removed 2026-10-05: no source exists in this repo, and
 # `supabase start` refuses to run while config names a function it cannot read.
 

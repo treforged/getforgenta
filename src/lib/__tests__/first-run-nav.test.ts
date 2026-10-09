@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { firstRunNavSummary, NAV_PURPOSE } from '@/lib/first-run-nav';
 import { PRIMARY_NAV } from '@/lib/primary-nav';
-import { quickAddIsOpen } from '@/lib/quick-add';
+import { canAddTransactions } from '@/lib/manual-entry-gate';
 
 describe('first-run nav summary', () => {
   it('names every bottom-bar destination, in bar order, each with a purpose', () => {
@@ -27,11 +27,11 @@ describe('first-run nav summary', () => {
   });
 });
 
-describe('quickAddIsOpen', () => {
+describe('canAddTransactions (the rule first-run copy reads)', () => {
   it('is free on web, gated for a free native account, open for premium and demo', () => {
-    expect(quickAddIsOpen({ isPremium: false, isDemo: false, native: false })).toBe(true);
-    expect(quickAddIsOpen({ isPremium: false, isDemo: false, native: true })).toBe(false);
-    expect(quickAddIsOpen({ isPremium: true, isDemo: false, native: true })).toBe(true);
-    expect(quickAddIsOpen({ isPremium: false, isDemo: true, native: true })).toBe(true);
+    expect(canAddTransactions({ isPremium: false, isDemo: false, isNative: false })).toBe(true);
+    expect(canAddTransactions({ isPremium: false, isDemo: false, isNative: true })).toBe(false);
+    expect(canAddTransactions({ isPremium: true, isDemo: false, isNative: true })).toBe(true);
+    expect(canAddTransactions({ isPremium: false, isDemo: true, isNative: true })).toBe(true);
   });
 });

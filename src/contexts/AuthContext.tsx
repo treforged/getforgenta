@@ -16,6 +16,7 @@ import { reportTimezone } from '@/lib/report-timezone';
 import { identifyMonitoringUser } from '@/lib/monitoring';
 import { maybeTrackOAuthSignUp } from '@/lib/analytics';
 import { recordOAuthSignupIfNew } from '@/lib/signup-funnel';
+import { recordFirstWeekStep } from '@/lib/first-week-funnel';
 import { useDemo } from '@/contexts/DemoContext';
 import { clearAllFormDrafts } from '@/hooks/useFormDraft';
 import { restorePersistedQueries, startQueryPersistence, clearPersistedQueries } from '@/lib/query-cache-persistence';
@@ -320,6 +321,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // every server-side notification computes the wrong "today" for anyone outside it. Web
         // as well as native: the streak is the same streak on both.
         reportTimezone(session.user.id).catch(() => {});
+        // First-week funnel (proposal G): a session on a later day than signup is a return. A
+        // returning user fires INITIAL_SESSION, never SIGNED_IN, hence this branch.
+        recordFirstWeekStep('returned_day2', session.user);
       }
 
       if (event === 'SIGNED_IN') {

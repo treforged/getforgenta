@@ -8,6 +8,7 @@ import BackendHealthBanner from '@/components/shared/BackendHealthBanner';
 import { PageSkeleton } from '@/components/shared/PageSkeleton';
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { stashInviteFromSearch, peekPendingInvite, clearPendingInvite } from "@/lib/pending-invite";
+import { passesOnboardingGate } from "@/lib/quick-add-link";
 import { BrowserRouter, MemoryRouter, Route, Routes, Navigate, useNavigate, useLocation, useNavigationType } from "react-router";
 import { Capacitor } from '@capacitor/core';
 import { MotionConfig } from 'framer-motion';
@@ -201,7 +202,7 @@ function ResumePendingInvite({ target }: { target: string }) {
 function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.ReactNode; skipOnboardingCheck?: boolean }) {
   const { user, loading } = useAuth();
   const { isDemo } = useDemo();
-  const { search } = useLocation();
+  const { pathname, search } = useLocation();
   // `profiles.onboarding_completed` is the store, with the old localStorage key as a cache and a
   // migration source (src/lib/onboarding-state.ts). A device that already holds the key answers
   // immediately; everyone else waits for one small query rather than being bounced into a wizard
@@ -216,7 +217,8 @@ function ProtectedRoute({ children, skipOnboardingCheck }: { children: React.Rea
   }
   if (!skipOnboardingCheck && user && !isDemo) {
     if (onboarding.status === 'pending') return <GateNotice label="Loading your setup…" />;
-    if (onboarding.status === 'needs-onboarding') {
+    // The email's quick-add link (proposal D) opens Home un-onboarded; see quick-add-link.ts.
+    if (onboarding.status === 'needs-onboarding' && !passesOnboardingGate(pathname, search)) {
       stashInviteFromSearch(search);
       return <Navigate to="/onboarding" replace />;
     }
