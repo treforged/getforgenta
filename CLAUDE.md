@@ -157,7 +157,7 @@ section states reasoning, not measurement, and says so.
 - `--more` on any check:*-contrast walks 8 MORE signed-in screens (/transactions /goals /vehicles /builds /net-worth
   /premium /ai /subscriptions) that no contrast probe had read before 2026-10-07. First run: 2 Garage buttons at 3.13:1 in light
   (hardcoded black on gold), fixed; now 0 of 478 in both themes. e.g. `node scripts/check-dark-contrast.mjs --more --theme light`.
-- `npm run check:landing-contrast` - the same probe SIGNED OUT on `/` (`--landing`), light then dark. No contrast probe had
+- `npm run check:landing-contrast` - the same probe SIGNED OUT on `/` (`--landing`), light then dark. Needs NO walk creds and writes nothing since 2026-10-09 (it used to sign in and PATCH the walk profile first). No contrast probe had
   read the landing before 2026-10-07. Red on the old stat labels (text-foreground/60): 4.21:1, exit 1; now 0 of 49. A redirect
   away from `/` exits 2. Does NOT see the testimonial disclosure while `src/data/testimonials.ts` is empty.
 - ⚠️ **SINCE 2026-10-07 THE WALK-UP ARM COMPOSITES TRANSLUCENT TEXT INSTEAD OF SKIPPING IT.** Chrome reports every
