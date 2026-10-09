@@ -15,9 +15,9 @@ Quick add is Premium in the native app (decision 10-09); the text names it witho
 | --- | --- | --- | --- | --- |
 | Name | 30 | `Forgenta: Budget Planner` | 24 | with a version submit (already set on 6.8.2 by `scripts/asc-aso-metadata.mjs`) |
 | Subtitle | 30 | `Safe to Spend & Payoff Date` | 27 | keep (decision 69c9bdc0) |
-| Promotional text | 170 | Know what's safe to spend before payday. Log a purchase in five taps, see the month your cards hit zero, and plan 60 months ahead. | 130 | **any time**, no submit |
+| Promotional text | 170 | Know what's safe to spend before payday and the month your cards hit zero. Save for your next car, or pay one off, on the same plan. | 132 | **any time**, no submit |
 | Keywords | 100 | `budgeting,paycheck,payday,bills,tracker,debt,forecast,expense,money,cash,calendar,savings,simple` | 96 | with a version submit (set on 6.8.2) |
-| Description | 4000 | below | 1473 | with a version submit |
+| Description | 4000 | below | 1691 | with a version submit |
 
 No word repeats across name, subtitle and keywords (Apple combines them; checked by script).
 
@@ -33,6 +33,9 @@ One number, checked through your next paycheck, after every bill due before it. 
 YOUR DEBT-FREE DATE
 Forgenta ranks your cards by what each one actually costs you and tells you what to send each one this month, after every minimum is covered. See how many months sooner you finish if you pay a little more.
 
+YOUR CAR, ON THE SAME PLAN
+Saving for a car? Forgenta sets the down payment aside each month toward the date you plan to buy. Paying one off? See the month the loan hits zero, and how much sooner an extra payment gets you there. A Garage keeps every car, its build and its service log.
+
 QUICK ADD
 Tap the gold + and log a purchase in five taps: amount, category, done. Your last category and account are remembered.
 
@@ -42,8 +45,8 @@ Enter your paycheck and the bills that repeat once. Forgenta projects your cash,
 CONNECT YOUR BANK, OR DON'T
 Your first bank connection is free. Or add every account by hand: cash, investments, a loan from a friend.
 
-GOALS, CARS AND PARTNERS
-Savings goals on the same timeline as your debt. A Garage for saving for a car, paying one off or building one. Share a budget with a partner.
+GOALS AND PARTNERS
+Savings goals on the same timeline as your debt. Share a budget with a partner.
 
 NO ADS. EVER.
 Your data is never sold.
@@ -57,7 +60,7 @@ Forgenta is free to start. Premium adds daily bank sync, more linked accounts, C
 | --- | --- | --- | --- |
 | App name | 30 | `Forgenta: Budget Planner` | 24 |
 | Short description | 80 | Know what's safe to spend before payday, and the day you're debt-free. | 70 |
-| Full description | 4000 | the App Store description above | 1473 |
+| Full description | 4000 | the App Store description above | 1691 |
 
 Play listing edits need no app release.
 

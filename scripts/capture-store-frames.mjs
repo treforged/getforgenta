@@ -33,15 +33,21 @@ const FRAMES = [
   // Scrolled to INCOME & TAXES (mid-page, so it can reach the top; INCOME RULES sits too near the end): Plan's top is a demo-only explainer, and its "Spent so far" card reads $0.00
   // on /demo (no bank rows), neither of which belongs in a store frame.
   { file: '05-plan.png', route: '/budget', scrollTo: /^INCOME & TAXES$/i, marker: /INCOME & TAXES/i },
-  { file: '06-accounts.png', route: '/dashboard', press: { role: 'button', name: /^Accounts$/i }, marker: /Northvale Checking/i },
-  { file: '07-goals.png', route: '/dashboard', press: { role: 'button', name: /^Goals$/i }, marker: /Add Goal/i },
-  { file: '08-garage.png', route: '/vehicles', press: { role: 'button', name: /^Vehicles/i }, marker: /Honda Civic/i },
+  // 06-08 pressed role 'button' and timed out on every run: those pills are role="tab" (Dashboard panels,
+  // Garage), so the frames could not be re-shot. Fixed 2026-10-09.
+  { file: '06-accounts.png', route: '/dashboard', press: { role: 'tab', name: /Accounts$/i }, marker: /Northvale Checking/i },
+  { file: '07-goals.png', route: '/dashboard', press: { role: 'tab', name: /Goals$/i }, marker: /Add Goal/i },
+  { file: '08-garage.png', route: '/vehicles', press: { role: 'tab', name: /^Vehicles/i }, marker: /Honda Civic/i },
   // Added 2026-10-09 (store re-shoot brief, marketing/app-store/2026-10-09/): the subtitle sells Safe to
   // Spend and no frame showed it; quick add shipped 10-09 and no frame showed it either.
   { file: '09-safe-to-spend.png', route: '/dashboard', scrollTo: /SAFE TO SPEND UNTIL/i, marker: /SAFE TO SPEND UNTIL/i },
   { file: '10-quick-add.png', route: '/dashboard', quickAdd: true, marker: /Add \$36/ },
+  // Added 2026-10-09 (Tre: the car side is one of the three selling points). The Garage frame (08) is a guide
+  // card and two rows; the car MONEY lives on Debt > Auto Loans: the RAV4's payoff trajectory and date, then
+  // the Civic's down-payment saving. Scrolled so the trajectory card leads.
+  { file: '11-car.png', route: '/debt?tab=auto', scrollTo: /^AUTO LOAN PAYOFF TRAJECTORY$/i, marker: /Toyota RAV4/i },
 ];
-const IPAD = new Set(['01-dashboard.png', '02-debt.png', '03-decisions.png', '04-forecast.png', '05-plan.png', '08-garage.png', '09-safe-to-spend.png', '10-quick-add.png']);
+const IPAD = new Set(['01-dashboard.png', '02-debt.png', '03-decisions.png', '04-forecast.png', '05-plan.png', '08-garage.png', '09-safe-to-spend.png', '10-quick-add.png', '11-car.png']);
 // ONLY=05,09,10 shoots just those frames (by file prefix), e.g. a partial re-shoot.
 const ONLY = process.env.ONLY ? process.env.ONLY.split(',').map(x => x.trim()) : null;
 const wanted = (file) => !ONLY || ONLY.some(p => file.startsWith(p));

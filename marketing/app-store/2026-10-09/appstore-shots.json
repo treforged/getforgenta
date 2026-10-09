@@ -1,6 +1,6 @@
 {
   "_source": "getforgenta claude/store-listing-10-09: /demo shot 2026-10-09 with `ONLY=05,09,10 node scripts/capture-store-frames.mjs <out>`. Phone 1290x2796, iPad 2064x2752, dark. Figures are the /demo profile on 2026-10-09; demo-data.ts dates move with the calendar, so READ THE FIGURES BACK OFF THE FRAMES YOU SHOOT and update `figures` before appstore_check.py.",
-  "_how_to_use": "Drop-in for tre-forged-marketing content/appstore.json. REPLACE the shot with the same `replaces` id, then delete the `replaces` key. ADD the two new `features` entries (05-plan reuses the existing `paycheck` feature). Leave `forbidden` as is (crops start below the DEMO / Sign Up Free strip). iPad crops are first guesses: check them in appstore_check.py on the PC.",
+  "_how_to_use": "Drop-in for tre-forged-marketing content/appstore.json. REPLACE the shot with the same `replaces` id, then delete the `replaces` key. ADD the three new `features` entries (safe_to_spend, quick_add, car) (05-plan reuses the existing `paycheck` feature). Leave `forbidden` as is (crops start below the DEMO / Sign Up Free strip). iPad crops are first guesses: check them in appstore_check.py on the PC.",
   "shots": [
     {
       "replaces": "00-intro",
@@ -98,6 +98,40 @@
         "1182"
       ],
       "accent": "once"
+    },
+    {
+      "replaces": null,
+      "_slot": "PROPOSED: the slot of the current Garage/car shot if appstore.json has one (it would be the weaker 08-garage frame); otherwise the LAST slot. The 8-shot appstore.json lives in tre-forged-marketing and was not readable from this session, so Ruby picks the id. Keep 00 (Safe to Spend), 01 (payoff) and 04 (quick add): this adds the third selling point, it does not displace the other two.",
+      "id": "06-car",
+      "eyebrow": "Your car",
+      "headline": "See the month your car is paid off.",
+      "subline": "Or save the down payment for the next one.",
+      "screenshot": "screenshots/appstore/2026-10-09/11-car.png",
+      "crop": [
+        0,
+        0.125,
+        1,
+        0.86
+      ],
+      "figures": [
+        "Aug 2031",
+        "$533.66"
+      ],
+      "screenshot_ipad13": "screenshots/appstore/2026-10-09/ipad-13/11-car.png",
+      "crop_ipad13": [
+        0,
+        0.07,
+        1,
+        0.95
+      ],
+      "feature": "car",
+      "screen_title": "Auto Loans",
+      "must_show": [
+        "AUTO LOAN PAYOFF TRAJECTORY",
+        "Toyota RAV4",
+        "Payoff Date"
+      ],
+      "accent": "paid off"
     }
   ],
   "features": {
@@ -120,6 +154,19 @@
         "five taps",
         "log",
         "quick"
+      ]
+    },
+    "car": {
+      "titles": [
+        "Auto Loans",
+        "Auto Loan Payoff Trajectory",
+        "Garage"
+      ],
+      "headline_words": [
+        "car",
+        "paid off",
+        "down payment",
+        "loan"
       ]
     }
   }
