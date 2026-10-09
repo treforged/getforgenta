@@ -4,14 +4,15 @@
  * Called by pg_cron weekly on Mondays (see 20260722_newsletter_digest_cron.sql). Secured by the
  * CRON_SECRET header - no user JWT required.
  *
- * Since 2026-10-09 (proposal C) it writes to every confirmed app user with a body about their own
- * account, plus the last 7 days of https://treforged.com/feed.xml when there are posts. Newsletter
- * subscribers who are not app users keep the blog-only digest. Rules: _shared/weekly-digest.ts.
+ * Since 2026-10-09 (proposal C) it writes to every confirmed app user with a summary of their own
+ * account, and nothing promotional (no blog posts: Tre will not publish a postal address, which a
+ * commercial email needs). Newsletter subscribers who are not app users keep the blog-only digest of
+ * https://treforged.com/feed.xml. Rules: _shared/weekly-digest.ts.
  *
  * ⚠️ DRY RUN BY DEFAULT. Nothing is sent unless the URL carries `?dry_run=0`. The existing cron
  * calls this without it, so after a deploy the Monday run only REPORTS who would get what. A real
- * send also needs EMAIL_UNSUBSCRIBE_SECRET and EMAIL_POSTAL_ADDRESS set; without them it refuses
- * and says which is missing. The response carries counts, never an address.
+ * send also needs EMAIL_UNSUBSCRIBE_SECRET set; without it it refuses and says so. The response
+ * carries counts, never an email address.
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -68,7 +69,6 @@ Deno.serve(async (req) => {
   const env = {
     RESEND_API_KEY: Deno.env.get("RESEND_API_KEY"),
     EMAIL_UNSUBSCRIBE_SECRET: Deno.env.get("EMAIL_UNSUBSCRIBE_SECRET"),
-    EMAIL_POSTAL_ADDRESS: Deno.env.get("EMAIL_POSTAL_ADDRESS"),
   };
   const db = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -76,7 +76,6 @@ Deno.serve(async (req) => {
     const result = await runDigest({
       now: new Date(),
       appUrl: APP_URL,
-      postalAddress: env.EMAIL_POSTAL_ADDRESS ?? "",
       unsubscribeMailto: UNSUBSCRIBE_MAILTO,
       loadRecipients: async () => {
         const { data, error } = await db.rpc("get_weekly_digest_recipients");

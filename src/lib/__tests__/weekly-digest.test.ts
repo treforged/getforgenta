@@ -1,17 +1,18 @@
 // The weekly email to app users (proposal C). The rule that matters most: NOTHING IS SENT unless the
-// request opts in with ?dry_run=0, and even then not without the unsubscribe secret and postal
-// address. Would-fail checks: flip isDryRun's default and "missing / empty / mistyped" fails; drop the
-// unsubscribed filter and both "never sent" tests fail; show a stale figure and "left out" fails;
-// remove the postal line and the footer test fails. All data below is invented.
+// request opts in with ?dry_run=0, and even then not without the unsubscribe secret. Since Tre's
+// 10-09 decision ("dont include my business address publicly anywhere") the app-user email is an
+// ACCOUNT SUMMARY only: no postal address anywhere, no blog section. Would-fail checks: flip
+// isDryRun's default and "missing / empty / mistyped" fails; drop the unsubscribed filter and both
+// "never sent" tests fail; show a stale figure and "left out" fails; pass posts into the user email
+// and "no blog section" fails. All data below is invented.
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   isDryRun, sendBlockers, runDigest, buildUserDigest, freshSafeToSpend, parseFeed, formatCents,
-  MAX_RECIPIENTS_PER_RUN, USER_EMAIL_IDENTIFIER, type DigestDeps, type DigestRecipient, type Post,
+  MAX_RECIPIENTS_PER_RUN, type DigestDeps, type DigestRecipient, type Post,
 } from '../../../supabase/functions/_shared/weekly-digest';
 
 const NOW = new Date('2026-10-12T15:00:00Z');
-const ADDRESS = '1 Example Street, Nowhere, ZZ 00000';
 
 const rec = (over: Partial<DigestRecipient> = {}): DigestRecipient => ({
   user_id: '11111111-2222-4333-8444-555555555555',
@@ -34,7 +35,6 @@ function deps(over: Partial<DigestDeps> = {}) {
   const d: DigestDeps = {
     now: NOW,
     appUrl: 'https://app.example.invalid',
-    postalAddress: ADDRESS,
     unsubscribeMailto: 'help@example.invalid',
     loadRecipients: async () => [rec()],
     loadSubscriberEmails: async () => [],
@@ -65,10 +65,10 @@ describe('dry run is the default', () => {
   });
 
   it('a real send refuses while config is missing, and says what', async () => {
-    expect(sendBlockers({ RESEND_API_KEY: 'k' })).toEqual(['EMAIL_UNSUBSCRIBE_SECRET', 'EMAIL_POSTAL_ADDRESS']);
-    expect(sendBlockers({ RESEND_API_KEY: 'k', EMAIL_UNSUBSCRIBE_SECRET: 's', EMAIL_POSTAL_ADDRESS: '  ' })).toEqual(['EMAIL_POSTAL_ADDRESS']);
+    expect(sendBlockers({ RESEND_API_KEY: 'k' })).toEqual(['EMAIL_UNSUBSCRIBE_SECRET']);
+    expect(sendBlockers({ RESEND_API_KEY: 'k', EMAIL_UNSUBSCRIBE_SECRET: '  ' })).toEqual(['EMAIL_UNSUBSCRIBE_SECRET']);
     const { d, send } = deps();
-    const r = await runDigest(d, { dryRun: false, blockers: ['EMAIL_POSTAL_ADDRESS'] });
+    const r = await runDigest(d, { dryRun: false, blockers: ['EMAIL_UNSUBSCRIBE_SECRET'] });
     expect(send).not.toHaveBeenCalled();
     expect(r.status).toBe('blocked');
   });
@@ -108,13 +108,32 @@ describe('who gets it', () => {
     expect((send.mock.calls[0][0] as unknown[]).length).toBe(1);
   });
 
-  it('every user email identifies itself as a product email from Forgenta, in text and HTML', async () => {
+  it('the send does not depend on a postal address: a full config is the secret and the key', async () => {
+    expect(sendBlockers({ RESEND_API_KEY: 'k', EMAIL_UNSUBSCRIBE_SECRET: 's' })).toEqual([]);
     const { d, send } = deps();
+    const r = await runDigest(d, { dryRun: false, blockers: sendBlockers({ RESEND_API_KEY: 'k', EMAIL_UNSUBSCRIBE_SECRET: 's' }) });
+    expect(r.status).toBe('ok');
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('no rendered email carries a postal address, and app users get no blog section', async () => {
+    const { d, send } = deps({ loadSubscriberEmails: async () => ['reader@example.invalid'] });
     await runDigest(d, { dryRun: false, blockers: [] });
-    const e = (send.mock.calls[0][0] as { text: string; html: string }[])[0];
-    expect(USER_EMAIL_IDENTIFIER).toMatch(/product email from Forgenta \(TRE Forged LLC\) because you have an account/);
-    expect(e.text).toContain(USER_EMAIL_IDENTIFIER);
-    expect(e.html).toContain(USER_EMAIL_IDENTIFIER);
+    const emails = send.mock.calls[0][0] as { text: string; html: string; user_id: string | null }[];
+    expect(emails.map((e) => e.user_id === null)).toEqual([false, true]);
+    for (const e of emails) {
+      for (const body of [e.text, e.html]) {
+        expect(body).not.toMatch(/postal|street|suite|p\.?\s?o\.? box|\b\d{5}(-\d{4})?\b/i);
+      }
+    }
+    const [user, reader] = emails;
+    for (const body of [user.text, user.html]) {
+      expect(body).not.toMatch(/blog/i);
+      expect(body).not.toContain(post.title);
+      expect(body).not.toContain(post.link);
+    }
+    // The newsletter-only digest keeps its posts.
+    expect(reader.text).toContain(post.title);
   });
 
   it('every user email carries one-click headers', async () => {
@@ -127,9 +146,9 @@ describe('who gets it', () => {
 });
 
 describe('the per-user body', () => {
-  const ctx = (posts: Post[] = []) => ({
-    appUrl: 'https://app.example.invalid', now: NOW, posts,
-    footer: { reason: 'Because.', unsubscribeUrl: 'https://u.invalid/x', unsubscribeMailto: 'help@example.invalid', postalAddress: ADDRESS },
+  const ctx = () => ({
+    appUrl: 'https://app.example.invalid', now: NOW,
+    footer: { reason: 'Because.', unsubscribeUrl: 'https://u.invalid/x', unsubscribeMailto: 'help@example.invalid' },
   });
 
   it('shows a fresh Safe to Spend figure with its date', () => {
@@ -158,24 +177,19 @@ describe('the per-user body', () => {
     expect(text).toContain('Add how much you get paid');
   });
 
-  it('has the CAN-SPAM footer: why, one-click unsubscribe, sender and postal address', () => {
+  it('has the footer: why, one-click unsubscribe, sender name, and no address', () => {
     const { text, html } = buildUserDigest(rec(), ctx());
-    for (const s of ['Because.', 'Unsubscribe in one click: https://u.invalid/x', 'TRE Forged LLC', ADDRESS]) {
+    for (const s of ['Because.', 'Unsubscribe in one click: https://u.invalid/x', 'Forgenta, TRE Forged LLC']) {
       expect(text).toContain(s);
     }
-    expect(html).toContain(ADDRESS);
     expect(html).toContain('href="https://u.invalid/x"');
+    expect(text.split('---')[1].trim().split('\n')).toHaveLength(3);
   });
 
   it('escapes a display name and keeps only its first word', () => {
     const { html, text } = buildUserDigest(rec({ display_name: '<b>Pat</b> Example' }), ctx());
     expect(text.startsWith('Hi bPatb,')).toBe(true);
     expect(html).not.toContain('<b>Pat');
-  });
-
-  it('adds blog posts only when there are any', () => {
-    expect(buildUserDigest(rec(), ctx([post])).text).toContain('From the blog this week:');
-    expect(buildUserDigest(rec(), ctx()).text).not.toContain('From the blog');
   });
 });
 

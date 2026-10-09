@@ -3,16 +3,22 @@
  * docs/retention-recommendation-2026-09-10.md).
  *
  * It used to go only to public.newsletter_subscribers, which held one row, while every confirmed
- * app user got nothing. Now each confirmed app user gets a body about THEIR account, and the blog
- * posts ride along when there are any. Newsletter subscribers who are not app users keep the blog
- * digest they signed up for.
+ * app user got nothing. Now each confirmed app user gets a summary of THEIR account. Newsletter
+ * subscribers who are not app users keep the blog digest they signed up for.
  *
- * Three rules, each asserted in weekly-digest.test.ts:
+ * ⚠️ THE APP-USER EMAIL IS AN ACCOUNT SUMMARY ONLY (Tre, 2026-10-09: "dont include my business
+ * address publicly anywhere"). A commercial email needs a postal address in it; a summary of the
+ * person's own account is relationship content and does not. So it carries their own figures, a
+ * pointer to add their pay, and a link into the app, and NOTHING promotional: no blog posts, no
+ * offers, no upgrade asks. Adding promotional content later needs a PO box or virtual mailbox first.
+ *
+ * Four rules, each asserted in weekly-digest.test.ts:
  *  1. NOTHING IS SENT unless the request says `?dry_run=0` (same opt-in as push-send). A missing,
  *     empty or mistyped value is a dry run.
  *  2. An unsubscribed user is never in the send list, on either audience.
  *  3. A number is only shown with its date, and only while fresh. A stale Safe to Spend figure in an
  *     inbox cannot show itself as stale the way the app can, so it is left out instead.
+ *  4. The app-user email has no blog section and no promotional wording (see above).
  */
 
 import { listUnsubscribeHeaders } from "./email-unsubscribe.ts";
@@ -50,14 +56,6 @@ export interface OutgoingEmail {
   user_id: string | null;
 }
 
-/**
- * The footer's first line on every user email. It goes to every confirmed user unless they opt out
- * (no affirmative consent), so CAN-SPAM wants a commercial email to identify itself clearly; this says
- * what it is and who sends it, plainly, without shouting "AD" (Ruby's memo, via Sam, 2026-10-09).
- */
-export const USER_EMAIL_IDENTIFIER =
-  "You're getting this product email from Forgenta (TRE Forged LLC) because you have an account.";
-
 /** A runaway recipient query must not become a mass mailing. */
 export const MAX_RECIPIENTS_PER_RUN = 200;
 /** Older than this, a Safe to Spend figure is left out of the email. */
@@ -71,7 +69,7 @@ export function isDryRun(url: URL): boolean {
 
 /** Config a REAL send needs. A dry run reports these instead of failing. */
 export function sendBlockers(env: Record<string, string | undefined>): string[] {
-  return ["RESEND_API_KEY", "EMAIL_UNSUBSCRIBE_SECRET", "EMAIL_POSTAL_ADDRESS"].filter((k) => !env[k]?.trim());
+  return ["RESEND_API_KEY", "EMAIL_UNSUBSCRIBE_SECRET"].filter((k) => !env[k]?.trim());
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -195,7 +193,6 @@ export interface FooterInput {
   reason: string;
   unsubscribeUrl: string | null;
   unsubscribeMailto: string;
-  postalAddress: string;
 }
 
 function footerLines(f: FooterInput): string[] {
@@ -204,8 +201,7 @@ function footerLines(f: FooterInput): string[] {
     f.unsubscribeUrl
       ? `Unsubscribe in one click: ${f.unsubscribeUrl}`
       : `To unsubscribe, reply with "unsubscribe" or write to ${f.unsubscribeMailto}.`,
-    "TRE Forged LLC",
-    f.postalAddress,
+    "Forgenta, TRE Forged LLC",
   ];
 }
 
@@ -244,7 +240,7 @@ function render(subject: string, greeting: string, paras: Paragraph[], posts: Po
 <p style="margin:0 0 16px;font-size:15px;color:#334155">${esc(greeting)}</p>${parasHtml}${postsHtml}
 </div>
 <div style="padding:20px 32px;border-top:1px solid #f1f5f9;background:#fafafa">
-<p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8">${esc(footer.reason)}<br>${unsub}<br>TRE Forged LLC<br>${esc(footer.postalAddress)}</p>
+<p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8">${esc(footer.reason)}<br>${unsub}<br>Forgenta, TRE Forged LLC</p>
 </div></div></body></html>`;
 
   return { subject, text, html };
@@ -253,11 +249,13 @@ function render(subject: string, greeting: string, paras: Paragraph[], posts: Po
 export interface UserBodyContext {
   appUrl: string;
   now: Date;
-  posts: Post[];
   footer: FooterInput;
 }
 
-/** The per-user email. Every figure in it is the user's own, and dated. */
+/**
+ * The per-user email: a summary of the person's own account. Every figure in it is theirs, and
+ * dated. Never pass it posts or promotional copy (see the header).
+ */
 export function buildUserDigest(r: DigestRecipient, ctx: UserBodyContext) {
   const name = firstName(r.display_name);
   const greeting = name ? `Hi ${name},` : "Hi,";
@@ -285,12 +283,12 @@ export function buildUserDigest(r: DigestRecipient, ctx: UserBodyContext) {
     paras.push({ text: `You saved ${r.entries_7d} ${r.entries_7d === 1 ? "entry" : "entries"} in the last 7 days.` });
   } else {
     paras.push({
-      text: "Nothing saved this week. Log one purchase with the + at the bottom of the screen: about five taps.",
-      link: { label: "Add a purchase", url: quickAdd },
+      text: "No entries saved in the last 7 days. To add one, press + at the bottom of the screen.",
+      link: { label: "Add an entry", url: quickAdd },
     });
   }
 
-  return render("Your week in Forgenta", greeting, paras, ctx.posts, ctx.footer);
+  return render("Your weekly Forgenta summary", greeting, paras, [], ctx.footer);
 }
 
 /** The blog digest for a newsletter subscriber who is not an app user (unchanged audience). */
@@ -305,7 +303,6 @@ export function buildSubscriberDigest(posts: Post[], footer: FooterInput) {
 export interface DigestDeps {
   now: Date;
   appUrl: string;
-  postalAddress: string;
   unsubscribeMailto: string;
   loadRecipients: () => Promise<DigestRecipient[]>;
   loadSubscriberEmails: () => Promise<string[]>;
@@ -372,12 +369,10 @@ export async function runDigest(deps: DigestDeps, opts: { dryRun: boolean; block
     const body = buildUserDigest(r, {
       appUrl: deps.appUrl,
       now: deps.now,
-      posts,
       footer: {
-        reason: USER_EMAIL_IDENTIFIER,
+        reason: "You get this weekly summary because you have a Forgenta account.",
         unsubscribeUrl: url,
         unsubscribeMailto: deps.unsubscribeMailto,
-        postalAddress: deps.postalAddress,
       },
     });
     emails.push({
@@ -391,7 +386,6 @@ export async function runDigest(deps: DigestDeps, opts: { dryRun: boolean; block
     reason: "You get this because you subscribed at treforged.com.",
     unsubscribeUrl: null,
     unsubscribeMailto: deps.unsubscribeMailto,
-    postalAddress: deps.postalAddress,
   });
   for (const to of subscribers) {
     emails.push({

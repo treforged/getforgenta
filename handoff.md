@@ -4,8 +4,9 @@
 R-NOW43 (2026-10-09, Ada CLOUD, Sam's brief, Tre "yes"): proposals C, D, G on `claude/reach-users-10-09` (NOT main).
   Full write-up + Tre's turn-on steps: docs/reach-users-2026-10-09.md. Nothing deployed/applied/sent; no live DB read
   (Sam: no Supabase MCP in this brief - schema from migrations; auth.users deleted_at/banned_until ASSUMED).
-  - C: newsletter-digest -> confirmed app users, per-user body (_shared/weekly-digest.ts), DRY RUN unless ?dry_run=0,
-    refuses without EMAIL_UNSUBSCRIBE_SECRET + EMAIL_POSTAL_ADDRESS. New fn email-unsubscribe (HMAC link, RFC 8058,
+  - C: newsletter-digest -> confirmed app users, ACCOUNT SUMMARY only (_shared/weekly-digest.ts), DRY RUN unless
+    ?dry_run=0, refuses without EMAIL_UNSUBSCRIBE_SECRET. DECIDED (Tre 10-09): no business address published anywhere,
+    so the app email carries no blog/promo; promo later needs a PO box or virtual mailbox first. New fn email-unsubscribe (HMAC link, RFC 8058,
     GET writes nothing). Migration 20261009_weekly_email_to_users.sql (profiles.email_unsubscribed_at, recipients RPC,
     nudge RPC skips unsubscribed).
   - D: no-save-nudge copy -> quick add (_shared/no-save-nudge-copy.ts); /dashboard?quickadd=1 opens the sheet AND

@@ -7,20 +7,22 @@ No live database was read for this work; the schema comes from `supabase/migrati
 ## What each part does
 
 **C. The weekly email reaches app users.** `newsletter-digest` now mails every confirmed real user
-(test domains excluded) a short email about their own account:
+(test domains excluded) a short summary of their own account:
 - Safe to Spend until payday, with its date, but only if the app computed it in the last 72 hours and
   payday has not passed. Otherwise no figure.
-- How many entries they saved this week, or, if none, a link that opens quick add.
-- "Add your pay" if they have no income set.
-- Blog posts from the last 7 days, when there are any.
-- Footer: "You're getting this product email from Forgenta (TRE Forged LLC) because you have an account."
-  (the CAN-SPAM identifier for opt-out mail, per Ruby's memo), a one-click unsubscribe link, "TRE Forged LLC" and the postal address.
+- How many entries they saved in the last 7 days, or, if none, a link that opens quick add.
+- "Add your pay" if they have no income set, and a link into the app.
+- Footer: why they get it, a one-click unsubscribe link, and "Forgenta, TRE Forged LLC".
+
+**The app email is kept to an account summary (relationship content only) because Tre won't publish a
+business address**, which a commercial email must carry. So it has no blog posts, offers or upgrade
+asks. If promotional content is ever added, set up a PO box or virtual mailbox first.
 
 Newsletter-only subscribers (not app users) keep the blog digest. Anyone who unsubscribed from the app
 email is also left off the newsletter list.
 
 **It is a dry run by default.** Without `?dry_run=0` it only reports counts. A real send also refuses
-until `EMAIL_UNSUBSCRIBE_SECRET` and `EMAIL_POSTAL_ADDRESS` are set, and refuses above 200 recipients.
+until `EMAIL_UNSUBSCRIBE_SECRET` is set, and refuses above 200 recipients.
 The response never contains an email address.
 
 Unsubscribe: new function `email-unsubscribe`. The link is signed (HMAC) so it can only unsubscribe its
@@ -56,9 +58,8 @@ group by 1, 2 order by 1, 2;
    Until 20261009b is applied, the three new funnel rows are refused by the table (silently; nothing breaks).
    ⚠️ Assumption: `auth.users` has `deleted_at` and `banned_until` (standard Supabase Auth). If not, the
    first migration fails on apply and nothing changes.
-3. **Set two secrets** on the edge functions: `EMAIL_UNSUBSCRIBE_SECRET` (any long random string; never
-   change it later, it would kill every link already sent) and `EMAIL_POSTAL_ADDRESS` (the LLC's mailing
-   address, one line; a PO box registered with USPS is allowed).
+3. **Set one secret** on the edge functions: `EMAIL_UNSUBSCRIBE_SECRET` (any long random string; never
+   change it later, it would kill every link already sent).
 4. **Deploy**: `npm run deploy:fn -- email-unsubscribe newsletter-digest no-save-nudge`. Read each back:
    `email-unsubscribe` should come back as `version: 1` (new) with `verify_jwt: false`.
 5. **Check the unsubscribe page renders** before any send: open one link in a browser (a dry run does not
@@ -76,18 +77,16 @@ group by 1, 2 order by 1, 2;
 
 ## Your decisions
 
-- **Is the weekly email commercial?** It has the account figure (transactional-ish) and blog posts plus
-  "add a purchase" asks (promotional-ish). The build treats it as commercial: postal address, one-click
-  unsubscribe, honoured right away. Keeping it that way is the safe reading. If you want it treated as
-  purely transactional, the blog section should come out.
+- **Decided (Tre, 10-09):** no business address published anywhere, so the app email stays an account
+  summary with nothing promotional. It still carries one-click unsubscribe, honoured right away.
 - **Opt-out vs opt-in.** It goes to every confirmed user unless they unsubscribe (the 09-10
   recommendation: product email on by default). Fine for CAN-SPAM; if you ever mail people in the EU or
   Canada, they need opt-in.
 - **The quick-add link skipping the setup redirect** (part D above). Recommend keep: otherwise the nudge
   lands every recipient on the wizard it is trying to route around.
-- **Postal address on the nudge too?** It still has none (your decision 0e582396). It now carries the
-  one-click unsubscribe once the secret is set.
-- **Subject lines** are "Your week in Forgenta" and the nudge's unchanged "Your Forgenta plan is one minute
+- **The nudge** carries the one-click unsubscribe once the secret is set. Its copy asks the person to
+  add an entry to their own account; keep it free of offers for the same reason as above.
+- **Subject lines** are "Your weekly Forgenta summary" and the nudge's unchanged "Your Forgenta plan is one minute
   away". No money in subjects (they show on lock screens).
 
 ## Not covered
