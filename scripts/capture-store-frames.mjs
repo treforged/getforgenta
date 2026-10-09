@@ -30,8 +30,8 @@ const FRAMES = [
   { file: '04-forecast.png', route: '/transactions', closeDeck: true, press: { role: 'tab', name: /Forecast/i }, marker: /NEXT MILESTONE/i },
   // Plan left the Transactions tab row for its own bottom-bar slot on 2026-10-06 (decision c5e29d9e), so
   // the old press ('tab' /^Plan/ on /transactions) found nothing; it is the /budget page now.
-  // Scrolled to INCOME & TAXES (mid-page, so it can reach the top; INCOME RULES sits too near the end): Plan's top is a demo-only explainer, and its "Spent so far" card reads $0.00
-  // on /demo (no bank rows), neither of which belongs in a store frame.
+  // Scrolled to INCOME & TAXES (mid-page, so it can reach the top; INCOME RULES sits too near the end): Plan's top is a demo-only explainer, which does not belong in a store frame.
+  // ("Spent so far" read $0.00 on /demo until claude/demo-plan-fix-10-09 fed it the demo bank feed.)
   { file: '05-plan.png', route: '/budget', scrollTo: /^INCOME & TAXES$/i, marker: /INCOME & TAXES/i },
   // 06-08 pressed role 'button' and timed out on every run: those pills are role="tab" (Dashboard panels,
   // Garage), so the frames could not be re-shot. Fixed 2026-10-09.
