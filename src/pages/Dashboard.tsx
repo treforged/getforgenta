@@ -218,6 +218,12 @@ export default function Dashboard() {
   const { mode: viewMode, setMode: setViewMode } = useViewMode();
   const isSimple = viewMode === 'simple';
   const widgetsToRender = isSimple ? simpleHomeWidgets(visibleWidgets) : visibleWidgets;
+  // Safe to Spend LEADS Home (Tre, 2026-10-09: "Lead with Safe to Spend"; his three selling points are the
+  // debt advice, Safe to Spend and the car side). It renders above the Net Worth strip with the debt
+  // hero directly under it, so it is on the first screen at 375x667. A user who HID the widget keeps it
+  // hidden; it is only moved, never forced on. Layout order only.
+  const leadSnapshot = widgetsToRender.includes('monthly_snapshot');
+  const stackWidgets = leadSnapshot ? widgetsToRender.filter(id => id !== 'monthly_snapshot') : widgetsToRender;
 
   // Signal Swift cover that the dashboard has mounted and is ready to paint.
   useEffect(() => {
@@ -1482,6 +1488,21 @@ export default function Dashboard() {
         dismissedMonth={shortMonthsDismissed}
         onDismiss={setShortMonthsDismissed}
       />
+      {/* HOME LEADS WITH SAFE TO SPEND, then the debt hero (2026-10-09). Overview only: the other panels
+          are about accounts and goals. Both used to sit below the strip and the panel row, which put
+          Safe to Spend a full screen down on a phone. */}
+      {activeTab === 'overview' && (
+      <div className="stack-section" data-testid="home-lead">
+        {leadSnapshot && (
+          <ErrorBoundary variant="widget" label={widgetLabel('monthly_snapshot')}>
+            <Widget id="monthly_snapshot" render={renderWidget} />
+          </ErrorBoundary>
+        )}
+        {/* The hero. Fixed: NOT a `useDashboardLayout` widget, so it is neither reorderable nor hideable. */}
+        <DashboardHero state={heroState} onFloorClick={openFloorCalc} trajectory={heroTrajectory} showFinishSooner={isSimple} />
+      </div>
+      )}
+
       {/* Simple keeps the strip on the Accounts panel only: there it IS the summary. */}
       {(!isSimple || activeTab === 'accounts') && <DashboardOverviewStrip
         loading={overviewStripLoading}
@@ -1573,11 +1594,6 @@ export default function Dashboard() {
 
       {activeTab === 'overview' && (
       <div className="stack-section">
-      {/* The hero. Fixed at the top: NOT a `useDashboardLayout` widget, so it is neither
-          reorderable nor hideable — it is the one thing the page is for. It keeps a full
-          section gap below it; the widgets under it are siblings and sit at `stack-block`. */}
-      <DashboardHero state={heroState} onFloorClick={openFloorCalc} trajectory={heroTrajectory} showFinishSooner={isSimple} />
-
       <div className="stack-block">
 
       {/* A just-earned badge, with Share. Not a layout widget: it shows only for a few days after
@@ -1643,7 +1659,7 @@ export default function Dashboard() {
       {/* Dynamic widget stack. Each widget gets its own boundary so a crash in
           one card replaces only that card — the rest of the dashboard keeps
           rendering, and the fallback names the widget that failed. */}
-      {widgetsToRender.map(id => (
+      {stackWidgets.map(id => (
         <ErrorBoundary key={id} variant="widget" label={widgetLabel(id)}>
           <Widget id={id} render={renderWidget} />
         </ErrorBoundary>
