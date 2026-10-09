@@ -50,18 +50,12 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Source maps, so a production stack trace names a real file and line
-    // instead of `vendor-react-Ct3x9.js:1:48210`. Without this, error tracking
-    // reports a crash nobody can act on.
-    //
-    // `true` (emitted AND linked via sourceMappingURL) rather than 'hidden':
-    // the linked form is what lets the error tracker fetch the map straight
-    // from the deployed URL, so stacks resolve with no upload step and no CI
-    // token to keep alive. The usual reason to hide maps is to avoid
-    // publishing source — but this repository is already PUBLIC, so there is
-    // no secret here to protect. Maps are fetched on demand by devtools/the
-    // tracker; they do not touch what a normal visitor downloads.
-    sourcemap: true,
+    // NO source maps in production (2026-10-07, Sam). They were `true` so error tracking could resolve
+    // stacks from the deployed URL, on the reasoning that the repo is public anyway. But the maps carried
+    // full sourcesContent from the LIVE domain, and source comments quote the owner's real balances.
+    // 'hidden' is NOT enough: Vite still writes the .map files and Vercel serves them (200). `false` writes
+    // none. Cost: production stack traces name minified chunks again. Undo: set this back to true.
+    sourcemap: false,
     rollupOptions: {
       output: {
         // ⚠️ THE `-c2` SUFFIX IS AN INCIDENT FIX (2026-09-24). A request for a new chunk reached an
