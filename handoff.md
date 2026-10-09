@@ -1,6 +1,13 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW43 (2026-10-09, Ada CLOUD session). Branch `claude/add-tx-free-web` off origin/main 7d24c9d1 (release-10-09 merged).
+  DECIDED (Tre via Sam, 10-09, "yes"): the FULL Add Transaction form is free on web too, like quick add. One rule for both
+  doors: `canAddTransactions` (src/lib/manual-entry-gate.ts) = isPremium || isDemo || !native. Transactions.tsx: the Add
+  Transaction button AND the "One-time transactions - Premium" upsell card follow it (the card would otherwise sell a free
+  web user what they already have). Export, payment plans and convert-to-plan keep isPremium || isDemo. Native unchanged.
+  Transactions.addFreeWeb.test.tsx + QuickAddContext.gate.test.tsx fail both ways (exemption removed / applied everywhere).
+  Release-Note: none (nothing changes in the native app). NOT on main: Tre merges ff-only from his PC.
 R-NOW42 (2026-10-09, Ada CLOUD session, ask 661548f5 quick add; was R-NOW39 on its branch). Integrated on
   `claude/release-10-09` with claude/dialog-reach-e1b0fffc (R-NOW41) for Tre to fast-forward main from his PC:
   docs/release-10-09.md has the exact commands. NOT on main yet (a push to main deploys the web app).
