@@ -1,6 +1,18 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW43 (2026-10-09, Ada CLOUD, Sam's brief, Tre "yes"): proposals C, D, G on `claude/reach-users-10-09` (NOT main).
+  Full write-up + Tre's turn-on steps: docs/reach-users-2026-10-09.md. Nothing deployed/applied/sent; no live DB read
+  (Sam: no Supabase MCP in this brief - schema from migrations; auth.users deleted_at/banned_until ASSUMED).
+  - C: newsletter-digest -> confirmed app users, per-user body (_shared/weekly-digest.ts), DRY RUN unless ?dry_run=0,
+    refuses without EMAIL_UNSUBSCRIBE_SECRET + EMAIL_POSTAL_ADDRESS. New fn email-unsubscribe (HMAC link, RFC 8058,
+    GET writes nothing). Migration 20261009_weekly_email_to_users.sql (profiles.email_unsubscribed_at, recipients RPC,
+    nudge RPC skips unsubscribed).
+  - D: no-save-nudge copy -> quick add (_shared/no-save-nudge-copy.ts); /dashboard?quickadd=1 opens the sheet AND
+    skips the setup redirect (src/lib/quick-add-link.ts) - Tre's call to keep.
+  - G: onboarding_finished / first_transaction / returned_day2 (src/lib/first-week-funnel.ts); migration 20261009b.
+    signup-funnel.steps.test.ts ties FUNNEL_STEPS to the newest CHECK constraint.
+  - Cloud: tests need VITE_SUPABASE_URL=https://test.supabase.co + dummy key (as CI); hooks not installed here.
 R-NOW42 (2026-10-09, Ada CLOUD session, ask 661548f5 quick add; was R-NOW39 on its branch). Integrated on
   `claude/release-10-09` with claude/dialog-reach-e1b0fffc (R-NOW41) for Tre to fast-forward main from his PC:
   docs/release-10-09.md has the exact commands. NOT on main yet (a push to main deploys the web app).

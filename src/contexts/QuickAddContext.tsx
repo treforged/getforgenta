@@ -1,8 +1,9 @@
-import { createContext, lazy, Suspense, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate } from 'react-router';
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 import { Capacitor } from '@capacitor/core';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useDemo } from '@/contexts/DemoContext';
+import { wantsQuickAdd, withoutQuickAdd } from '@/lib/quick-add-link';
 
 // LAZY: the sheet is only paid for by someone who presses `+`.
 const QuickAddSheet = lazy(() => import('@/components/shared/QuickAddSheet'));
@@ -26,16 +27,23 @@ const QuickAddContext = createContext<QuickAddValue>({ openQuickAdd: () => {}, c
  * the sheet; a native free user is sent to /premium, as before.
  */
 export function QuickAddProvider({ children }: { children: ReactNode }) {
-  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const { pathname, search } = useLocation();
   const { isPremium } = useSubscription();
   const { isDemo } = useDemo();
   const canQuickAdd = isPremium || isDemo || !Capacitor.isNativePlatform();
+  const [open, setOpen] = useState(() => canQuickAdd && wantsQuickAdd(search));
 
   const openQuickAdd = useCallback(() => {
     if (canQuickAdd) setOpen(true);
     else navigate('/premium');
   }, [canQuickAdd, navigate]);
+
+  // `?quickadd=1` (the email link, quick-add-link.ts): the sheet starts open (see useState above),
+  // and the param leaves the URL so a reload or Back does not reopen it.
+  useEffect(() => {
+    if (wantsQuickAdd(search)) navigate(`${pathname}${withoutQuickAdd(search)}`, { replace: true });
+  }, [pathname, search, navigate]);
 
   const value = useMemo(() => ({ openQuickAdd, canQuickAdd }), [openQuickAdd, canQuickAdd]);
 

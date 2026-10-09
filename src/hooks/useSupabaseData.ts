@@ -26,6 +26,7 @@ import {
   type ReviewInput, type ReviewStatus, type CarChargeKind,
 } from '@/lib/synced-transaction-review';
 import type { LedgerDraft } from '@/lib/synced-transaction-import';
+import { recordFirstWeekStep } from '@/lib/first-week-funnel';
 
 // ─── Partner view (docs/partner-linking-design.md §2) ─────────────────────────
 //
@@ -984,6 +985,7 @@ export function useSyncedTransactionReviews() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['synced_transaction_reviews'] });
+      recordFirstWeekStep('first_transaction', user, { source: 'bank' });
       toast.success('Added to your ledger');
     },
     onError: (e: Error) => toast.error(friendlyReviewWriteError(e) ?? e.message),
@@ -1075,7 +1077,12 @@ export function useTransactions() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['transactions'] }); toast.success('Transaction added'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      // Quick add and the full form both save through this mutation (proposal G).
+      recordFirstWeekStep('first_transaction', user, { source: 'manual' });
+      toast.success('Transaction added');
+    },
     onError: (e) => toast.error(e.message),
   });
   const update = useMutation({

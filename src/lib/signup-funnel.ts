@@ -14,23 +14,37 @@ import { hasTrackingOptOutSignal } from '@/lib/analytics';
 import { loadConsent } from '@/lib/consent-prefs';
 import { Capacitor } from '@capacitor/core';
 
-export type FunnelStep =
-  | 'app_opened'
-  | 'welcome_shown'
-  | 'signup_form_shown'
-  | 'tap_email'
-  | 'tap_google'
-  | 'tap_apple'
-  | 'auth_error'
-  | 'confirm_email_shown'
-  | 'signup_completed'
-  | 'try_demo'
+/**
+ * The closed list of steps. The table's CHECK constraint must name exactly these;
+ * signup-funnel.steps.test.ts compares this list with the newest migration that sets it.
+ */
+export const FUNNEL_STEPS = [
+  'app_opened',
+  'welcome_shown',
+  'signup_form_shown',
+  'tap_email',
+  'tap_google',
+  'tap_apple',
+  'auth_error',
+  'confirm_email_shown',
+  'signup_completed',
+  'try_demo',
   /** The landing page mounted (ask 4f473837: landing-to-download conversion). */
-  | 'landing_viewed'
+  'landing_viewed',
   /** A store badge on the landing page was pressed; `detail` is 'app_store' or 'play_store'. */
-  | 'tap_store'
+  'tap_store',
   /** The demo banner's "Sign Up Free" was pressed (e1b0fffc: does the demo convert anyone?). */
-  | 'demo_signup_tap';
+  'demo_signup_tap',
+  // First week after signup (proposal G, 2026-10-09). Sent by first-week-funnel.ts only, once per
+  // account per device, with `detail` = days since signup ('d0'..'d6'). Still no account id.
+  /** The wizard's profile save landed. */
+  'onboarding_finished',
+  /** The first ledger entry saved; detail also names the source, e.g. 'manual_d1'. */
+  'first_transaction',
+  /** Signed in on a later calendar day than the signup day, inside the first week. */
+  'returned_day2',
+] as const;
+export type FunnelStep = (typeof FUNNEL_STEPS)[number];
 export type FunnelMethod = '' | 'email' | 'google' | 'apple';
 
 /** Hosts whose rows count as real visitors. The native apps load getforgenta.com too. */

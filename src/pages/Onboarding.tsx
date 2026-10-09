@@ -50,6 +50,7 @@ import {
 } from 'lucide-react';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Capacitor } from '@capacitor/core';
+import { recordFirstWeekStep } from '@/lib/first-week-funnel';
 
 type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
 
@@ -414,6 +415,8 @@ export default function Onboarding() {
       // Cleared only after the profile write above succeeded (it throws on error), so a failed
       // setup that the user retries does not lose the attribution on the first attempt.
       if (refCode) clearReferral();
+      // First-week funnel (proposal G): the wizard's profile save is what 'finished' means.
+      recordFirstWeekStep('onboarding_finished', user);
 
       const expenses = [
         { label: 'Rent / Mortgage', amount: data.monthlyRent, category: 'Housing' },
