@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { SAMPLE_SAFE_TO_SPEND, SAMPLE_CARDS_PAID_OFF } from '@/lib/sample-figures';
+import { SAMPLE_SAFE_TO_SPEND, SAMPLE_CARDS_PAID_OFF, SAMPLE_CAR_PAID_OFF } from '@/lib/sample-figures';
 import { Link } from 'react-router';
 import { motion, useMotionValue, useSpring, type Variants } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
@@ -234,6 +234,11 @@ export default function Landing() {
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-sm text-foreground/80">{t('hero.samplePaidOff')}</span>
             <span className="text-base font-bold text-primary tabular-nums">{SAMPLE_CARDS_PAID_OFF}</span>
+          </div>
+          {/* The car side, lightly (Tre 10-09: debt advice, Safe to Spend and the car are the three selling points). */}
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm text-foreground/80">{t('hero.sampleCarPaidOff')}</span>
+            <span className="text-base font-bold text-primary tabular-nums">{SAMPLE_CAR_PAID_OFF}</span>
           </div>
         </motion.div>
 

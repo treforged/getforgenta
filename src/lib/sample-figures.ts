@@ -8,3 +8,5 @@
  */
 export const SAMPLE_SAFE_TO_SPEND = '$2,229';
 export const SAMPLE_CARDS_PAID_OFF = 'Dec 2027';
+/** The demo RAV4 loan's Payoff Date on Debt > Auto Loans, read off /demo on 2026-10-09. Landing only. */
+export const SAMPLE_CAR_PAID_OFF = 'Aug 2031';
