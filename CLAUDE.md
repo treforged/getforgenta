@@ -397,6 +397,17 @@ section states reasoning, not measurement, and says so.
   fixed; fixed by createPortal), New/Edit Build unscrollable at 568 (Close -69px, Save 595px), close targets of 27px and 14px.
   Red on the pre-fix LumpSum/Build/Share (exit 1). `PW_EXECUTABLE=/opt/pw-browsers/chromium` in the cloud container.
   Does NOT cover signed-in data or what the forms save. BuyIt's default dates: `BuyItDialog.defaults.test.tsx` (red 2/4 pre-fix).
+- `npm run check:quick-add` - QUICK ADD's tap count (ask 661548f5, Tre: "quick add like Fincend") on /demo, no credentials:
+  from HOME it presses the bar's centre `+` (Home's Add at WIDTH>=1024), Groceries, 3, 6 and "Add $36", COUNTING every
+  press, and requires <= 5 (Fincend's number; before: 7 taps + 2 keystrokes and no door on Home), the hero "-$36", every
+  control inside the sheet's own box without scrolling, the demo's read-only refusal as proof save reached the write,
+  and every bar label whole beside the `+`. Green at 320x568, 375x667, 390x844, 1440x900. Red on the pre-change app at 390
+  and 1440 (exit 1); its first 375x667 run found "Add $36" below the fold, and its first 320x568 run (once it measured
+  against the sheet's clip, not the viewport) the same - both fixed. The row's shape is owned by quick-add.test.ts and
+  QuickAddSheet.save.test.tsx (red with the sheet closing on a refused write). Does NOT cover a signed-in save, a free
+  account (the door goes to /premium by the existing gate) or the Transactions tab, where the Decision Deck covers the bar.
+  ENV: WIDTH, HEIGHT, BASE_URL, PW_CHROMIUM. In a cloud container whose bundled browser is missing, point
+  PLAYWRIGHT_BROWSERS_PATH at a dir that symlinks chromium_headless_shell-<want> to /opt/pw-browsers' build.
 - `npm run check:grid-orphans` - every CSS grid of card-sized tiles on the 7 main screens at 360, 390, 768, 1024,
   1280, 1440 and 1920, signed in: fails on an ORPHAN last row (fewer tiles than the first row and >25% of the width
   empty) and on an OVERSIZED tile (>1.4x its siblings' median width with its text spanning <60% of it).

@@ -33,6 +33,7 @@
     "check:health-banner": "node scripts/check-health-banner.mjs",
     "check:narrow-overflow": "node scripts/check-narrow-overflow.mjs",
     "check:dialog-reach": "node scripts/check-dialog-reach.mjs",
+    "check:quick-add": "node scripts/check-quick-add.mjs",
     "check:budget-tiles": "node scripts/check-budget-tiles.mjs",
     "check:grid-orphans": "node scripts/check-grid-orphans.mjs",
     "measure:detail-load": "node scripts/measure-detail-load.mjs",

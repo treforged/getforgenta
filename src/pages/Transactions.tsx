@@ -25,6 +25,7 @@ import { useMatchedOccurrences } from '@/hooks/useMatchedOccurrences';
 import { substituteMatchedLedgerRows } from '@/lib/matched-occurrence-display';
 import { useCardProjectionContext } from '@/contexts/CardProjectionContext';
 import { getCardStartDateViolation } from '@/lib/card-start-date';
+import { buildPaymentSourceOptions } from '@/lib/payment-source-options';
 import BankActivity from '@/components/transactions/BankActivity';
 import { useBankReviewQueue, reviewBadgeCount } from '@/hooks/useBankReviewQueue';
 import FormModal, { type Field } from '@/components/shared/FormModal';
@@ -360,20 +361,7 @@ export default function Transactions() {
     ].sort((a, b) => shownDate(b).localeCompare(shownDate(a)));
   }, [baseTxns, debtPaymentTransactions, reconciliationTxns, planTransactions, carLoanTransactions, autoExtraTransactions]);
 
-  const paymentSourceOptions = useMemo(() => {
-    const opts: { value: string; label: string }[] = [{ value: 'cash', label: 'Cash' }];
-    accounts.filter(a => a.active).forEach(a => {
-      const typeLabel = a.account_type === 'credit_card' ? 'Credit Card'
-        : a.account_type === 'high_yield_savings' ? 'HYS'
-        : a.account_type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      opts.push({ value: `account:${a.id}`, label: `${a.name} (${typeLabel})` });
-    });
-    if (opts.length === 1) {
-      opts.push({ value: 'bank_account', label: 'Bank Account' });
-      opts.push({ value: 'credit_card', label: 'Credit Card' });
-    }
-    return opts;
-  }, [accounts]);
+  const paymentSourceOptions = useMemo(() => buildPaymentSourceOptions(accounts), [accounts]);
 
   const getSourceLabel = useCallback((source: string | null | undefined) => {
     if (!source) return 'Unassigned';

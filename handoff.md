@@ -1,15 +1,26 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
-R-NOW40 (2026-10-08, Ada getforgenta-d1 CLOSED on Tre's request via Sam). Crons moved to Sam's session (e7d09310 cancel
-  buckets, 1d37e12c free-link). NOTHING is armed in an Ada tab. Next desk: start at R-NOW39's list; also 8317ca48 (safe sync)
-  and 291e65f5 (loan-start decision) are filed under Ada. Session note: claudecontext/sessions/2026-10-08_ada-proofs-sourcemaps.md.
-R-NOW39 (2026-10-08, Ada getforgenta-d1, PARKED to Mon 10-12 18:00, weekly 92%). 10-08 proofs PASSED: plaid-daily-sync
-  run 9635 / response 58 = 200 no timeout; Android scheduled run 37814971406 success, release notes "last SHIPPED", Play deploy ok.
-  cb2d25d7: source maps OFF (sourcemap false; live .map 404). 77 src comments quote Tre's real balances; repo PUBLIC ->
-  aa3cd557 needs-tre (make private). NEW asks for the reset: 661548f5 quick add (center +; 56eb181c needs-tre: free on web),
-  44c1d7ed interest-saving balance (Prime Visa statement_balance is a stale hand-typed 1451.88; Chase ISB 660.29).
-R-NOW39 (2026-10-08 ~22:00 ET, Ada CLOUD session on Tre's credit; Sam dispatched, his plan at 87%). e1b0fffc: the five
+R-NOW42 (2026-10-09, Ada CLOUD session, ask 661548f5 quick add; was R-NOW39 on its branch). Integrated on
+  `claude/release-10-09` with claude/dialog-reach-e1b0fffc (R-NOW41) for Tre to fast-forward main from his PC:
+  docs/release-10-09.md has the exact commands. NOT on main yet (a push to main deploys the web app).
+  - Centre `+` in the phone bar (MobileNav, not PRIMARY_NAV) and Home's "Add" both open QuickAddSheet: keypad hero,
+    5 most-used expense chips + More, last category/account preselected, "Add $36". Same row + add hook as the full form.
+  - TAPS from Home for a $36 groceries expense: BEFORE 7 + 2 keystrokes (and no door on Home); AFTER 5 (Fincend 5),
+    4 when Groceries was the last category. `npm run check:quick-add` green at 320x568/375x667/390x844/1440x900, red
+    on the pre-change app. Commits: 86d97b27 (feature); the free-on-web gate is re-applied on the release branch.
+  - DECIDED (Tre via Sam, 10-09, "yes"): quick add is FREE ON WEB; the native app keeps isPremium || isDemo (a free
+    native `+` shows a crown and goes to /premium). The Transactions page's Add Transaction button is unchanged.
+    QuickAddContext.gate.test.tsx (red both ways).
+  - ⚠️ claude/quick-add-661548f5 head 8bc548e6 carries `Release-Note: Quick add is now free for everyone on the web.`,
+    which would publish web pricing to the App Store listing. The release branch takes that branch only THROUGH
+    311cb580 and re-applies the same code with `Release-Note: none`. DO NOT merge claude/quick-add-661548f5 (or
+    ada/quick-add-661548f5, an older copy) into main directly; both can be deleted once release-10-09 lands.
+  - "3 Mortgage over Add Transaction" = the bank Decision Deck, open by design over /transactions while charges wait.
+    Not changed. It also covers the bar there, so `+` on Transactions needs the deck closed first (known gap).
+  - NOT VERIFIED in the cloud: a signed-in save (no walk creds), walk:press, check:nav. The PC commands are in
+    docs/release-10-09.md.
+R-NOW41 (2026-10-08 ~22:00 ET, Ada CLOUD session on Tre's credit; Sam dispatched, his plan at 87%). e1b0fffc: the five
   unreached dialogs PROBED on /demo at 390x844, 320x568, 1440x900 (no creds needed; signed-in not tried - no walk creds here).
   NEW GATE `npm run check:dialog-reach` (7 dialogs x 3 viewports; red on pre-fix code: 21 findings, exit 1; green 21/21).
   FIXED (one commit, SHA in git log "[ui]: dialogs reachable"):
@@ -27,6 +38,14 @@ R-NOW39 (2026-10-08 ~22:00 ET, Ada CLOUD session on Tre's credit; Sam dispatched
   Branch: claude/dialog-reach-e1b0fffc (Tre approved the push to the BRANCH, not main).
   Cloud notes: Playwright here needs PW_EXECUTABLE=/opt/pw-browsers/chromium (repo pins a newer headless shell); vite must bind
   127.0.0.1 (IPv6 listen fails). The context-gate hook counts CUMULATIVE tokens in cloud and fires early - not live context.
+R-NOW40 (2026-10-08, Ada getforgenta-d1 CLOSED on Tre's request via Sam). Crons moved to Sam's session (e7d09310 cancel
+  buckets, 1d37e12c free-link). NOTHING is armed in an Ada tab. Next desk: start at R-NOW39's list; also 8317ca48 (safe sync)
+  and 291e65f5 (loan-start decision) are filed under Ada. Session note: claudecontext/sessions/2026-10-08_ada-proofs-sourcemaps.md.
+R-NOW39 (2026-10-08, Ada getforgenta-d1, PARKED to Mon 10-12 18:00, weekly 92%). 10-08 proofs PASSED: plaid-daily-sync
+  run 9635 / response 58 = 200 no timeout; Android scheduled run 37814971406 success, release notes "last SHIPPED", Play deploy ok.
+  cb2d25d7: source maps OFF (sourcemap false; live .map 404). 77 src comments quote Tre's real balances; repo PUBLIC ->
+  aa3cd557 needs-tre (make private). NEW asks for the reset: 661548f5 quick add (center +; 56eb181c needs-tre: free on web),
+  44c1d7ed interest-saving balance (Prime Visa statement_balance is a stale hand-typed 1451.88; Chase ISB 660.29).
 R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in
   docs/quick-add-comparison-2026-10-07.md. Fincend 5 taps; ours 7 + 2 keystrokes, no add on Home, Premium-only on web.
   BUILD waits for Mon 10-12 18:00 (no spare reset). Check first: an element ("3 Mortgage") sits over Add Transaction at 390.
