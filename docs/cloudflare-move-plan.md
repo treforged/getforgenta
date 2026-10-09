@@ -13,27 +13,34 @@ actions can be ran on my PC if my PC is on, that way it doesn't use the minutes.
 | --- | --- | --- | --- |
 | Make the repo private | yes | **no** | **yes**: see 0.2 |
 | Serve from Cloudflare instead of Vercel | no | **no** (same bundle, different host) | no |
-| Stop publishing source maps (0.1) | n/a | **most of it**: names, comments and file layout | no |
+| Stop publishing source maps (0.1, **done**) | n/a | **most of it**: names, comments and file layout | no |
 | Move engines into server functions (section 2) | n/a | **yes, for what moves** | no |
 
 **Moving the host to Cloudflare does not make anything private on its own.** It is worth doing for
 the free Git build (no Actions minutes) and because DNS is already there. Privacy comes from 0.1
 and section 2.
 
-### 0.1 The biggest leak today is the source maps, not the repo (measured)
-`vite.config.ts` sets `build.sourcemap: true`, which emits and **links** `.map` files on the live
-site. That publishes every original `.ts` file, comments included, to anyone who opens devtools on
-getforgenta.com. Today's build produced maps beside every chunk (e.g. `pdf-*.js`, 431 kB, with a
-1.39 MB map). The file's comment justifies this with *"this repository is already PUBLIC, so there
-is no secret here to protect"*. **That reasoning ends the day the repo goes private.** The audit
-also found comments in `consolidation.ts` and `balance-tranches.ts` quoting Tre's own balances,
-APRs and cards, and those comments ship in the maps.
+Also found: the Vercel project builds on **Node 24.x** while `package.json` `engines` requires
+`>=22 <23` and CI pins 22. Set Workers Builds to Node 22 at cutover.
 
-Proposal (**Tre decides; not done here**): `sourcemap: 'hidden'`. Maps are still built but not
-linked or served. Then either upload them to the error tracker or keep them out of `dist/` before
-deploy. Without one of those, production stack traces become `vendor-*.js:1:48210` again. That is
-the trade-off the comment was written to avoid. Do it **in the same release that makes the repo
-private**, so there is no window where the repo is private and the maps still serve it.
+### 0.1 The source maps: DONE (Tre: "yes", 2026-10-08; commit cb2d25d on main)
+Until 2026-10-08, `vite.config.ts` had `build.sourcemap: true`, which emitted **and linked** `.map`
+files on the live site, publishing every original `.ts` file to anyone with devtools, comments
+included (some quote Tre's own balances). `cb2d25d` sets `sourcemap: false`; its production Vercel
+deployment is READY. `'hidden'` would not have been enough, because Vite still writes the files and
+Vercel serves them.
+Verified here on 2026-10-09 from a clean `origin/main` build: **0 `.map` files, 0 `sourceMappingURL`
+annotations** (the single text hit is a string inside a bundled library's map parser).
+Old Vercel deployment URLs (`*.vercel.app`) still hold the old maps, but the project's
+`ssoProtection` is `all_except_custom_domains`, so those URLs need a Vercel login.
+Not verified from this container (Cloudflare's bot challenge answers every request to
+getforgenta.com): whether Cloudflare's edge still caches an old `/assets/*.map`. Those were served
+with a one-year `immutable` header. **⚑ Tre: Cloudflare → Caching → Purge Cache → Custom Purge, prefix
+`getforgenta.com/assets/`** (safe: the asset names are content-hashed, so the next request refills
+from Vercel). Cost of the change: production stack traces name minified chunks again
+(`scripts/verify-sourcemaps.mjs` can no longer pass until maps are uploaded to the tracker privately).
+Already-copied maps (archives, scrapers) cannot be recalled, and while the repo is public the same
+source is on GitHub anyway. The change starts paying off at the private flip.
 
 ### 0.2 Making the repo private moves its CI onto metered minutes
 Checked 2026-10-08: `treforged/getforgenta` is **public** and owned by a **user account**, not an
@@ -299,7 +306,7 @@ private CodeQL (not proposed).
    Codemagic), each read from the upload step, not the run; `schedule-canary.yml` deleted, every
    `runs-on: ubuntu-latest|macos-latest` switched or removed. Verify with a push: **zero**
    GitHub-hosted jobs start.
-5. ⚑ **Source maps → `hidden`** (0.1) in the same release as step 7.
+5. Source maps: **done** (cb2d25d). ⚑ Purge `getforgenta.com/assets/` in Cloudflare if not yet done (0.1).
 6. ⚑ **Move the domain.** Cloudflare → the Worker → Settings → Domains & Routes → add
    `getforgenta.com` as a Custom Domain (and `www` if it is used). Cloudflare manages the DNS records
    for a custom domain, and the old Vercel records for that hostname must be removed. **This is the
@@ -324,12 +331,11 @@ private CodeQL (not proposed).
 | Step 2-3 (preview only) | Nothing: production never moved. Delete the Worker. |
 | Step 6 (domain on Cloudflare) | ⚑ Remove the Custom Domain from the Worker, then re-add `getforgenta.com` to the Vercel project (still connected, still deploying). Vercel re-verifies against the DNS records it shows. Minutes to tens of minutes, during which the site may be down; that is why step 8 keeps Vercel alive. |
 | Step 7 (repo private) | ⚑ Flip back to public. Actions on GitHub-hosted runners are free again immediately. |
-| Source maps (0.1) | Revert the one-line `vite.config.ts` change. |
+| Source maps (0.1) | `git revert cb2d25d` (only if stack traces become unworkable). |
 | After step 9 | No fast rollback: a new Vercel project from scratch. **That is why step 9 waits 7 days.** |
 
 ## 6. Decisions only Tre can make
-1. **Source maps `hidden`** (0.1), accepting less readable production stack traces unless maps are
-   uploaded to the tracker. Recommended: yes, in the same release as the private flip.
+1. ~~Source maps~~ **decided yes, shipped in cb2d25d.** Remaining click: the Cloudflare cache purge (0.1).
 2. **Move Tier A + B math server-side** as a later project, accepting slower sliders, a network round
    trip on money screens and no offline recompute. Recommended: yes in principle, but only after a CPU
    measurement on the real-data fixture shows it fits Supabase's 2 s cap. Otherwise it needs Workers

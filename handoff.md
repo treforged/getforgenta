@@ -1,12 +1,12 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
-R-NOW39 (2026-10-08, Ada CLOUD session, branch claude/cloudflare-8a5268d9, NOT merged). 8a5268d9 / f54c3e7a (Tre: move the
+R-NOW39b (2026-10-08, Ada CLOUD session, branch claude/cloudflare-8a5268d9, NOT merged). 8a5268d9 / f54c3e7a (Tre: move the
   calculations to Cloudflare, private, CI on the PC): PLAN in docs/cloudflare-move-plan.md + prep that changes nothing live
   (wrangler.jsonc, cloudflare/worker.js, build:cloudflare, check:cloudflare-serve PASS 6/6, red without the Worker). KEY FACTS:
   the repo is PUBLIC (Actions free) - going private puts CI on the exhausted pool, so CI moves BEFORE the flip; the live
-  source maps publish all src with comments (Tre's own balances) - `sourcemap: 'hidden'` is decision #1; Cloudflare alone hides
-  no math. Waits on Tre's 5 decisions (plan section 6). Nothing deployed, no DNS/Vercel/visibility change.
+  source maps published all src (Tre said yes; ALREADY DONE on main cb2d25d, sourcemap false, prod READY); Cloudflare alone hides
+  no math. Waits on Tre's 4 remaining decisions (plan section 6). Nothing deployed, no DNS/Vercel/visibility change.
 R-NOW39 (2026-10-08, Ada getforgenta-d1, PARKED to Mon 10-12 18:00, weekly 92%). 10-08 proofs PASSED: plaid-daily-sync
   run 9635 / response 58 = 200 no timeout; Android scheduled run 37814971406 success, release notes "last SHIPPED", Play deploy ok.
   cb2d25d7: source maps OFF (sourcemap false; live .map 404). 77 src comments quote Tre's real balances; repo PUBLIC ->
