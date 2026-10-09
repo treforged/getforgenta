@@ -397,8 +397,8 @@ section states reasoning, not measurement, and says so.
   and every bar label whole beside the `+`. Green at 320x568, 375x667, 390x844, 1440x900. Red on the pre-change app at 390
   and 1440 (exit 1); its first 375x667 run found "Add $36" below the fold, and its first 320x568 run (once it measured
   against the sheet's clip, not the viewport) the same - both fixed. The row's shape is owned by quick-add.test.ts and
-  QuickAddSheet.save.test.tsx (red with the sheet closing on a refused write). Does NOT cover a signed-in save, a free
-  account (the door goes to /premium by the existing gate) or the Transactions tab, where the Decision Deck covers the bar.
+  QuickAddSheet.save.test.tsx (red with the sheet closing on a refused write). Does NOT cover a signed-in save, the native
+  app (a free user's door goes to /premium there; quick add is free on WEB since 10-09, QuickAddContext.gate.test.tsx) or the Transactions tab, where the Decision Deck covers the bar.
   ENV: WIDTH, HEIGHT, BASE_URL, PW_CHROMIUM. In a cloud container whose bundled browser is missing, point
   PLAYWRIGHT_BROWSERS_PATH at a dir that symlinks chromium_headless_shell-<want> to /opt/pw-browsers' build.
 - `npm run check:grid-orphans` - every CSS grid of card-sized tiles on the 7 main screens at 360, 390, 768, 1024,

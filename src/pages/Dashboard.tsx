@@ -1458,7 +1458,7 @@ export default function Dashboard() {
 
 {/* Opens QUICK ADD in place (ask 661548f5). It used to be a link to /transactions, where
                 the bank Decision Deck opens over the page and Add Transaction is behind it: Home had
-                no real way to add. Free users still land on /premium, the existing gate. */}
+                no real way to add. Free on web; native free users land on /premium (QuickAddContext). */}
             <button
               type="button"
               onClick={openQuickAdd}

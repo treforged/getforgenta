@@ -46,4 +46,4 @@ Gate when built: a Playwright press count from Home to a saved row, asserted <= 
 
 The "3 Mortgage over Add Transaction" finding was the Decision Deck (BankActivity's `deckOpen`), which opens by design
 over /transactions while charges wait; it is not a stray overlap and was not changed. Quick add does not go through it.
-Gate: `npm run check:quick-add` (CLAUDE.md). Still Premium-only on web by the existing gate: open question for Tre.
+Gate: `npm run check:quick-add` (CLAUDE.md). Free on web since 2026-10-09 (Tre: "yes"); the native app keeps the Premium gate for quick add.
