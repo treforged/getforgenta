@@ -19,7 +19,8 @@ R-NOW42 (2026-10-09, Ada CLOUD session, ask 661548f5 quick add; was R-NOW39 on i
   - "3 Mortgage over Add Transaction" = the bank Decision Deck, open by design over /transactions while charges wait.
     Not changed. It also covers the bar there, so `+` on Transactions needs the deck closed first (known gap).
   - RELEASE BRANCH GATES (cloud, 10-09): test:tz 6,387 x3, tsc clean, lint 0 errors, check:quick-add 5 presses at 4 sizes,
-    check:dialog-reach 7x3, check:narrow-overflow 0 cut at 320 / 320@150% / 390. DIALOGS=1 at 320: see the next commit.
+    check:dialog-reach 7x3, check:narrow-overflow 0 cut at 320 / 320@150% / 390. DIALOGS=1 at 320 (/demo): 323 pressed, 149 opened,
+    36 distinct, 0 cut; "Quick add" opened and measured from the `+` on all 9 routes (and from Home's Add).
   - check:quick-add has a SIGNED_IN=1 arm (walk account; the transactions insert is answered in-browser, 201, never sent).
     UNRUN: no walk creds in the cloud. It, walk:press and check:nav are the PC steps in docs/release-10-09.md.
 R-NOW41 (2026-10-08 ~22:00 ET, Ada CLOUD session on Tre's credit; Sam dispatched, his plan at 87%). e1b0fffc: the five

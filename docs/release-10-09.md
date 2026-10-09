@@ -13,7 +13,7 @@ Branch `claude/release-10-09`, cut from `origin/main` at `1672be3f`. It holds:
 - `npm run lint`: 0 errors.
 - `npm run check:quick-add`: 5 presses at 320x568, 375x667, 390x844 and 1440x900.
 - `npm run check:dialog-reach`: 7 dialogs x 3 viewports.
-- `npm run check:narrow-overflow`: 0 cut at 320, at 320 with 150% text, and at 390. The `DIALOGS=1` pass at 320 is reported in handoff R-NOW42.
+- `npm run check:narrow-overflow`: 0 cut at 320, at 320 with 150% text, and at 390. With `DIALOGS=1` at 320, it pressed 323 buttons and opened 149 dialogs (36 distinct), with 0 cut. The quick-add sheet was measured on all 9 routes.
 
 ## Left for the PC
 
