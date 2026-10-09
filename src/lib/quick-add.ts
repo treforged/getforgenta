@@ -160,8 +160,10 @@ export function quickAddPayload(d: QuickAddDraft) {
 
 /**
  * Whether quick add ADDS (true) or is a Premium door (false). Free on web, gated in the native app
- * (Tre, 2026-10-09). One rule for the provider and for first-run copy that describes the `+`, so a
- * pointer never promises a press that lands on /premium.
+ * (Tre, 2026-10-09). Used by first-run copy that describes the `+`, so a pointer never promises a
+ * press that lands on /premium. It is the SAME rule as `QuickAddContext`'s `canQuickAdd` and as
+ * `canAddTransactions` on claude/add-tx-free-web; once that branch is on main, fold this into it
+ * (the provider was left untouched here so the two branches do not conflict).
  */
 export function quickAddIsOpen(o: { isPremium: boolean; isDemo: boolean; native: boolean }): boolean {
   return o.isPremium || o.isDemo || !o.native;
