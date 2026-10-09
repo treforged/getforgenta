@@ -14,8 +14,9 @@ R-NOW39 (2026-10-08 ~22:00 ET, Ada CLOUD session on Tre's credit; Sam dispatched
     defaults was REFUSED. Now a month after a future loan start. BuyItDialog.defaults.test.tsx (red 2/4 pre-fix).
   NOT a dialog: Add Phase is inline. Garage Builds switch is a plain button (not role=tab) - why DIALOGS=1 never reached it.
   LEFT: StatementImport/BuyIt/Build/Maintenance modals are not portalled (iOS fixed-in-scroller scrim gap per FormModal's note;
-  not measurable in desktop Chromium) - portal them if the scrim shows short on a device. ProductQ for Tre: should "I bought it"
-  default Loan Start to TODAY when the planned date is still in the future? (kept the planned date; conservative.)
+  not measurable in desktop Chromium) - portal them if the scrim shows short on a device. DECIDED (Tre via Sam, 10-09, "yes"):
+  "I bought it" on a future planned date starts the loan TODAY (a past planned date is kept); second commit on the branch.
+  Branch: claude/dialog-reach-e1b0fffc (Tre approved the push to the BRANCH, not main).
   Cloud notes: Playwright here needs PW_EXECUTABLE=/opt/pw-browsers/chromium (repo pins a newer headless shell); vite must bind
   127.0.0.1 (IPv6 listen fails). The context-gate hook counts CUMULATIVE tokens in cloud and fires early - not live context.
 R-NOW38 (2026-10-07 ~22:30 ET, Ada). 661548f5 (Tre: quick add like Fincend): comparison + proposed flow in

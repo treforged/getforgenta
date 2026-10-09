@@ -9,7 +9,8 @@ import type { CarFund } from '@/lib/types';
 // "I bought it" on a car still being saved for. /demo's Civic is planned for 2030; the dialog
 // opened with Loan Start 2030-10-01 but First Payment and Interest Start a month after TODAY, so
 // Confirm with the defaults untouched was refused ("Interest start date cannot be before loan
-// start date"). The defaults must agree with each other.
+// start date"). Tre, 2026-10-09: pressing it means the car was bought, so a future plan starts
+// the loan today.
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
@@ -29,11 +30,18 @@ const renderDialog = (cf: CarFund, onConfirm = vi.fn()) =>
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('BuyItDialog date defaults', () => {
-  it('a future planned purchase: first payment and interest start a month after the loan start', () => {
+  it('a future planned purchase: the loan starts TODAY, first payment and interest a month from today', () => {
     renderDialog({ ...base, planned_purchase_date: '2030-10-01' } as CarFund);
-    expect(field('Loan Start Date').value).toBe('2030-10-01');
-    expect(field('First Payment Date').value).toBe('2030-11-01');
-    expect(field('Interest Start Date').value).toBe('2030-11-01');
+    const now = new Date();
+    const next = toLocalDateStr(new Date(new Date().setMonth(now.getMonth() + 1)));
+    expect(field('Loan Start Date').value).toBe(toLocalDateStr(now));
+    expect(field('First Payment Date').value).toBe(next);
+    expect(field('Interest Start Date').value).toBe(next);
+  });
+
+  it('a planned date already past is kept as the loan start', () => {
+    renderDialog({ ...base, planned_purchase_date: '2020-03-01' } as CarFund);
+    expect(field('Loan Start Date').value).toBe('2020-03-01');
   });
 
   it('Confirm with every default untouched is accepted', () => {

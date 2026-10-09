@@ -5,7 +5,6 @@ import { getLoanPrincipal } from '@/lib/vehicle-loan-engine';
 import type { CarFund } from '@/lib/types';
 import { toLocalDateStr } from '@/lib/scheduling';
 import { useEscapeToClose } from '@/hooks/useEscapeToClose';
-import { addMonthsStr } from './vehicle-format';
 
 /**
  * "I bought it" — the dialog that turns a saving-phase plan into a real loan.
@@ -25,13 +24,13 @@ export default function BuyItDialog({ cf, accountOptions, autoLoanAccountOptions
   // getLoanPrincipal - same formula the saving-phase projection uses (Forecast.tsx/
   // useCardProjection.ts), so accepting this default with no edits doesn't change the payment.
   const loanAmountDefault = getLoanPrincipal(cf);
-  // The first payment defaults to a month after the LOAN START when that start is still ahead
-  // (a planned purchase date), not a month after today. Otherwise a car planned for 2030 opened
-  // with First Payment and Interest Start in 2026, before its own loan start, and Confirm with
-  // the defaults untouched was refused by the interest-date check below (/demo, 2026-10-08).
-  const loanStartDefault = cf.loan_start_date ?? cf.planned_purchase_date ?? today;
-  const paymentDefault = cf.payment_start_date
-    ?? (loanStartDefault > today ? addMonthsStr(loanStartDefault, 1) : nextMonth);
+  // "I bought it" means the purchase has HAPPENED, so a planned date still in the future is not
+  // the loan start: today is (Tre, 2026-10-09). A planned date already past is kept - the car was
+  // bought then. Before this the loan started on the 2030 plan while First Payment and Interest
+  // Start defaulted to next month, and Confirm with the defaults was refused (/demo, 2026-10-08).
+  const planned = cf.planned_purchase_date;
+  const loanStartDefault = cf.loan_start_date ?? (planned && planned <= today ? planned : today);
+  const paymentDefault = cf.payment_start_date ?? nextMonth;
   const [form, setForm] = useState({
     loan_amount: String(loanAmountDefault),
     expected_apr: String(cf.expected_apr),
