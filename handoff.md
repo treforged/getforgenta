@@ -1,6 +1,9 @@
 # handoff.md - FIRST UP NEXT TIME
 
 ## Resume queue - 2026-09-28 ~21:10 ET (Ada, PC). START AT R1. Mac is returned; PC Ada owns ef0dc559.
+R-NOW40 (2026-10-08, Ada getforgenta-d1 CLOSED on Tre's request via Sam). Crons moved to Sam's session (e7d09310 cancel
+  buckets, 1d37e12c free-link). NOTHING is armed in an Ada tab. Next desk: start at R-NOW39's list; also 8317ca48 (safe sync)
+  and 291e65f5 (loan-start decision) are filed under Ada. Session note: claudecontext/sessions/2026-10-08_ada-proofs-sourcemaps.md.
 R-NOW39 (2026-10-08, Ada getforgenta-d1, PARKED to Mon 10-12 18:00, weekly 92%). 10-08 proofs PASSED: plaid-daily-sync
   run 9635 / response 58 = 200 no timeout; Android scheduled run 37814971406 success, release notes "last SHIPPED", Play deploy ok.
   cb2d25d7: source maps OFF (sourcemap false; live .map 404). 77 src comments quote Tre's real balances; repo PUBLIC ->
