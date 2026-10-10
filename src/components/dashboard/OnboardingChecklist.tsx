@@ -17,11 +17,20 @@ interface Props {
   debts: DebtRow[];
   goals: Partial<Tables<'savings_goals'>>[];
   plaidItems: PlaidItem[];
+  /**
+   * FINISH-LATER mode, for an account set up on the fast screen (2026-10-09). That account is
+   * already `onboarding_completed` (via 'wizard'), so finishing this list must NOT write completion
+   * again: `markOnboardingComplete(..., 'checklist')` would overwrite the attribution. Adds a bills
+   * item, since the fast screen asks for none.
+   */
+  finishLater?: boolean;
+  /** Any expense rule or budget item exists. Only read in finish-later mode. */
+  hasBills?: boolean;
 }
 
 // Written as a plain union rather than derived from a `as const` array: nothing ever iterated
 // that array, so it shipped a runtime value purely to serve a compile-time need.
-type ChecklistKey = 'accounts' | 'budget' | 'debt' | 'goals';
+type ChecklistKey = 'accounts' | 'budget' | 'bills' | 'debt' | 'goals';
 
 function getTourFlags(profile: Partial<Tables<'profiles'>>): Record<string, boolean> {
   return (profile?.tour_flags as Record<string, boolean>) ?? {};
@@ -34,13 +43,13 @@ async function markChecklistDone(userId: string, key: ChecklistKey, existing: Re
     .eq('user_id', userId);
 }
 
-export default function OnboardingChecklist({ profile, accounts, debts, goals, plaidItems }: Props) {
+export default function OnboardingChecklist({ profile, accounts, debts, goals, plaidItems, finishLater = false, hasBills = false }: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [visible, setVisible] = useState(true);
   const markedRef = useRef(false);
   const [overrides, setOverrides] = useState<Record<ChecklistKey, boolean>>({
-    accounts: false, budget: false, debt: false, goals: false,
+    accounts: false, budget: false, bills: false, debt: false, goals: false,
   });
 
   // Load manual overrides from tour_flags on mount / profile change
@@ -54,12 +63,13 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
     setOverrides({
       accounts: !!flags['checklist_accounts'],
       budget:   !!flags['checklist_budget'],
+      bills:    !!flags['checklist_bills'],
       debt:     !!flags['checklist_debt'],
       goals:    !!flags['checklist_goals'],
     });
   }, [profile]);
 
-  const items: { key: ChecklistKey; label: string; description: string; path: string; autoDone: boolean }[] = [
+  const allItems: { key: ChecklistKey; label: string; description: string; path: string; autoDone: boolean }[] = [
     {
       key: 'accounts',
       label: 'Connect a bank account',
@@ -75,11 +85,19 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
       autoDone: Number(profile?.gross_income) > 0,
     },
     {
+      key: 'bills',
+      label: 'Add your monthly bills',
+      description: 'Rent, utilities and subscriptions, so Safe to Spend holds them back',
+      path: '/budget',
+      autoDone: hasBills,
+    },
+    {
       key: 'debt',
       label: 'Add a debt',
       description: 'Credit cards and loans for the payoff engine',
       path: '/debt',
-      autoDone: debts.length > 0,
+      // A card added as an ACCOUNT (the fast screen does this) is a debt the payoff engine reads.
+      autoDone: debts.length > 0 || accounts.some(a => a.account_type === 'credit_card'),
     },
     {
       key: 'goals',
@@ -90,6 +108,8 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
     },
   ];
 
+  // The bills item exists in finish-later mode only: the full wizard asks for bills itself.
+  const items = finishLater ? allItems : allItems.filter(i => i.key !== 'bills');
   const itemsWithDone = items.map(i => ({ ...i, done: i.autoDone || overrides[i.key] }));
   const doneCount = itemsWithDone.filter(i => i.done).length;
   const allDone = doneCount === itemsWithDone.length;
@@ -113,6 +133,8 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
   useEffect(() => {
     if (!allDone || markedRef.current || !user) return;
     markedRef.current = true;
+    // Already complete (fast path): just fade out. Writing 'checklist' here would overwrite 'wizard'.
+    if (finishLater) { setTimeout(() => setVisible(false), 1200); return; }
     markOnboardingComplete(user.id, 'checklist').then(({ ok }) => {
       if (!ok) {
         markedRef.current = false;
@@ -121,7 +143,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
       qc.setQueryData(onboardingQueryKey(user.id), true);
       setTimeout(() => setVisible(false), 1200);
     });
-  }, [allDone, user, qc]);
+  }, [allDone, user, qc, finishLater]);
 
   if (!visible) return null;
 
@@ -132,7 +154,7 @@ export default function OnboardingChecklist({ profile, accounts, debts, goals, p
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-1.5 h-5 bg-primary rounded-full shrink-0" />
-          <p className="text-xs font-semibold">Set up your financial profile</p>
+          <p className="text-xs font-semibold">{finishLater ? 'Finish setting up' : 'Set up your financial profile'}</p>
         </div>
         <p className="text-[10px] text-muted-foreground tabular-nums">{doneCount}/{itemsWithDone.length} done</p>
       </div>

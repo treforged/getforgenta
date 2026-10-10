@@ -228,6 +228,8 @@ export default function Dashboard() {
   // The CAR card is Home's front door to the car side (Tre, 2026-10-09: "Car card on Home"). It sits
   // under the debt hero in Simple AND Advanced; only a user who hid it in Customize goes without.
   const leadCar = visibleWidgets.includes('car_goal');
+  // Set up on the fast screen (onboarding QUICK_STEPS): Home carries the "finish later" list.
+  const fastSetup = !!profile?.onboarding_completed && profile?.onboarding_furthest_step === 'quick';
   const stackWidgets = widgetsToRender.filter(id => id !== 'monthly_snapshot' && id !== 'car_goal');
 
   // Signal Swift cover that the dashboard has mounted and is ready to paint.
@@ -1574,6 +1576,13 @@ export default function Dashboard() {
           <ErrorBoundary variant="widget" label={widgetLabel('car_goal')}>
             <Widget id="car_goal" render={renderWidget} />
           </ErrorBoundary>
+        )}
+        {/* FINISH LATER, for an account set up on the fast screen (2026-10-09): the checklist the
+            full wizard's users see above the header, placed UNDER the three pillars so it never
+            pushes Safe to Spend off the first screen. It writes no completion (see its prop). */}
+        {!isDemo && fastSetup && (
+          <OnboardingChecklist profile={profile} accounts={accounts} debts={debts} goals={goals} plaidItems={plaidItems}
+            finishLater hasBills={(budgetItems?.length ?? 0) > 0 || (rules ?? []).some(r => r.active && r.rule_type === 'expense')} />
         )}
       </div>
       )}
