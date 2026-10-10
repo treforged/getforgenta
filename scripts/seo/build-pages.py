@@ -16,7 +16,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[2] / "public"
 CHECKED = "October 7, 2026"
 PRICE_ROWS = [
     ("Forgenta", "Free plan; Premium $9.99", "$89.99", "Free plan, no trial needed",
-     "Safe to Spend until payday, forecast, debt payoff"),
+     "Safe to Spend until payday, debt payoff, a plan for your car"),
     ("YNAB", "$14.99", "$109", "34 days", "Zero-based budgeting: every dollar gets a job"),
     ("Monarch Money", "$14.99", "$99.99", "7 days", "Net worth and linked-account dashboard"),
     ("Rocket Money", "Free tier; Premium $7 to $14 (you choose)", "-", "-",
@@ -41,6 +41,20 @@ FEATURES = """<ul>
 <li><strong>Which Card?</strong> Which card to use for a purchase.</li>
 <li>A bill calendar, savings goals, a car fund and budget sharing with a partner.</li>
 </ul>"""
+
+# The /vs pages LEAD with the three things Tre sells Forgenta on (2026-10-09: "The debt payment
+# recommendations, safe to spend, and car aspect are the selling points of my app"). Every claim is something
+# the app does today, on both plans unless it says so: Safe to Spend (safe-to-spend.ts), the month-0 card
+# recommendations and debt-free date (credit-card-engine.ts, DashboardHero), and the car plan (Debt > Auto
+# Loans: down-payment saving toward a planned date, loan payoff date and extra payments; Garage for builds
+# and service). Nothing here says what a competitor lacks.
+PILLARS = """<ol class="pillars">
+<li><strong>Safe to Spend until payday.</strong> One number: the lowest your checking balance will reach before your next paycheck, after every bill, minus the cash floor you set. Pending card swipes count.</li>
+<li><strong>What to pay each card, and your debt-free date.</strong> Forgenta ranks your cards by what each one costs you, says what to send each one this month after every minimum, and shows the month your cards hit zero and how much sooner an extra payment gets you there.</li>
+<li><strong>A plan for your car.</strong> Save the down payment for your next car toward the date you plan to buy, and see the month your current car loan is paid off. The Garage keeps each car's build and service log.</li>
+</ol>"""
+
+VS_EXTRAS = """<p>Also: a month-by-month forecast, Which Card? for a purchase, a bill calendar, savings goals and budget sharing with a partner.</p>"""
 
 CTA = ('<p><a class="cta" href="https://getforgenta.com/auth">Start free</a> &middot; '
        '<a href="https://getforgenta.com/demo">Try the demo, no sign-up</a></p>')
@@ -126,14 +140,13 @@ PAGES = [
                "Yes. Forgenta subtracts card swipes on checking that your bank has not posted yet.")]),
     dict(slug="vs/ynab", title="Forgenta vs YNAB: Safe to Spend or Zero-Based? | Forgenta",
          h1="Forgenta vs YNAB",
-         desc="Forgenta vs YNAB: YNAB gives every dollar a job; Forgenta shows what is safe to spend before payday "
-              "and plans debt payoff. Prices checked October 2026.",
+         desc="Forgenta vs YNAB: YNAB gives every dollar a job; Forgenta shows what is safe to spend before payday and plans your debt and car. Prices checked October 2026.",
          lede="YNAB and Forgenta answer different questions. YNAB asks you to give every dollar a job. Forgenta shows "
               "what is safe to spend until payday and plans the months ahead.",
-         body=f"<h2>Price and approach</h2>{price_table(['Forgenta', 'YNAB'])}<h2>What Forgenta does</h2>{FEATURES}"
+         body=f"<h2>Three things Forgenta does</h2>{PILLARS}{VS_EXTRAS}<h2>Price and approach</h2>{price_table(['Forgenta', 'YNAB'])}"
               "<h2>Choose YNAB if</h2><p>You like assigning every dollar by hand and the zero-based method suits "
-              "you.</p><h2>Choose Forgenta if</h2><p>You want one number before payday and a debt-free date, with a "
-              "free plan to start.</p>",
+              "you.</p><h2>Choose Forgenta if</h2><p>You want one number before payday, a plan for your cards with a "
+              "debt-free date, and a plan for your car, with a free plan to start.</p>",
          faq=[("Is Forgenta a YNAB alternative?",
                "Yes, if what you want is a safe-to-spend number and a forecast rather than zero-based budgeting."),
               ("How much is YNAB?",
@@ -141,14 +154,13 @@ PAGES = [
               ("How much is Forgenta?", "Free plan, or Premium at $9.99 a month or $89.99 a year.")]),
     dict(slug="vs/monarch", title="Forgenta vs Monarch Money: Compare Price and Approach | Forgenta",
          h1="Forgenta vs Monarch Money",
-         desc="Forgenta vs Monarch Money: Monarch centres on net worth across accounts; Forgenta on what is safe to "
-              "spend before payday and debt payoff. Prices checked October 2026.",
+         desc="Forgenta vs Monarch Money: Monarch centres on net worth; Forgenta on what is safe to spend before payday, debt payoff and your car. Prices checked October 2026.",
          lede="Monarch Money is built around a dashboard of your net worth and linked accounts. Forgenta is built "
               "around what is safe to spend before payday and the plan for your debt.",
-         body=f"<h2>Price and approach</h2>{price_table(['Forgenta', 'Monarch Money'])}<h2>What Forgenta does</h2>"
-              f"{FEATURES}<h2>Choose Monarch Money if</h2><p>Your main goal is one view of net worth across many "
-              "accounts.</p><h2>Choose Forgenta if</h2><p>Your main question is what you can spend before payday and "
-              "when your debt will be gone, with a free plan to start.</p>",
+         body=f"<h2>Three things Forgenta does</h2>{PILLARS}{VS_EXTRAS}<h2>Price and approach</h2>{price_table(['Forgenta', 'Monarch Money'])}"
+              "<h2>Choose Monarch Money if</h2><p>Your main goal is one view of net worth across many "
+              "accounts.</p><h2>Choose Forgenta if</h2><p>Your main question is what you can spend before payday, "
+              "when your debt will be gone and how your next car fits, with a free plan to start.</p>",
          faq=[("Is Forgenta a Monarch Money alternative?",
                "Yes, if you want a safe-to-spend number and a debt payoff plan first."),
               ("How much is Monarch Money?",
@@ -157,14 +169,13 @@ PAGES = [
               ("Does Forgenta have a free plan?", "Yes. Premium is $9.99 a month or $89.99 a year.")]),
     dict(slug="vs/rocket-money", title="Forgenta vs Rocket Money: Planning or Bill Negotiation? | Forgenta",
          h1="Forgenta vs Rocket Money",
-         desc="Forgenta vs Rocket Money: Rocket Money helps with subscriptions and bill negotiation; Forgenta shows "
-              "what is safe to spend before payday and plans debt payoff.",
+         desc="Forgenta vs Rocket Money: Rocket Money helps with subscriptions and bills; Forgenta shows what is safe to spend before payday and plans your debt and car.",
          lede="Rocket Money is known for tracking subscriptions and negotiating bills. Forgenta is built for "
               "planning: what is safe to spend before payday, the months ahead, and your debt-free date.",
-         body=f"<h2>Price and approach</h2>{price_table(['Forgenta', 'Rocket Money'])}<h2>What Forgenta does</h2>"
-              f"{FEATURES}<h2>Choose Rocket Money if</h2><p>You mostly want help finding and cancelling "
+         body=f"<h2>Three things Forgenta does</h2>{PILLARS}{VS_EXTRAS}<h2>Price and approach</h2>{price_table(['Forgenta', 'Rocket Money'])}"
+              "<h2>Choose Rocket Money if</h2><p>You mostly want help finding and cancelling "
               "subscriptions, or negotiating bills.</p><h2>Choose Forgenta if</h2><p>You want to know what you can "
-              "spend before payday and plan your debt payoff.</p>",
+              "spend before payday, and to plan your debt payoff and your car.</p>",
          faq=[("Is Forgenta a Rocket Money alternative?",
                "Yes, for planning: safe to spend before payday, a forecast, and a debt payoff plan."),
               ("How much is Rocket Money Premium?",
