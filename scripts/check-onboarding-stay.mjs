@@ -150,7 +150,8 @@ async function openWizard(browser) {
   await page.evaluate(() => {
     for (const k of Object.keys(localStorage)) if (k.includes('onboarding')) localStorage.removeItem(k);
   });
-  await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' });
+  // ?full=1: the full wizard. Since 2026-10-09 a plain /onboarding opens the one-screen fast start (check:fast-setup walks that).
+  await page.goto(`${BASE}/onboarding?full=1`, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(4000);
   const landed = new URL(page.url()).pathname;
   const text = (await page.evaluate(() => document.body.innerText || '')).trim();

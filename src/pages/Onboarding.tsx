@@ -53,8 +53,18 @@ import { Capacitor } from '@capacitor/core';
 import { firstRunNavSummary } from '@/lib/first-run-nav';
 import { canAddTransactions } from '@/lib/manual-entry-gate';
 import { recordFirstWeekStep } from '@/lib/first-week-funnel';
+import { paydayColumns, quickSetupReady, quickCardAccount } from '@/lib/quick-setup';
 
-type Step = 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
+type Step = 'quick' | 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
+
+/**
+ * THE FAST PATH (2026-10-09, Tre via Sam: 5 signups in 90 days, the latest quit on the FIRST screen).
+ * A new user starts on ONE screen asking only what Safe to Spend and the payoff date need, saves, and
+ * lands on Home with a real number; the rest is "finish later" on Home (OnboardingChecklist). The full
+ * wizard below is unchanged and one tap away ("Set up step by step"), or `/onboarding?full=1`.
+ * Its own funnel order, so `furthestStepPatch` can rank it: a fast finisher records 'quick'.
+ */
+const QUICK_STEPS: readonly Step[] = ['quick'];
 
 /** The steps that ask for numbers by hand — the ones a linked bank makes optional. */
 const MANUAL_STEPS: Step[] = ['income', 'expenses', 'debts', 'savings', 'goals'];
@@ -66,9 +76,11 @@ const SAVE_EARLY_STEPS: Step[] = ['expenses', 'debts', 'savings'];
  * The steps a reload may reopen on (ask b3f0bbcc). Never 'premium' or 'finish': both come after the
  * save, which clears the resume point, and reopening on either would claim a save nobody made.
  */
-const RESUMABLE_STEPS: readonly Step[] = ['welcome', 'bank', ...MANUAL_STEPS];
-export function resumeStep(stored: string | null): Step {
-  return (RESUMABLE_STEPS as readonly string[]).includes(stored ?? '') ? (stored as Step) : 'welcome';
+const RESUMABLE_STEPS: readonly Step[] = ['quick', 'welcome', 'bank', ...MANUAL_STEPS];
+/** No stored step opens the FAST screen; `full` (the `?full=1` entry) opens the old wizard's Welcome. */
+export function resumeStep(stored: string | null, full = false): Step {
+  if ((RESUMABLE_STEPS as readonly string[]).includes(stored ?? '') && !(full && stored === 'quick')) return stored as Step;
+  return full ? 'welcome' : 'quick';
 }
 
 /**
@@ -148,6 +160,7 @@ async function recordFurthestStep(userId: string, step: Step, stepOrder: readonl
 }
 
 const STEP_LABELS: Record<Step, string> = {
+  quick:    'Quick start',
   welcome:  'Welcome',
   bank:     'Bank',
   premium:  'Premium',
@@ -172,6 +185,11 @@ interface OnboardingData {
   savingsBalance: string;
   /** Manual checking balance, asked only when no bank was linked. It is what Safe to Spend starts from (2c1170b3). */
   checkingBalance?: string;
+  /** Fast path: 'YYYY-MM-DD' of the next payday (sets paycheck_day / paycheck_start_date). */
+  nextPayday?: string;
+  /** Fast path: one credit card, saved as a credit-card ACCOUNT so the payoff date can compute. */
+  cardBalance?: string;
+  cardApr?: string;
   savingsApy: string;
   goals: GoalEntry[];
 }
@@ -244,7 +262,10 @@ export default function Onboarding() {
   const { isPremium } = useSubscription();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const [step, setStep] = useState<Step>(() => resumeStep(readOnboardingStep(user?.id)));
+  const [step, setStep] = useState<Step>(() => resumeStep(
+    readOnboardingStep(user?.id),
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('full') === '1',
+  ));
   // A draft is only ever this user's own unsent answers (`onboarding-draft.ts`), and it wins over
   // the metadata prefill: what they typed beats what the identity provider guessed. Read once, in
   // the initializer — `ProtectedRoute` has already resolved auth by the time this mounts.
@@ -339,7 +360,7 @@ export default function Onboarding() {
   // wizard and closes it immediately is indistinguishable from someone who never opened it.
   useEffect(() => {
     if (!user?.id) return;
-    void recordFurthestStep(user.id, step, steps);
+    void recordFurthestStep(user.id, step, step === 'quick' ? QUICK_STEPS : steps);
   }, [user?.id, step, steps]);
 
   const next = () => {
@@ -412,6 +433,8 @@ export default function Onboarding() {
         monthly_income_default: gross * (1 - tr / 100),
         tax_rate: tr,
         paycheck_frequency: data.paycheckFrequency,
+        // Only the fast screen asks for a payday; an unanswered one writes nothing (engine default: Friday).
+        ...paydayColumns(data.paycheckFrequency, data.nextPayday),
         ...(refCode ? { referred_by: refCode } : {}),
         // Spread, so an unattributed signup writes NO acquisition columns rather than three
         // nulls - "arrived directly" and "we erased what was there" are different facts.
@@ -468,6 +491,12 @@ export default function Onboarding() {
           balance: Math.round(checking * 100) / 100,
         }));
         noteInsert(res, 'checking account');
+      }
+
+      const quickCard = quickCardAccount(data.cardBalance, data.cardApr);
+      if (quickCard) {
+        const res = await boundedWrite(supabase.from('accounts').insert({ user_id: user!.id, ...quickCard }));
+        noteInsert(res, 'credit card');
       }
 
       if (parseFloat(data.savingsBalance) > 0) {
@@ -547,6 +576,13 @@ export default function Onboarding() {
     if (await persist()) setStep(steps[steps.indexOf('goals') + 1] ?? 'finish');
   };
 
+  // The FAST screen's save: same `persist` (same writes, same 'wizard' attribution, same
+  // onboarding_finished event), then straight to Home with a number. No finish screen and no premium
+  // pitch on this path: the goal is a number in under a minute (Tre's call to bring the pitch back).
+  const quickSave = async () => {
+    if (await persist()) navigate('/dashboard');
+  };
+
   // The finish screen's own buttons. `persist` is a no-op once saved, so these only navigate.
   const handleFinish = async () => {
     if (await persist()) navigate('/dashboard');
@@ -598,13 +634,73 @@ export default function Onboarding() {
         <div className="text-center">
           <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
           <p className="text-xs text-muted-foreground mt-1">
-            {step === 'finish' ? 'Your financial plan is ready.' : "Let's set up your financial profile."}
+            {step === 'finish' ? 'Your financial plan is ready.' : step === 'quick' ? 'Under a minute. You can add the rest later.' : "Let's set up your financial profile."}
           </p>
         </div>
 
-        {step !== 'finish' && <StepProgress step={step} steps={steps} />}
+        {step !== 'finish' && step !== 'quick' && <StepProgress step={step} steps={steps} />}
 
         <div className="card-forged p-4 sm:p-5 space-y-5">
+
+          {/* ── Quick start (the fast path; see QUICK_STEPS) ── */}
+          {step === 'quick' && (
+            <div className="space-y-3" data-testid="onboarding-quick">
+              <h2 className="font-display font-bold text-lg">See what's safe to spend</h2>
+              <div className="space-y-1.5">
+                <FieldLabel>How often are you paid?</FieldLabel>
+                <SegmentedControl label="How often are you paid?" value={data.paycheckFrequency as 'weekly' | 'biweekly' | 'monthly'}
+                  onSelect={v => update('paycheckFrequency', v)}
+                  options={[{ value: 'weekly', label: 'Weekly' }, { value: 'biweekly', label: 'Every 2 weeks' }, { value: 'monthly', label: 'Monthly' }]} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <FieldLabel>Pay per check</FieldLabel>
+                  <Input label="Pay per check, before tax ($)" value={data.weeklyGross} onChange={v => update('weeklyGross', v)} placeholder="Gross" type="number" prefix="$" />
+                </div>
+                <div className="space-y-1">
+                  <FieldLabel>In checking</FieldLabel>
+                  <Input label="Money in checking right now ($)" value={data.checkingBalance ?? ''} onChange={v => update('checkingBalance', v)} placeholder="Today" type="number" prefix="$" />
+                </div>
+              </div>
+              {data.weeklyGross && (
+                <p className="text-[10px] text-muted-foreground">
+                  About <span className="font-semibold text-foreground">${Number(monthly()).toLocaleString()}</span> a month after a {data.taxRate}% tax estimate. Fine-tune it later under Plan.
+                </p>
+              )}
+              <div className="space-y-1">
+                <FieldLabel>Next payday</FieldLabel>
+                <Input label="Next payday" value={data.nextPayday ?? ''} onChange={v => update('nextPayday', v)} type="date" />
+              </div>
+              <div className="space-y-1">
+                <FieldLabel>Your biggest credit card (optional)</FieldLabel>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Card balance ($)" value={data.cardBalance ?? ''} onChange={v => update('cardBalance', v)} placeholder="Owed" type="number" prefix="$" />
+                  <Input label="Card APR (%)" value={data.cardApr ?? ''} onChange={v => update('cardApr', v)} placeholder="APR %" type="number" />
+                </div>
+                <p className="text-[10px] text-muted-foreground">Gives you a payoff date. Bills and the rest go on Home.</p>
+              </div>
+              <button
+                onClick={quickSave}
+                disabled={saving || !quickSetupReady(data.weeklyGross)}
+                className="w-full flex items-center justify-center gap-1.5 bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold btn-press disabled:opacity-50"
+                style={{ borderRadius: 'var(--radius)' }}
+                data-testid="quick-save"
+              >
+                {saving ? <Loader2 size={14} className="animate-spin" /> : <>See my Safe to Spend <ChevronRight size={14} /></>}
+              </button>
+              {!quickSetupReady(data.weeklyGross) && (
+                <p className="text-[10px] text-muted-foreground text-center">Enter your pay to continue.</p>
+              )}
+              <div className="flex items-center justify-between pt-1">
+                <button onClick={skip} disabled={saving} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 py-2">
+                  Skip setup →
+                </button>
+                <button onClick={() => setStep('welcome')} disabled={saving} className="text-xs text-primary hover:underline disabled:opacity-50 py-2" data-testid="quick-full">
+                  Set up step by step (link a bank)
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* ── Welcome ── */}
           {step === 'welcome' && (
@@ -981,7 +1077,7 @@ export default function Onboarding() {
 
           {/* Navigation. The bank and premium steps carry their own buttons — a second "Continue"
               under them would race the Plaid handoff and the upgrade tap. */}
-          {step !== 'finish' && step !== 'bank' && step !== 'premium' && (
+          {step !== 'finish' && step !== 'bank' && step !== 'premium' && step !== 'quick' && (
             <div className="space-y-3 pt-1">
               <div className="flex items-center justify-between">
                 <button

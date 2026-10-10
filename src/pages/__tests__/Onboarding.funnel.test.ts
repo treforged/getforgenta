@@ -133,13 +133,20 @@ describe('buildSteps (ask 2fb9bc69)', () => {
 describe('resumeStep', () => {
   it('reopens on the step the user was on, for every step before the save', async () => {
     const { resumeStep } = await import('../Onboarding');
-    for (const s of ['welcome', 'bank', 'income', 'expenses', 'debts', 'savings', 'goals']) {
+    for (const s of ['quick', 'welcome', 'bank', 'income', 'expenses', 'debts', 'savings', 'goals']) {
       expect(resumeStep(s)).toBe(s);
     }
   });
-  it('never reopens on a step after the save, or on junk', async () => {
+  // 2026-10-09: a NEW user starts on the fast screen ('quick'), not Welcome.
+  it('never reopens on a step after the save, or on junk: those start on the fast screen', async () => {
     const { resumeStep } = await import('../Onboarding');
-    for (const s of ['premium', 'finish', 'nonsense', '', null]) expect(resumeStep(s)).toBe('welcome');
+    for (const s of ['premium', 'finish', 'nonsense', '', null]) expect(resumeStep(s)).toBe('quick');
+  });
+  it('`?full=1` opens the full wizard on Welcome, and still resumes a full-wizard step', async () => {
+    const { resumeStep } = await import('../Onboarding');
+    expect(resumeStep(null, true)).toBe('welcome');
+    expect(resumeStep('quick', true)).toBe('welcome');
+    expect(resumeStep('expenses', true)).toBe('expenses');
   });
 });
 
