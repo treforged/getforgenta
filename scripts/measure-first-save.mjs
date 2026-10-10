@@ -204,7 +204,8 @@ async function runArm(browser, arm, final, wantPath, keepFrames, leaveBanner = f
   await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.includes('onboarding')) localStorage.removeItem(k); });
   // Park Account on another section, so landing on the partner field proves the link moved it.
   if (partner) await page.evaluate(() => localStorage.setItem('account-section', JSON.stringify('leaderboard')));
-  await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' });
+  // ?full=1: the full wizard. Since 2026-10-09 a plain /onboarding opens the one-screen fast start (check:fast-setup walks that).
+  await page.goto(`${BASE}/onboarding?full=1`, { waitUntil: 'domcontentloaded' });
   await page.getByText(/Welcome to Forgenta/i).first().waitFor({ timeout: 15000 });
 
   await shot('welcome');

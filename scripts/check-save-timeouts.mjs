@@ -98,7 +98,8 @@ async function runArm(browser, name, hold, drive) {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
   await page.evaluate(() => { for (const k of Object.keys(localStorage)) if (k.includes('onboarding')) localStorage.removeItem(k); });
-  await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' });
+  // ?full=1: the full wizard. Since 2026-10-09 a plain /onboarding opens the one-screen fast start (check:fast-setup walks that).
+  await page.goto(`${BASE}/onboarding?full=1`, { waitUntil: 'domcontentloaded' });
   await page.getByText(/Welcome to Forgenta/i).first().waitFor({ timeout: 15000 });
   const checks = await drive(page, press, st);
   await page.screenshot({ path: join(OUT, `${name}.png`) });

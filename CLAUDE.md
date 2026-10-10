@@ -281,6 +281,13 @@ section states reasoning, not measurement, and says so.
   a real walk hung there for good with the profile already saved. Red on the unbounded write (walk stuck, exit 1).
   ARM E (2026-10-06) presses "Save what I have" on Expenses (no bank): the save must land on that press with the
   income and still reach the finish; ARM A asserts the link shows on its Expenses screen. Red with the link hidden (exit 1).
+- `npm run check:fast-setup` - the ONE-SCREEN fast start (2026-10-09, docs/onboarding-audit-2026-10-09.md). Default arm on /demo, no
+  credentials: a plain /onboarding opens the fast screen (not Welcome), save is disabled until pay is entered, 6 taps to save (old
+  shortest path 10), the button on screen at 375x667, nothing outside the form at 320, "Set up step by step" opens Welcome with the
+  pay kept, and `/onboarding?full=1` opens Welcome. Red on the pre-change wizard (exit 1). `SIGNED_IN=1` (walk account, writes
+  answered in-browser, onboarding flags reset and restored): one profile PATCH via 'wizard' with paycheck_day/paycheck_start_date,
+  a checking and a credit_card ACCOUNT insert, lands on /dashboard. UNRUN in the cloud (no walk creds). The five older onboarding
+  walks open `/onboarding?full=1` since the same day.
 - `npm run check:plan-tab` - Plan took Garage's bottom-bar slot (Tre, decision c5e29d9e, 2026-10-06), at 390 and 1440 signed in:
   the nav has Plan and no Garage (control: Home found), PRESSING Plan lands on /budget with the heading AND BudgetControl's body,
   the nav marks it aria-current, Transactions has no Plan pill, an old `/transactions?tab=budget` lands on /budget, and Account's

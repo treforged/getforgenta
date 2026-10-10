@@ -115,7 +115,8 @@ let stsOnHome = '';
 try {
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded' });
   await page.evaluate(([k, s]) => localStorage.setItem(k, JSON.stringify(s)), [`sb-${ref}-auth-token`, session]);
-  await page.goto(`${BASE}/onboarding`, { waitUntil: 'domcontentloaded' });
+  // ?full=1: the full wizard. Since 2026-10-09 a plain /onboarding opens the one-screen fast start (check:fast-setup walks that).
+  await page.goto(`${BASE}/onboarding?full=1`, { waitUntil: 'domcontentloaded' });
   wizardShown = await page.getByText(/Welcome to Forgenta/i).first()
     .waitFor({ timeout: 15000 }).then(() => true).catch(() => false);
   if (!wizardShown) { await shot('no-wizard'); throw new Error(`wizard never rendered; url ${page.url()}`); }
