@@ -54,6 +54,7 @@ import { firstRunNavSummary } from '@/lib/first-run-nav';
 import { canAddTransactions } from '@/lib/manual-entry-gate';
 import { recordFirstWeekStep } from '@/lib/first-week-funnel';
 import { paydayColumns, quickSetupReady, quickCardAccount } from '@/lib/quick-setup';
+import { isCardEntry, cardAccountFromEntry, planCardAccountWrites, type CardAccountInsert, type ExistingCardAccount } from '@/lib/wizard-card-accounts';
 
 type Step = 'quick' | 'welcome' | 'bank' | 'premium' | 'income' | 'expenses' | 'debts' | 'savings' | 'goals' | 'finish';
 
@@ -467,7 +468,9 @@ export default function Onboarding() {
         noteInsert(res, 'monthly expenses');
       }
 
-      const validDebts = data.debts.filter(d => d.name && parseFloat(d.balance) > 0);
+      // CARDS become credit-card ACCOUNTS (the payoff engine reads accounts, not `debts`); LOANS stay
+      // `debts` rows. See src/lib/wizard-card-accounts.ts.
+      const validDebts = data.debts.filter(d => d.name && parseFloat(d.balance) > 0 && !isCardEntry(d));
       if (validDebts.length > 0) {
         const res = await boundedWrite(supabase.from('debts').insert(
           validDebts.map(d => ({
@@ -493,10 +496,28 @@ export default function Onboarding() {
         noteInsert(res, 'checking account');
       }
 
-      const quickCard = quickCardAccount(data.cardBalance, data.cardApr);
-      if (quickCard) {
-        const res = await boundedWrite(supabase.from('accounts').insert({ user_id: user!.id, ...quickCard }));
-        noteInsert(res, 'credit card');
+      // Every card from setup (the Debts step's card rows and the fast screen's one card), deduplicated
+      // against credit-card accounts that already exist (e.g. from a bank link): a same-named one is only
+      // filled in, never inserted twice and never re-balanced.
+      const setupCards: CardAccountInsert[] = [
+        ...data.debts.filter(d => isCardEntry(d)).map(cardAccountFromEntry).filter((c): c is CardAccountInsert => c !== null),
+        ...[quickCardAccount(data.cardBalance, data.cardApr)].filter((c): c is CardAccountInsert => c !== null),
+      ];
+      if (setupCards.length > 0) {
+        const existingRes = await boundedWrite(supabase.from('accounts')
+          .select('id, name, apr, credit_limit, min_payment, payment_due_day')
+          .eq('user_id', user!.id).eq('account_type', 'credit_card'));
+        // A failed read plans as "none exist": a possible duplicate is cheaper than a card silently dropped.
+        const existing = ('data' in existingRes && Array.isArray(existingRes.data) ? existingRes.data : []) as ExistingCardAccount[];
+        const plan = planCardAccountWrites(setupCards, existing);
+        if (plan.inserts.length > 0) {
+          const res = await boundedWrite(supabase.from('accounts').insert(plan.inserts.map(c => ({ user_id: user!.id, ...c }))));
+          noteInsert(res, plan.inserts.length === 1 ? 'credit card' : 'credit cards');
+        }
+        for (const u of plan.updates) {
+          const res = await boundedWrite(supabase.from('accounts').update(u.patch).eq('id', u.id).eq('user_id', user!.id));
+          noteInsert(res, 'credit card details');
+        }
       }
 
       if (parseFloat(data.savingsBalance) > 0) {

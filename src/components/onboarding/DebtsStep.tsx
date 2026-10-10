@@ -4,6 +4,8 @@
 
 import { CreditCard } from 'lucide-react';
 import { Input } from './fields';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { isCardEntry } from '@/lib/wizard-card-accounts';
 import { emptyDebt, totalDebtOf, type DebtEntry } from './types';
 
 export default function DebtsStep({
@@ -36,6 +38,11 @@ export default function DebtsStep({
             <button onClick={() => onChange(debts.filter((_, j) => j !== i))}
               className="text-[10px] text-destructive-text hover:underline">Remove</button>
           </div>
+          {/* Card or loan decides where the row is saved: a card becomes an account the payoff engine
+              reads (so it gets a payoff date); a loan stays a debts row. */}
+          <SegmentedControl label={`Debt ${i + 1} type`} value={isCardEntry(d) ? 'card' : 'loan'}
+            onSelect={v => updateDebt(i, 'kind', v)}
+            options={[{ value: 'card', label: 'Credit card' }, { value: 'loan', label: 'Loan' }]} />
           <div className="space-y-1">
             <span className="text-[9px] text-muted-foreground uppercase">Card / loan name</span>
             <Input label="Card or loan name" value={d.name} onChange={v => updateDebt(i, 'name', v)} placeholder="e.g. Chase Sapphire" />
