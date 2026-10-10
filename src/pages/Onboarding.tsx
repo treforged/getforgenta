@@ -37,6 +37,9 @@ import {
   writeOnboardingDraft,
 } from '@/lib/onboarding-draft';
 import BankConnectStep, { BankLinkedHint } from '@/components/onboarding/BankConnectStep';
+import PlaidLinkButton from '@/components/shared/PlaidLinkButton';
+import AkoyaFallbackPrompt from '@/components/shared/AkoyaFallbackPrompt';
+import { findAkoyaInstitution, type AkoyaInstitution } from '@/config/akoya-institutions';
 import ReferenceAccountButton from '@/components/shared/ReferenceAccountButton';
 import RulesFoundCard from '@/components/rules/RulesFoundCard';
 import PremiumUpsellStep from '@/components/onboarding/PremiumUpsellStep';
@@ -280,6 +283,9 @@ export default function Onboarding() {
   // points at partner sharing; nothing is stored, so "Just me" is the default and costs nothing.
   const [budgetFor, setBudgetFor] = useState<'solo' | 'partner'>('solo');
   const [bankLinked, setBankLinked] = useState(false);
+  // The fast screen's own link button (same PlaidLinkButton + Akoya fallback as the bank step).
+  const [quickAkoya, setQuickAkoya] = useState<AkoyaInstitution | null>(null);
+  const [showQuickCard, setShowQuickCard] = useState(false);
 
   const steps = useMemo(() => buildSteps(isPremium), [isPremium]);
   // "Where things are" on the finish screen: derived from the nav, plus the quick-add pointer only
@@ -655,7 +661,7 @@ export default function Onboarding() {
         <div className="text-center">
           <h1 className="font-display font-bold text-xl tracking-tight text-gold">FORGENTA</h1>
           <p className="text-xs text-muted-foreground mt-1">
-            {step === 'finish' ? 'Your financial plan is ready.' : step === 'quick' ? 'Under a minute. You can add the rest later.' : "Let's set up your financial profile."}
+            {step === 'finish' ? 'Your financial plan is ready.' : step === 'quick' ? "See what's safe to spend, in under a minute." : "Let's set up your financial profile."}
           </p>
         </div>
 
@@ -665,8 +671,43 @@ export default function Onboarding() {
 
           {/* ── Quick start (the fast path; see QUICK_STEPS) ── */}
           {step === 'quick' && (
-            <div className="space-y-3" data-testid="onboarding-quick">
-              <h2 className="font-display font-bold text-lg">See what's safe to spend</h2>
+            <div className="space-y-2.5" data-testid="onboarding-quick">
+              {/* LINK A BANK, equal weight with typing it in (Tre, 2026-10-10: "part of premium is linking
+                  accounts tho"). The same free-first-link flow as the wizard's bank step: PlaidLinkButton
+                  (web widget, or the hosted flow the native app already uses) with the Akoya fallback; the
+                  entitlement stays server-side (plaid-create-link-token). Manual entry stays free and below. */}
+              {!bankLinked ? (
+                <div className="border border-primary/30 bg-primary/5 p-3 space-y-1.5" style={{ borderRadius: 'var(--radius)' }} data-testid="quick-bank">
+                  <PlaidLinkButton
+                    label="Connect your bank"
+                    onSuccess={() => setBankLinked(true)}
+                    onInstitutionUnavailable={name => setQuickAkoya(findAkoyaInstitution(name))}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    {isPremium ? 'Your balance fills in for you.' : 'Your first one is free.'}
+                  </p>
+                  <AkoyaFallbackPrompt institution={quickAkoya} onDismiss={() => setQuickAkoya(null)} />
+                </div>
+              ) : (
+                <div className="space-y-1.5" data-testid="quick-bank-linked">
+                  <div className="flex items-center gap-2 bg-success/10 border border-success/30 px-3 py-2 text-xs text-success-text font-medium" style={{ borderRadius: 'var(--radius)' }}>
+                    <Check size={12} /> Bank connected. Now your pay, so Safe to Spend knows when money comes in.
+                  </div>
+                  {/* One honest line after the free link: more links are what Premium sells. It opens the
+                      existing /premium surface (the store paywall in the native app), so no price is shown here. */}
+                  {!isPremium && (
+                    <a href="/premium" onClick={e => { e.preventDefault(); navigate('/premium'); }}
+                      className="flex items-center gap-1 text-[11px] text-primary hover:underline" data-testid="quick-bank-premium">
+                      <Crown size={11} /> Link more banks and cards with Premium
+                    </a>
+                  )}
+                </div>
+              )}
+              {!bankLinked && (
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider" aria-hidden="true">
+                  <span className="h-px flex-1 bg-border" /> or enter it yourself <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <FieldLabel>How often are you paid?</FieldLabel>
                 <SegmentedControl label="How often are you paid?" value={data.paycheckFrequency as 'weekly' | 'biweekly' | 'monthly'}
@@ -678,28 +719,35 @@ export default function Onboarding() {
                   <FieldLabel>Pay per check</FieldLabel>
                   <Input label="Pay per check, before tax ($)" value={data.weeklyGross} onChange={v => update('weeklyGross', v)} placeholder="Gross" type="number" prefix="$" />
                 </div>
-                <div className="space-y-1">
+                {!bankLinked && <div className="space-y-1">
                   <FieldLabel>In checking</FieldLabel>
                   <Input label="Money in checking right now ($)" value={data.checkingBalance ?? ''} onChange={v => update('checkingBalance', v)} placeholder="Today" type="number" prefix="$" />
-                </div>
+                </div>}
               </div>
               {data.weeklyGross && (
                 <p className="text-[10px] text-muted-foreground">
-                  About <span className="font-semibold text-foreground">${Number(monthly()).toLocaleString()}</span> a month after a {data.taxRate}% tax estimate. Fine-tune it later under Plan.
+                  About <span className="font-semibold text-foreground">${Number(monthly()).toLocaleString()}</span>/mo after a {data.taxRate}% tax estimate (edit under Plan).
                 </p>
               )}
               <div className="space-y-1">
                 <FieldLabel>Next payday</FieldLabel>
                 <Input label="Next payday" value={data.nextPayday ?? ''} onChange={v => update('nextPayday', v)} type="date" />
               </div>
-              <div className="space-y-1">
-                <FieldLabel>Your biggest credit card (optional)</FieldLabel>
-                <div className="grid grid-cols-2 gap-3">
-                  <Input label="Card balance ($)" value={data.cardBalance ?? ''} onChange={v => update('cardBalance', v)} placeholder="Owed" type="number" prefix="$" />
-                  <Input label="Card APR (%)" value={data.cardApr ?? ''} onChange={v => update('cardApr', v)} placeholder="APR %" type="number" />
+              {/* Optional, so folded: one line until asked for. Opens on its own if a draft already has a card. */}
+              {showQuickCard || data.cardBalance ? (
+                <div className="space-y-1">
+                  <FieldLabel>Your biggest credit card</FieldLabel>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input label="Card balance ($)" value={data.cardBalance ?? ''} onChange={v => update('cardBalance', v)} placeholder="Owed" type="number" prefix="$" />
+                    <Input label="Card APR (%)" value={data.cardApr ?? ''} onChange={v => update('cardApr', v)} placeholder="APR %" type="number" />
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Gives you a payoff date. Bills and the rest go on Home.</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground">Gives you a payoff date. Bills and the rest go on Home.</p>
-              </div>
+              ) : (
+                <button type="button" onClick={() => setShowQuickCard(true)} className="block w-full text-left text-xs text-primary hover:underline py-1" data-testid="quick-add-card">
+                  + Add a credit card for a payoff date
+                </button>
+              )}
               <button
                 onClick={quickSave}
                 disabled={saving || !quickSetupReady(data.weeklyGross)}
@@ -717,7 +765,7 @@ export default function Onboarding() {
                   Skip setup →
                 </button>
                 <button onClick={() => setStep('welcome')} disabled={saving} className="text-xs text-primary hover:underline disabled:opacity-50 py-2" data-testid="quick-full">
-                  Set up step by step (link a bank)
+                  Set up step by step
                 </button>
               </div>
             </div>

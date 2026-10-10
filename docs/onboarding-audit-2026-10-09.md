@@ -78,3 +78,16 @@ These open /onboarding and expect "Welcome to Forgenta" / "What should we call y
 credentials). The fast screen needs its own signed-in walk: create a throwaway `@forgenta.test` user,
 press through the fast screen, and confirm Home shows Safe to Spend, the payoff date from the one card,
 and the "Finish setting up" list.
+
+## 2026-10-10: bank linking on the fast screen
+
+Tre: "part of premium is linking accounts tho". The fast screen now opens with **Connect your bank**
+(the same `PlaidLinkButton` + Akoya fallback as the wizard's bank step, so the same free-first-link
+entitlement server-side, and the same hosted flow the native app already uses), with "Your first one is
+free." for a free account. "Or enter it yourself" and the manual fields sit below and stay the free,
+fast default. After a successful link: "Bank connected", the checking field goes (the bank has it), pay
+stays required (Safe to Spend has no number without income), and a free account sees one line, "Link
+more banks and cards with Premium", which opens the existing `/premium` surface (the store paywall in
+the native app); no price on this screen. The optional card folded behind one link so the save button
+stays on the first 375x667 screen (640px). `check:fast-setup` asserts the bank option sits above the
+manual fields; `Onboarding.quickBank.test.tsx` covers the linked state (red with the Premium line removed).

@@ -3,7 +3,8 @@
  * check:fast-setup - the one-screen fast start (2026-10-09, docs/onboarding-audit-2026-10-09.md).
  *
  * DEMO arm (default, no credentials): /demo, then /onboarding.
- *   - the fast screen is what opens (not "Welcome to Forgenta"), with its five inputs;
+ *   - the fast screen is what opens (not "Welcome to Forgenta"), with a "Connect your bank" option above the
+ *     manual inputs, and the optional card behind one link;
  *   - "See my Safe to Spend" is DISABLED until pay is entered, enabled after;
  *   - at 375x667 the button is on screen with the estimate line showing; at 320 nothing sits outside the form;
  *   - "Set up step by step" opens the full wizard on Welcome with the pay answer kept (read on Income);
@@ -58,7 +59,14 @@ if (!SIGNED_IN) {
     if (!(await quick.count()) && !welcome) { await browser.close(); fail(2, 'no onboarding screen rendered on /onboarding (control).'); }
     if (!(await quick.count())) { await browser.close(); fail(1, 'a plain /onboarding opened the old Welcome, not the fast screen.'); }
     check(!welcome, 'a plain /onboarding opens the fast screen, not Welcome');
-    for (const label of ['Pay per check, before tax ($)', 'Money in checking right now ($)', 'Next payday', 'Card balance ($)', 'Card APR (%)']) {
+    // The bank option (2026-10-10, Tre: "part of premium is linking accounts"): visible, and ABOVE the
+    // manual fields, i.e. equal weight rather than a link at the bottom.
+    const bankBtn = page.getByTestId('quick-bank').getByRole('button', { name: /Connect your bank/ });
+    check(await bankBtn.isVisible().catch(() => false), 'a "Connect your bank" button is on the fast screen');
+    const bankTop = await page.getByTestId('quick-bank').evaluate((e) => e.getBoundingClientRect().top).catch(() => 1e9);
+    const payTop = await page.getByLabel('Pay per check, before tax ($)').evaluate((e) => e.getBoundingClientRect().top);
+    check(bankTop < payTop, `the bank option sits above the manual fields (bank ${Math.round(bankTop)}px, pay ${Math.round(payTop)}px)`);
+    for (const label of ['Pay per check, before tax ($)', 'Money in checking right now ($)', 'Next payday']) {
       check((await page.getByLabel(label).count()) > 0, `input present: ${label}`);
     }
     const save = page.getByTestId('quick-save');
@@ -73,6 +81,12 @@ if (!SIGNED_IN) {
     check(taps <= 6, `taps to save <= 6 (measured ${taps}; the old shortest path was 10)`);
     const bottom = await save.evaluate((e) => Math.round(e.getBoundingClientRect().bottom));
     check(bottom <= 667, `save button on the first screen at 375x667 (bottom ${bottom}px)`);
+    // Measured above in the default state (card folded). The optional card is behind one link; opening it
+    // shows both fields (a user who adds a card scrolls a little, by choice).
+    await page.getByTestId('quick-add-card').click();
+    for (const label of ['Card balance ($)', 'Card APR (%)']) {
+      check((await page.getByLabel(label).count()) > 0, `input present after "Add your biggest credit card": ${label}`);
+    }
     await page.getByTestId('quick-full').click();
     await page.waitForTimeout(800);
     check((await page.getByText('Welcome to Forgenta').count()) > 0, '"Set up step by step" opens the full wizard on Welcome');
@@ -154,6 +168,7 @@ if (!SIGNED_IN) {
     await page.getByLabel('Pay per check, before tax ($)').fill('1850');
     await page.getByLabel('Money in checking right now ($)').fill('1240');
     await page.getByLabel('Next payday').fill('2026-10-16');
+    await page.getByTestId('quick-add-card').click().catch(() => {});
     await page.getByLabel('Card balance ($)').fill('3200');
     await page.getByLabel('Card APR (%)').fill('24.9');
     await page.getByTestId('quick-save').click();
