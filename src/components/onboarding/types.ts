@@ -12,6 +12,8 @@ export interface DebtEntry {
   minPayment: string;
   creditLimit: string;
   dueDate: string;
+  /** Card rows become credit-card ACCOUNTS (wizard-card-accounts.ts); loans stay `debts` rows. Absent on old drafts. */
+  kind?: 'card' | 'loan';
 }
 
 export interface GoalEntry {
@@ -31,7 +33,7 @@ export function totalDebtOf(debts: DebtEntry[]): number {
   return debts.reduce((s, d) => s + (parseFloat(d.balance) || 0), 0);
 }
 
-export const emptyDebt = (): DebtEntry => ({ name: '', balance: '', apr: '', minPayment: '', creditLimit: '', dueDate: '' });
+export const emptyDebt = (): DebtEntry => ({ name: '', balance: '', apr: '', minPayment: '', creditLimit: '', dueDate: '', kind: 'card' });
 
 export const emptyGoal = (type: GoalType = 'Custom'): GoalEntry => ({
   name: type === 'Custom' ? '' : type,

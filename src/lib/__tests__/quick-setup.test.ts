@@ -43,7 +43,7 @@ describe('quickSetupReady', () => {
 
 describe('quickCardAccount', () => {
   it('a positive balance becomes a credit-card ACCOUNT the payoff engine reads', () => {
-    expect(quickCardAccount('2450.5', '24.99')).toEqual({ name: 'Credit card', account_type: 'credit_card', balance: 2450.5, apr: 24.99 });
+    expect(quickCardAccount('2450.5', '24.99')).toEqual({ name: 'Credit card', account_type: 'credit_card', balance: 2450.5, apr: 24.99, credit_limit: null, min_payment: null, payment_due_day: null });
   });
   it('an unknown APR is null, not 0 (0% would claim the card is interest-free)', () => {
     expect(quickCardAccount('900', '')?.apr).toBeNull();

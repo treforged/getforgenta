@@ -5,6 +5,8 @@
  * Audit and tap counts: docs/onboarding-audit-2026-10-09.md.
  */
 
+import type { CardAccountInsert } from './wizard-card-accounts';
+
 export type PayFrequency = 'weekly' | 'biweekly' | 'monthly';
 
 /**
@@ -41,7 +43,7 @@ export function quickSetupReady(weeklyGross: string): boolean {
 export function quickCardAccount(
   balance: string | undefined,
   apr: string | undefined,
-): { name: string; account_type: 'credit_card'; balance: number; apr: number | null } | null {
+): CardAccountInsert | null {
   const b = parseFloat(balance ?? '');
   if (!Number.isFinite(b) || b <= 0) return null;
   const a = parseFloat(apr ?? '');
@@ -50,5 +52,8 @@ export function quickCardAccount(
     account_type: 'credit_card',
     balance: Math.round(b * 100) / 100,
     apr: Number.isFinite(a) && a >= 0 ? a : null,
+    credit_limit: null,
+    min_payment: null,
+    payment_due_day: null,
   };
 }
