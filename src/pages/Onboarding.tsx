@@ -658,8 +658,8 @@ export default function Onboarding() {
                   <Input label="Pay per check, before tax ($)" value={data.weeklyGross} onChange={v => update('weeklyGross', v)} placeholder="Gross" type="number" prefix="$" />
                 </div>
                 <div className="space-y-1">
-                  <FieldLabel>In checking now</FieldLabel>
-                  <Input label="Money in checking right now ($)" value={data.checkingBalance ?? ''} onChange={v => update('checkingBalance', v)} placeholder="Balance" type="number" prefix="$" />
+                  <FieldLabel>In checking</FieldLabel>
+                  <Input label="Money in checking right now ($)" value={data.checkingBalance ?? ''} onChange={v => update('checkingBalance', v)} placeholder="Today" type="number" prefix="$" />
                 </div>
               </div>
               {data.weeklyGross && (
@@ -674,7 +674,7 @@ export default function Onboarding() {
               <div className="space-y-1">
                 <FieldLabel>Your biggest credit card (optional)</FieldLabel>
                 <div className="grid grid-cols-2 gap-3">
-                  <Input label="Card balance ($)" value={data.cardBalance ?? ''} onChange={v => update('cardBalance', v)} placeholder="Balance" type="number" prefix="$" />
+                  <Input label="Card balance ($)" value={data.cardBalance ?? ''} onChange={v => update('cardBalance', v)} placeholder="Owed" type="number" prefix="$" />
                   <Input label="Card APR (%)" value={data.cardApr ?? ''} onChange={v => update('cardApr', v)} placeholder="APR %" type="number" />
                 </div>
                 <p className="text-[10px] text-muted-foreground">Gives you a payoff date. Bills and the rest go on Home.</p>
